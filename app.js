@@ -4,6 +4,7 @@
    - Storage persistence request
    - Help modal + Donate modal
 ------------------------------ */
+console.log("RSVP app.js loaded ✅", new Date().toISOString());
 
 const $ = (id) => document.getElementById(id);
 
