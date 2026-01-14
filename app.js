@@ -1270,51 +1270,6 @@ function bindUI() {
     if (e.target === el.helpBackdrop) el.helpBackdrop.classList.add("hidden");
   });
 
-  /* ---------- Donate modal + QR ---------- */
-  el.btnDonate?.addEventListener("click", () => {
-    if (el.btcAddr) el.btcAddr.textContent = DONATE.btc;
-
-    if (el.paypalQrWrap) el.paypalQrWrap.style.display = "none";
-    if (el.btcQrWrap) el.btcQrWrap.style.display = "none";
-
-    el.donateBackdrop?.classList.remove("hidden");
-  });
-
-  el.btnDonateClose?.addEventListener("click", () => el.donateBackdrop?.classList.add("hidden"));
-  el.donateBackdrop?.addEventListener("click", (e) => {
-    if (e.target === el.donateBackdrop) el.donateBackdrop.classList.add("hidden");
-  });
-
-  el.btnPaypalQR?.addEventListener("click", () => {
-    const u = DONATE.paypal;
-    if (!el.paypalQrImg || !el.paypalQrWrap) return;
-
-    el.paypalQrImg.onload = () => {};
-    el.paypalQrImg.onerror = () => {
-      if (el.paypalQrHint) el.paypalQrHint.textContent = "QR konnte nicht geladen werden (Netz/Blocker).";
-    };
-
-    el.paypalQrImg.src = qrUrl(u);
-    el.paypalQrWrap.style.display = "block";
-    if (el.paypalQrHint) el.paypalQrHint.textContent = "";
-  });
-
-  el.btnCopyBtc?.addEventListener("click", () => copyToClipboard(DONATE.btc));
-
-  el.btnBtcQR?.addEventListener("click", () => {
-    const uri = "bitcoin:" + DONATE.btc;
-    if (!el.btcQrImg || !el.btcQrWrap) return;
-
-    el.btcQrImg.onerror = () => {
-      if (el.btcQrHint) el.btcQrHint.textContent = "QR konnte nicht geladen werden (Netz/Blocker).";
-    };
-
-    el.btcQrImg.src = qrUrl(uri);
-    el.btcQrWrap.style.display = "block";
-    if (el.btcQrHint) el.btcQrHint.textContent = "";
-  });
-}
-
 
 /* -----------------------------
    Boot
@@ -1323,9 +1278,7 @@ function bindUI() {
   // Try persistence early
   const p = await ensurePersistentStorage();
   if (p.ok && p.persisted === false) {
-  console.log("Storage not persisted (browser may evict data).");
-}
-
+    console.log("Storage not persisted (browser may evict data).");
   }
 
   loadSettingsFromLS();

@@ -411,3 +411,7 @@ body{
   backdrop-filter: blur(10px);
 }
 .toast.hidden{ display:none; }
+#toast {
+  position: fixed;
+  z-index: 99999;
+}
