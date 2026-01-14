@@ -326,28 +326,35 @@ async function loadEpub(file) {
 
   const all = [];
   for (let i = 0; i < spine.length; i++) {
-    const item = spine[i];
-    el.prog.textContent = `${Math.round((i / spine.length) * 100)}%`;
+  const item = spine[i];
 
-    // Lade XHTML/HTML
-    const content = await book.load(item.href);
-
-let rawText = "";
-
-if (content instanceof Document) {
-  // EPUB liefert XML/XHTML
-  rawText = content.documentElement.textContent || "";
-} else if (typeof content === "string") {
-  rawText = stripHtml(content);
-}
-
-if (rawText.trim()) {
-  all.push(rawText);
-}
-    if (rawText) {
-      all.push(rawText
-    }
+  // NUR echte Text-Kapitel
+  if (!item.href || !item.href.match(/\.(xhtml|html)$/i)) {
+    continue;
   }
+
+  // Navigation explizit überspringen
+  if (item.properties && item.properties.includes("nav")) {
+    continue;
+  }
+
+  const content = await book.load(item.href);
+
+  let rawText = "";
+
+  if (content instanceof Document) {
+    rawText = content.body
+      ? content.body.textContent
+      : content.documentElement.textContent;
+  }
+
+  rawText = rawText.replace(/\s+/g, " ").trim();
+
+  // Schutz gegen leere/kurze Fragmente
+  if (rawText.length > 200) {
+    all.push(rawText);
+  }
+}
 
   const combined = all.join("\n\n");
   const words = wordsFromText(combined);
