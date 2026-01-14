@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#0b0c10" />
   <title>RSVP Reader</title>
-
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="stylesheet" href="./style.css" />
 </head>
@@ -89,12 +88,12 @@
   <aside id="sidebar" class="sidebar hidden">
     <div class="sidebarHead">
       <div class="sidebarTitle">Kapitel & Lesezeichen</div>
-      <button id="btnSidebarClose" class="btn ghost" type="button">✕</button>
+      <button id="btnSidebarClose" class="btn ghost">✕</button>
     </div>
 
     <div class="tabs">
-      <button id="tabToc" class="tab active" type="button">Kapitel</button>
-      <button id="tabMarks" class="tab" type="button">Lesezeichen</button>
+      <button id="tabToc" class="tab active">Kapitel</button>
+      <button id="tabMarks" class="tab">Lesezeichen</button>
     </div>
 
     <div id="tocPane" class="pane">
@@ -107,11 +106,11 @@
   </aside>
 
   <!-- Settings modal -->
-  <div id="settingsModal" class="modalOverlay hidden">
-    <div class="modalCard">
-      <div class="modalHead">
-        <div class="modalTitle">Einstellungen</div>
-        <button id="btnSettingsClose" class="btn ghost" type="button">✕</button>
+  <div id="settingsModal" class="overlay hidden">
+    <div class="dialog">
+      <div class="dialogHead">
+        <div class="dialogTitle">Einstellungen</div>
+        <button id="btnSettingsClose" class="btn ghost">✕</button>
       </div>
 
       <div class="controls">
@@ -174,23 +173,23 @@
     </div>
   </div>
 
-  <!-- help modal -->
-  <div id="helpBackdrop" class="modalBackdrop hidden">
-    <div class="modalBox">
-      <div class="modalHeader">
-        <h2>❓ Hilfe</h2>
-        <button id="btnHelpClose" class="btn" type="button">Schließen</button>
+  <!-- Help modal -->
+  <div id="helpBackdrop" class="overlay hidden">
+    <div class="dialog">
+      <div class="dialogHead">
+        <div class="dialogTitle">❓ Hilfe</div>
+        <button id="btnHelpClose" class="btn">Schließen</button>
       </div>
       <div id="helpBody" class="helpBody"></div>
     </div>
   </div>
 
-  <!-- donate modal -->
-  <div id="donateBackdrop" class="modalBackdrop hidden">
-    <div class="modalBox">
-      <div class="modalHeader">
-        <h2>☕️ Spenden</h2>
-        <button id="btnDonateClose" class="btn" type="button">Schließen</button>
+  <!-- Donate modal -->
+  <div id="donateBackdrop" class="overlay hidden">
+    <div class="dialog">
+      <div class="dialogHead">
+        <div class="dialogTitle">☕️ Spenden</div>
+        <button id="btnDonateClose" class="btn">Schließen</button>
       </div>
 
       <p class="small">
@@ -199,7 +198,6 @@
       </p>
 
       <div class="ctaGrid">
-        <!-- PayPal -->
         <div class="payCard">
           <div class="muted"><b>PayPal</b></div>
 
@@ -225,7 +223,6 @@
           </div>
         </div>
 
-        <!-- Bitcoin -->
         <div class="payCard">
           <div class="muted"><b>Bitcoin</b></div>
 
@@ -274,18 +271,19 @@
     <div id="shelfList" class="shelfList muted">Noch keine Bücher gespeichert.</div>
   </footer>
 
-  <!-- libs -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- libs: ORDER MATTERS -->
   <script src="./lib/jszip.min.js"></script>
   <script src="./lib/epub.min.js"></script>
-  <script src="./app.js?v=fix3"></script>
 
+  <!-- app -->
+  <script src="./app.js?v=fix2"></script>
 
   <script>
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("./sw.js").catch(console.error);
     }
   </script>
-
-  <div id="toast" class="toast hidden"></div>
 </body>
 </html>
