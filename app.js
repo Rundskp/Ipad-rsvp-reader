@@ -1081,14 +1081,22 @@ async function copyToClipboard(text) {
    Bind UI
 ------------------------------ */
 function bindUI() {
-  // file
-  el.file.addEventListener("change", (ev) => {
-    const f = ev.target.files?.[0];
-    if (f) setTimeout(() => handleFile(f), 0);
-    ev.target.value = "";
-  });
+  /* ---------- helpers ---------- */
+  const toggle = (node) => {
+    if (!node) return;
+    node.classList.toggle("hidden");
+  };
 
-  // export / import (NICHT im file-change block!)
+  /* ---------- File ---------- */
+  if (el.file) {
+    el.file.addEventListener("change", (ev) => {
+      const f = ev.target.files?.[0];
+      if (f) setTimeout(() => handleFile(f), 0);
+      ev.target.value = "";
+    });
+  }
+
+  /* ---------- Export / Import ---------- */
   el.btnExportAll?.addEventListener("click", () => exportLibrary({ mode: "all" }));
   el.btnExportSelected?.addEventListener("click", () => exportLibrary({ mode: "selected" }));
 
@@ -1098,132 +1106,171 @@ function bindUI() {
     ev.target.value = "";
   });
 
-  // player
-  el.btnPlay.addEventListener("click", togglePlay);
-  el.btnBack.addEventListener("click", () => step(-1));
-  el.btnFwd.addEventListener("click", () => step(+1));
-  el.btnReset.addEventListener("click", resetPosition);
-  el.btnBookmark.addEventListener("click", addBookmarkAtCurrent);
+  /* ---------- Player ---------- */
+  el.btnPlay?.addEventListener("click", togglePlay);
+  el.btnBack?.addEventListener("click", () => step(-1));
+  el.btnFwd?.addEventListener("click", () => step(+1));
+  el.btnReset?.addEventListener("click", resetPosition);
+  el.btnBookmark?.addEventListener("click", addBookmarkAtCurrent);
 
-  // seek
-  el.seek.addEventListener("input", () => {
+  el.seek?.addEventListener("input", () => {
     stopPlayback();
     S.idx = Number(el.seek.value);
     showCurrent();
     persistCurrentBookState().catch(()=>{});
   });
 
-  // tap zones
-  el.display.addEventListener("click", (ev) => {
+  el.display?.addEventListener("click", (ev) => {
     const r = el.display.getBoundingClientRect();
     const x = ev.clientX - r.left;
     const third = r.width / 3;
     if (x < third) step(-1);
-    else if (x > 2*third) step(+1);
+    else if (x > 2 * third) step(+1);
     else togglePlay();
   });
 
-  // sidebar
-  el.btnSidebar.addEventListener("click", () => show(el.sidebar));
-  el.btnSidebarClose.addEventListener("click", () => hide(el.sidebar));
-  el.tabToc.addEventListener("click", () => setTab("toc"));
-  el.tabMarks.addEventListener("click", () => setTab("marks"));
+  /* ---------- Sidebar ---------- */
+  el.btnSidebar?.addEventListener("click", () => el.sidebar?.classList.remove("hidden"));
+  el.btnSidebarClose?.addEventListener("click", () => el.sidebar?.classList.add("hidden"));
+  el.tabToc?.addEventListener("click", () => setTab("toc"));
+  el.tabMarks?.addEventListener("click", () => setTab("marks"));
 
-  // header
-  el.btnHeader.addEventListener("click", () => {
-    if (el.headerInfo.classList.contains("hidden")) show(el.headerInfo);
-    else if (!S.settings.pinHeader) hide(el.headerInfo);
+  /* ---------- Header panel ---------- */
+  el.btnHeader?.addEventListener("click", () => {
+    if (!el.headerInfo) return;
+    if (el.headerInfo.classList.contains("hidden")) el.headerInfo.classList.remove("hidden");
+    else if (!S.settings.pinHeader) el.headerInfo.classList.add("hidden");
   });
-  el.pinHeader.addEventListener("change", () => {
-    S.settings.pinHeader = el.pinHeader.checked;
+
+  el.pinHeader?.addEventListener("change", () => {
+    S.settings.pinHeader = !!el.pinHeader.checked;
     saveSettingsToLS();
-    if (S.settings.pinHeader) show(el.headerInfo);
-    else hide(el.headerInfo);
+    if (S.settings.pinHeader) el.headerInfo?.classList.remove("hidden");
+    else el.headerInfo?.classList.add("hidden");
   });
 
-  // shelf
-  el.btnShelf.addEventListener("click", () => show(el.shelf));
-  el.btnShelfClose.addEventListener("click", () => { if (!S.settings.pinShelf) hide(el.shelf); });
-  el.pinShelf.addEventListener("change", () => {
-    S.settings.pinShelf = el.pinShelf.checked;
+  /* ---------- Shelf ---------- */
+  el.btnShelf?.addEventListener("click", () => el.shelf?.classList.remove("hidden"));
+  el.btnShelfClose?.addEventListener("click", () => {
+    if (!S.settings.pinShelf) el.shelf?.classList.add("hidden");
+  });
+
+  el.pinShelf?.addEventListener("change", () => {
+    S.settings.pinShelf = !!el.pinShelf.checked;
     saveSettingsToLS();
-    if (S.settings.pinShelf) show(el.shelf);
-    else hide(el.shelf);
+    if (S.settings.pinShelf) el.shelf?.classList.remove("hidden");
+    else el.shelf?.classList.add("hidden");
   });
 
-  // settings modal
-  el.btnSettings.addEventListener("click", () => show(el.settingsModal));
-  el.btnSettingsClose.addEventListener("click", () => hide(el.settingsModal));
-  el.settingsModal.addEventListener("click", (e) => { if (e.target === el.settingsModal) hide(el.settingsModal); });
+  /* ---------- Settings modal ---------- */
+  el.btnSettings?.addEventListener("click", () => el.settingsModal?.classList.remove("hidden"));
+  el.btnSettingsClose?.addEventListener("click", () => el.settingsModal?.classList.add("hidden"));
 
-  el.wpm.addEventListener("input", () => {
+  el.settingsModal?.addEventListener("click", (e) => {
+    if (e.target === el.settingsModal) el.settingsModal.classList.add("hidden");
+  });
+
+  // Live updates (damit Save nicht zwingend nötig ist, aber trotzdem funktioniert)
+  el.wpm?.addEventListener("input", () => {
     S.settings.wpm = Number(el.wpm.value);
     el.wpmVal.textContent = String(S.settings.wpm);
   });
-  el.chunk.addEventListener("input", () => {
+
+  el.chunk?.addEventListener("input", () => {
     S.settings.chunk = Number(el.chunk.value);
     el.chunkVal.textContent = String(S.settings.chunk);
   });
-  el.orp.addEventListener("change", () => { S.settings.orp = el.orp.checked; showCurrent(); });
-  el.punct.addEventListener("change", () => { S.settings.punct = el.punct.checked; });
-  el.punctMs.addEventListener("input", () => { S.settings.punctMs = Number(el.punctMs.value); el.punctVal.textContent = String(S.settings.punctMs); });
 
-  el.stopChapter.addEventListener("change", () => { S.settings.stopChapter = el.stopChapter.checked; });
-  el.stopWordsOn.addEventListener("change", () => { S.settings.stopWordsOn = el.stopWordsOn.checked; });
-  el.stopWords.addEventListener("input", () => { S.settings.stopWords = Number(el.stopWords.value || 0); });
-  el.stopMinsOn.addEventListener("change", () => { S.settings.stopMinsOn = el.stopMinsOn.checked; });
-  el.stopMins.addEventListener("input", () => { S.settings.stopMins = Number(el.stopMins.value || 0); });
+  el.orp?.addEventListener("change", () => {
+    S.settings.orp = !!el.orp.checked;
+    showCurrent();
+  });
 
-  el.btnSaveSettings.addEventListener("click", () => {
+  el.punct?.addEventListener("change", () => {
+    S.settings.punct = !!el.punct.checked;
+  });
+
+  el.punctMs?.addEventListener("input", () => {
+    S.settings.punctMs = Number(el.punctMs.value);
+    el.punctVal.textContent = String(S.settings.punctMs);
+  });
+
+  el.stopChapter?.addEventListener("change", () => { S.settings.stopChapter = !!el.stopChapter.checked; });
+  el.stopWordsOn?.addEventListener("change", () => { S.settings.stopWordsOn = !!el.stopWordsOn.checked; });
+  el.stopWords?.addEventListener("input", () => { S.settings.stopWords = Number(el.stopWords.value || 0); });
+  el.stopMinsOn?.addEventListener("change", () => { S.settings.stopMinsOn = !!el.stopMinsOn.checked; });
+  el.stopMins?.addEventListener("input", () => { S.settings.stopMins = Number(el.stopMins.value || 0); });
+
+  // ✅ Save/Load Buttons (das ist der Kern deines Problems)
+  el.btnSaveSettings?.addEventListener("click", () => {
     readSettingsFromUI();
     saveSettingsToLS();
     applySettingsToUI();
     setStatus("Einstellungen gespeichert ✅");
   });
-  el.btnLoadSettings.addEventListener("click", () => {
+
+  el.btnLoadSettings?.addEventListener("click", () => {
     loadSettingsFromLS();
     applySettingsToUI();
     setStatus("Einstellungen geladen ✅");
   });
 
-  // Help modal
+  /* ---------- Help modal ---------- */
   el.btnHelp?.addEventListener("click", () => {
-    el.helpBody.innerHTML = buildHelpHtml();
-    show(el.helpBackdrop);
+    if (el.helpBody) el.helpBody.innerHTML = buildHelpHtml();
+    el.helpBackdrop?.classList.remove("hidden");
   });
-  el.btnHelpClose?.addEventListener("click", () => hide(el.helpBackdrop));
-  el.helpBackdrop?.addEventListener("click", (e) => { if (e.target === el.helpBackdrop) hide(el.helpBackdrop); });
 
-  // Donate modal
+  el.btnHelpClose?.addEventListener("click", () => el.helpBackdrop?.classList.add("hidden"));
+  el.helpBackdrop?.addEventListener("click", (e) => {
+    if (e.target === el.helpBackdrop) el.helpBackdrop.classList.add("hidden");
+  });
+
+  /* ---------- Donate modal + QR ---------- */
   el.btnDonate?.addEventListener("click", () => {
-    // fill btc address
     if (el.btcAddr) el.btcAddr.textContent = DONATE.btc;
-    // reset qr sections
+
     if (el.paypalQrWrap) el.paypalQrWrap.style.display = "none";
     if (el.btcQrWrap) el.btcQrWrap.style.display = "none";
-    show(el.donateBackdrop);
-  });
-  el.btnDonateClose?.addEventListener("click", () => hide(el.donateBackdrop));
-  el.donateBackdrop?.addEventListener("click", (e) => { if (e.target === el.donateBackdrop) hide(el.donateBackdrop); });
 
-  // PayPal QR
+    el.donateBackdrop?.classList.remove("hidden");
+  });
+
+  el.btnDonateClose?.addEventListener("click", () => el.donateBackdrop?.classList.add("hidden"));
+  el.donateBackdrop?.addEventListener("click", (e) => {
+    if (e.target === el.donateBackdrop) el.donateBackdrop.classList.add("hidden");
+  });
+
   el.btnPaypalQR?.addEventListener("click", () => {
     const u = DONATE.paypal;
+    if (!el.paypalQrImg || !el.paypalQrWrap) return;
+
+    el.paypalQrImg.onload = () => {};
+    el.paypalQrImg.onerror = () => {
+      if (el.paypalQrHint) el.paypalQrHint.textContent = "QR konnte nicht geladen werden (Netz/Blocker).";
+    };
+
     el.paypalQrImg.src = qrUrl(u);
     el.paypalQrWrap.style.display = "block";
-    el.paypalQrHint.textContent = navigator.onLine ? "" : "QR braucht Internet (wie PayPal sowieso).";
+    if (el.paypalQrHint) el.paypalQrHint.textContent = "";
   });
 
-  // BTC copy + QR
   el.btnCopyBtc?.addEventListener("click", () => copyToClipboard(DONATE.btc));
+
   el.btnBtcQR?.addEventListener("click", () => {
     const uri = "bitcoin:" + DONATE.btc;
+    if (!el.btcQrImg || !el.btcQrWrap) return;
+
+    el.btcQrImg.onerror = () => {
+      if (el.btcQrHint) el.btcQrHint.textContent = "QR konnte nicht geladen werden (Netz/Blocker).";
+    };
+
     el.btcQrImg.src = qrUrl(uri);
     el.btcQrWrap.style.display = "block";
-    el.btcQrHint.textContent = navigator.onLine ? "" : "QR braucht Internet (Wallet-Öffnen meist auch).";
+    if (el.btcQrHint) el.btcQrHint.textContent = "";
   });
-
 }
+
 
 /* -----------------------------
    Boot
