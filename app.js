@@ -1218,7 +1218,8 @@ function bindUI() {
   el.stopMinsOn?.addEventListener("change", () => { S.settings.stopMinsOn = !!el.stopMinsOn.checked; });
   el.stopMins?.addEventListener("input", () => { S.settings.stopMins = Number(el.stopMins.value || 0); });
 
-  // ✅ Save/Load Buttons (das ist der Kern deines Problems)
+  // ✅ Save/Load Buttons
+   
   el.btnSaveSettings?.addEventListener("click", () => {
     readSettingsFromUI();
     saveSettingsToLS();
@@ -1231,6 +1232,10 @@ function bindUI() {
     applySettingsToUI();
     setStatus("Einstellungen geladen ✅");
   });
+
+   el.btnSaveSettings?.addEventListener("click", () => window.__probe?.save?.());
+el.btnLoadSettings?.addEventListener("click", () => window.__probe?.load?.());
+el.btnPaypalQR?.addEventListener("click", () => window.__probe?.qrpp?.());
 
   /* ---------- Help modal ---------- */
   el.btnHelp?.addEventListener("click", () => {
