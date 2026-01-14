@@ -1,5 +1,5 @@
 // sw.js — Offline Cache für iPad RSVP Reader
-const CACHE = "rsvp-reader-v17";
+const CACHE = "rsvp-reader-v18";
 const ASSETS = [
   "./",
   "./index.html",
