@@ -172,6 +172,7 @@ body{
   background: rgba(255,255,255,.03);
   color: var(--text);
   font-weight:800;
+  cursor:pointer;
 }
 .tab.active{
   border-color: rgba(126,231,135,.35);
@@ -190,7 +191,8 @@ body{
 .item .small{ color:var(--muted); font-size:12px; margin-top:4px; }
 .muted{ color:var(--muted); }
 
-.modal{
+/* Settings modal overlay */
+.modalOverlay{
   position: fixed;
   inset: 0;
   z-index: 90;
@@ -287,7 +289,9 @@ body{
 .bookCard .t{ font-weight:900; font-size:12px; margin-top:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .bookCard .a{ color:var(--muted); font-size:11px; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
-/* ---- Modals (Help/Donate) ---- */
+.row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+
+/* Help/Donate modals */
 .modalBackdrop{
   position: fixed;
   inset: 0;
@@ -298,7 +302,7 @@ body{
   align-items:flex-start;
   padding: 14px max(14px, env(safe-area-inset-left));
 }
-.modal{
+.modalBox{
   width: min(820px, 96vw);
   margin-top: 12px;
   border-radius: 16px;
@@ -383,7 +387,7 @@ body{
   word-break: break-all;
   margin-top: 6px;
 }
-.row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+
 .bookCardTop{
   display:flex;
   align-items:center;
@@ -394,6 +398,8 @@ body{
 .bookPick{
   transform: scale(1.2);
 }
+
+/* Toast (immer ganz oben) */
 .toast{
   position: fixed;
   left: 50%;
@@ -411,7 +417,3 @@ body{
   backdrop-filter: blur(10px);
 }
 .toast.hidden{ display:none; }
-#toast {
-  position: fixed;
-  z-index: 99999;
-}

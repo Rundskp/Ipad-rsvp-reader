@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#0b0c10" />
   <title>RSVP Reader</title>
+
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="stylesheet" href="./style.css" />
 </head>
@@ -58,7 +59,6 @@
 
   <!-- Main -->
   <main class="wrap">
-    <!-- Reader card -->
     <section class="card">
       <div class="player">
         <div class="display" id="display">
@@ -71,9 +71,6 @@
           <button id="btnFwd" class="btn ghost" disabled>⟶</button>
           <button id="btnBookmark" class="btn ghost" disabled>🔖</button>
           <button id="btnReset" class="btn ghost" disabled>Reset</button>
-          <button id="btnSaveSettings" class="btn" type="button">Speichern</button>
-<button id="btnLoadSettings" class="btn ghost" type="button">Laden</button>
-
         </div>
 
         <div class="scrub">
@@ -92,12 +89,12 @@
   <aside id="sidebar" class="sidebar hidden">
     <div class="sidebarHead">
       <div class="sidebarTitle">Kapitel & Lesezeichen</div>
-      <button id="btnSidebarClose" class="btn ghost">✕</button>
+      <button id="btnSidebarClose" class="btn ghost" type="button">✕</button>
     </div>
 
     <div class="tabs">
-      <button id="tabToc" class="tab active">Kapitel</button>
-      <button id="tabMarks" class="tab">Lesezeichen</button>
+      <button id="tabToc" class="tab active" type="button">Kapitel</button>
+      <button id="tabMarks" class="tab" type="button">Lesezeichen</button>
     </div>
 
     <div id="tocPane" class="pane">
@@ -110,11 +107,11 @@
   </aside>
 
   <!-- Settings modal -->
-  <div id="settingsModal" class="modal hidden">
+  <div id="settingsModal" class="modalOverlay hidden">
     <div class="modalCard">
       <div class="modalHead">
         <div class="modalTitle">Einstellungen</div>
-        <button id="btnSettingsClose" class="btn ghost">✕</button>
+        <button id="btnSettingsClose" class="btn ghost" type="button">✕</button>
       </div>
 
       <div class="controls">
@@ -170,128 +167,123 @@
         </div>
 
         <div class="rowBtns">
-          <button id="btnSaveSettings" class="btn">Speichern</button>
-          <button id="btnLoadSettings" class="btn ghost">Laden</button>
+          <button id="btnSaveSettings" class="btn" type="button">Speichern</button>
+          <button id="btnLoadSettings" class="btn ghost" type="button">Laden</button>
         </div>
       </div>
     </div>
   </div>
-  
-  <!-- help modal -->
-<div id="helpBackdrop" class="modalBackdrop hidden">
-  <div class="modal">
-    <div class="modalHeader">
-      <h2>❓ Hilfe</h2>
-      <button id="btnHelpClose" class="btn">Schließen</button>
-    </div>
-    <div id="helpBody" class="helpBody"></div>
-  </div>
-</div>
 
-<div id="donateBackdrop" class="modalBackdrop hidden">
-  <div class="modal">
-    <div class="modalHeader">
-      <h2>☕️ Spenden</h2>
-      <button id="btnDonateClose" class="btn">Schließen</button>
+  <!-- help modal -->
+  <div id="helpBackdrop" class="modalBackdrop hidden">
+    <div class="modalBox">
+      <div class="modalHeader">
+        <h2>❓ Hilfe</h2>
+        <button id="btnHelpClose" class="btn" type="button">Schließen</button>
+      </div>
+      <div id="helpBody" class="helpBody"></div>
     </div>
+  </div>
 
   <!-- donate modal -->
-    <p class="small">
-      Falls dir mein Tool gefällt und du mich unterstützen willst:
-      <b>PayPal</b> oder <b>Bitcoin</b> – super einfach. ❤️
-    </p>
-
-    <div class="ctaGrid">
-
-      <!-- PayPal -->
-      <div class="payCard">
-        <div class="muted"><b>PayPal</b></div>
-
-        <a class="payBtnBig" href="https://paypal.me/rophko" target="_blank" rel="noopener">
-          <img class="paypalImg" alt="PayPal" src="data:image/svg+xml;utf8,
-            <svg xmlns='http://www.w3.org/2000/svg' width='420' height='140' viewBox='0 0 420 140'>
-              <rect width='420' height='140' rx='24' fill='%23f5f7ff'/>
-              <text x='50%25' y='55%25' text-anchor='middle' font-family='Arial' font-size='44' fill='%23003087'>PayPal</text>
-              <text x='50%25' y='80%25' text-anchor='middle' font-family='Arial' font-size='20' fill='%23003087'>Jetzt spenden</text>
-            </svg>"/>
-        </a>
-
-        <div class="small muted">Tippen → PayPal öffnet direkt.</div>
-
-        <div class="row" style="margin-top:6px;">
-          <button id="btnPaypalQR" type="button" class="btn ghost">QR anzeigen</button>
-        </div>
-
-        <div id="paypalQrWrap" style="display:none; margin-top:8px;">
-          <img id="paypalQrImg" class="qrImg" alt="PayPal QR" />
-          <div class="small muted" style="margin-top:6px;">Scan → PayPal-Link öffnet.</div>
-          <div id="paypalQrHint" class="small muted" style="margin-top:6px;"></div>
-        </div>
+  <div id="donateBackdrop" class="modalBackdrop hidden">
+    <div class="modalBox">
+      <div class="modalHeader">
+        <h2>☕️ Spenden</h2>
+        <button id="btnDonateClose" class="btn" type="button">Schließen</button>
       </div>
 
-      <!-- Bitcoin -->
-      <div class="payCard">
-        <div class="muted"><b>Bitcoin</b></div>
+      <p class="small">
+        Falls dir mein Tool gefällt und du mich unterstützen willst:
+        <b>PayPal</b> oder <b>Bitcoin</b> – super einfach. ❤️
+      </p>
 
-        <div class="addrBox">
-          <div class="small muted">Adresse</div>
-          <div id="btcAddr" class="mono"></div>
+      <div class="ctaGrid">
+        <!-- PayPal -->
+        <div class="payCard">
+          <div class="muted"><b>PayPal</b></div>
+
+          <a class="payBtnBig" href="https://paypal.me/rophko" target="_blank" rel="noopener">
+            <img class="paypalImg" alt="PayPal" src="data:image/svg+xml;utf8,
+              <svg xmlns='http://www.w3.org/2000/svg' width='420' height='140' viewBox='0 0 420 140'>
+                <rect width='420' height='140' rx='24' fill='%23f5f7ff'/>
+                <text x='50%25' y='55%25' text-anchor='middle' font-family='Arial' font-size='44' fill='%23003087'>PayPal</text>
+                <text x='50%25' y='80%25' text-anchor='middle' font-family='Arial' font-size='20' fill='%23003087'>Jetzt spenden</text>
+              </svg>"/>
+          </a>
+
+          <div class="small muted">Tippen → PayPal öffnet direkt.</div>
+
           <div class="row" style="margin-top:6px;">
-            <button id="btnCopyBtc" type="button" class="btn">Kopieren</button>
-            <button id="btnBtcQR" type="button" class="btn ghost">QR anzeigen</button>
+            <button id="btnPaypalQR" type="button" class="btn ghost">QR anzeigen</button>
+          </div>
+
+          <div id="paypalQrWrap" style="display:none; margin-top:8px;">
+            <img id="paypalQrImg" class="qrImg" alt="PayPal QR" />
+            <div class="small muted" style="margin-top:6px;">Scan → PayPal-Link öffnet.</div>
+            <div id="paypalQrHint" class="small muted" style="margin-top:6px;"></div>
           </div>
         </div>
 
-        <div id="btcQrWrap" style="display:none; margin-top:8px;">
-          <img id="btcQrImg" class="qrImg" alt="Bitcoin QR" />
-          <div class="small muted" style="margin-top:6px;">Scan → Wallet öffnet (bitcoin:).</div>
-          <div id="btcQrHint" class="small muted" style="margin-top:6px;"></div>
+        <!-- Bitcoin -->
+        <div class="payCard">
+          <div class="muted"><b>Bitcoin</b></div>
+
+          <div class="addrBox">
+            <div class="small muted">Adresse</div>
+            <div id="btcAddr" class="mono"></div>
+            <div class="row" style="margin-top:6px;">
+              <button id="btnCopyBtc" type="button" class="btn">Kopieren</button>
+              <button id="btnBtcQR" type="button" class="btn ghost">QR anzeigen</button>
+            </div>
+          </div>
+
+          <div id="btcQrWrap" style="display:none; margin-top:8px;">
+            <img id="btcQrImg" class="qrImg" alt="Bitcoin QR" />
+            <div class="small muted" style="margin-top:6px;">Scan → Wallet öffnet (bitcoin:).</div>
+            <div id="btcQrHint" class="small muted" style="margin-top:6px;"></div>
+          </div>
         </div>
       </div>
-
     </div>
   </div>
-</div>
 
   <!-- Bottom shelf -->
-<footer id="shelf" class="shelf hidden">
-  <div class="shelfHead">
-    <div class="shelfTitle">Bibliothek</div>
+  <footer id="shelf" class="shelf hidden">
+    <div class="shelfHead">
+      <div class="shelfTitle">Bibliothek</div>
 
-    <div class="row">
-      <button id="btnExportAll" class="btn" type="button">Export: Alles</button>
-      <button id="btnExportSelected" class="btn ghost" type="button">Export: Auswahl</button>
+      <div class="row">
+        <button id="btnExportAll" class="btn" type="button">Export: Alles</button>
+        <button id="btnExportSelected" class="btn ghost" type="button">Export: Auswahl</button>
 
-      <label class="btn ghost" style="margin:0;">
-        Import
-        <input id="importFile" type="file" accept=".json,application/json" hidden />
+        <label class="btn ghost" style="margin:0;">
+          Import
+          <input id="importFile" type="file" accept=".json,application/json" hidden />
+        </label>
+      </div>
+
+      <label class="check small">
+        <input id="pinShelf" type="checkbox" />
+        fixieren
       </label>
+
+      <button id="btnShelfClose" class="btn ghost" type="button">✕</button>
     </div>
 
-    <label class="check small">
-      <input id="pinShelf" type="checkbox" />
-      fixieren
-    </label>
-
-    <button id="btnShelfClose" class="btn ghost" type="button">✕</button>
-  </div>
-
-  <div id="shelfList" class="shelfList muted">Noch keine Bücher gespeichert.</div>
-</footer>
-
+    <div id="shelfList" class="shelfList muted">Noch keine Bücher gespeichert.</div>
+  </footer>
 
   <!-- libs -->
-  <!-- <script src="./jszip.min.js"></script> -->
   <script src="./lib/epub.min.js"></script>
-  <script src="./app.js?v=fix1"></script>
-
+  <script src="./app.js?v=fix2"></script>
 
   <script>
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("./sw.js").catch(console.error);
     }
   </script>
-  <div id="toast" class="toast hidden"></div>
 
+  <div id="toast" class="toast hidden"></div>
 </body>
 </html>

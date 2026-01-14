@@ -3,6 +3,7 @@
    - Library in IndexedDB (books)
    - Storage persistence request
    - Help modal + Donate modal
+   - Export/Import library JSON
 ------------------------------ */
 console.log("RSVP app.js loaded ✅", new Date().toISOString());
 
@@ -42,10 +43,11 @@ const el = {
   btnShelf: $("btnShelf"),
   btnHelp: $("btnHelp"),
   btnDonate: $("btnDonate"),
+
+  // export/import in shelf
   btnExportAll: $("btnExportAll"),
   btnExportSelected: $("btnExportSelected"),
   importFile: $("importFile"),
-
 
   // sidebar
   sidebar: $("sidebar"),
@@ -101,10 +103,11 @@ const el = {
   btcQrImg: $("btcQrImg"),
   btcQrHint: $("btcQrHint"),
 };
+
 /* -----------------------------
    Toast (always above modals)
 ------------------------------ */
-const toastEl = document.getElementById("toast");
+const toastEl = $("toast");
 let _toastT = null;
 
 function toast(msg, ms = 1400) {
@@ -115,21 +118,21 @@ function toast(msg, ms = 1400) {
   _toastT = setTimeout(() => toastEl.classList.add("hidden"), ms);
 }
 
-// === DEBUG: zeigt ob Buttons/IDs existieren + ob Click ankommt ===
+function setStatus(msg) {
+  if (el.status) el.status.textContent = msg;
+  toast(msg, 1400);
+}
+
+function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+function show(x) { x?.classList?.remove("hidden"); }
+function hide(x) { x?.classList?.add("hidden"); }
+
+/* -----------------------------
+   DEBUG: missing IDs
+------------------------------ */
 (() => {
-  const missing = Object.entries(el)
-    .filter(([k,v]) => !v)
-    .map(([k]) => k);
-
-  console.log("RSVP app.js loaded ✅", new Date().toISOString());
+  const missing = Object.entries(el).filter(([_,v]) => !v).map(([k]) => k);
   if (missing.length) console.warn("Missing DOM IDs:", missing);
-
-  // Click-Probes (wenn das NICHT loggt, ist bindUI nicht aktiv oder alte Datei)
-  window.__probe = {
-    save: () => console.log("PROBE: save clicked ✅"),
-    load: () => console.log("PROBE: load clicked ✅"),
-    qrpp: () => console.log("PROBE: paypal-qr clicked ✅"),
-  };
 })();
 
 /* -----------------------------
@@ -198,6 +201,9 @@ async function idbGetAll() {
   });
 }
 
+/* -----------------------------
+   Export/Import helpers
+------------------------------ */
 function downloadTextFile(filename, text) {
   const blob = new Blob([text], { type: "application/json;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -217,12 +223,8 @@ function nowStamp() {
 }
 
 async function exportLibrary({ mode }) {
-  // mode: "all" | "selected"
   const all = await idbGetAll();
-  if (!all.length) {
-    setStatus("Nix zu exportieren (Bibliothek leer).");
-    return;
-  }
+  if (!all.length) { setStatus("Nix zu exportieren (Bibliothek leer)."); return; }
 
   let books = all;
 
@@ -231,13 +233,9 @@ async function exportLibrary({ mode }) {
       .filter(cb => cb.checked)
       .map(cb => cb.getAttribute("data-id"));
     books = all.filter(b => picked.includes(b.id));
-    if (!books.length) {
-      setStatus("Keine Auswahl getroffen.");
-      return;
-    }
+    if (!books.length) { setStatus("Keine Auswahl getroffen."); return; }
   }
 
-  // Export-Paket: enthält Settings + Bücher
   const payload = {
     format: "rsvp-library",
     version: 1,
@@ -277,17 +275,14 @@ async function importLibraryFromJsonFile(file) {
     const err = validateImportPayload(p);
     if (err) throw new Error(err);
 
-    // Settings übernehmen (optional, aber gewünscht)
     if (p.settings && typeof p.settings === "object") {
       S.settings = { ...S.settings, ...p.settings };
       saveSettingsToLS();
       applySettingsToUI();
     }
 
-    // Bücher rein in IndexedDB
     let count = 0;
     for (const b of p.books) {
-      // minimal sanity
       if (!b?.id || !Array.isArray(b?.words)) continue;
 
       await idbPut({
@@ -330,13 +325,12 @@ const S = {
     title: "—",
     author: "—",
     coverDataUrl: "",
-    chapters: [], // [{label, href, start, end}]
-    toc: [],      // [{label, href}]
+    chapters: [],
+    toc: [],
   },
 
   bookmarks: [],
 
-  // stop logic
   playStartedAt: 0,
   wordsAtPlayStart: 0,
   pendingStop: false,
@@ -358,16 +352,6 @@ const S = {
     pinShelf: false,
   },
 };
-
-function setStatus(msg) {
-  if (el.status) el.status.textContent = msg;
-  toast(msg, 1400);
-}
-
-function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
-
-function show(x) { x?.classList?.remove("hidden"); }
-function hide(x) { x?.classList?.add("hidden"); }
 
 /* -----------------------------
    Text utils
@@ -436,7 +420,6 @@ function renderToken(token) {
 function saveSettingsToLS() {
   localStorage.setItem(LS_KEY, JSON.stringify(S.settings));
 }
-console.log("Saved settings:", localStorage.getItem(LS_KEY));
 
 function loadSettingsFromLS() {
   try {
@@ -448,6 +431,8 @@ function loadSettingsFromLS() {
 }
 
 function applySettingsToUI() {
+  if (!el.wpm) return;
+
   el.wpm.value = String(S.settings.wpm);
   el.wpmVal.textContent = String(S.settings.wpm);
 
@@ -736,11 +721,9 @@ function renderToc() {
 }
 
 /* -----------------------------
-   Library (save/load that MUST persist)
+   Library (persist)
 ------------------------------ */
 function stableBookId(file) {
-  // iOS can change lastModified; keep it stable-ish:
-  // name + size is usually enough, add type too
   return `b_${file.name}_${file.size}_${file.type || "bin"}`;
 }
 
@@ -780,47 +763,44 @@ async function renderShelf() {
 
     for (const b of all) {
       const card = document.createElement("div");
-        card.className = "bookCard";
+      card.className = "bookCard";
 
-        // Top row: checkbox + title
-        const top = document.createElement("div");
-        top.className = "bookCardTop";
+      const top = document.createElement("div");
+      top.className = "bookCardTop";
 
-        const pick = document.createElement("input");
-        pick.type = "checkbox";
-        pick.className = "bookPick";
-        pick.setAttribute("data-id", b.id);
+      const pick = document.createElement("input");
+      pick.type = "checkbox";
+      pick.className = "bookPick";
+      pick.setAttribute("data-id", b.id);
 
-        const t = document.createElement("div");
-        t.className = "t";
-        t.textContent = b.title || "—";
+      const t = document.createElement("div");
+      t.className = "t";
+      t.textContent = b.title || "—";
 
-        top.appendChild(pick);
-        top.appendChild(t);
+      top.appendChild(pick);
+      top.appendChild(t);
 
-        const img = document.createElement("img");
-        img.alt = "Cover";
-        img.src = b.coverDataUrl || "";
-        img.style.display = b.coverDataUrl ? "block" : "none";
+      const img = document.createElement("img");
+      img.alt = "Cover";
+      img.src = b.coverDataUrl || "";
+      img.style.display = b.coverDataUrl ? "block" : "none";
 
-        const a = document.createElement("div");
-        a.className = "a";
-        a.textContent = b.author || "";
+      const a = document.createElement("div");
+      a.className = "a";
+      a.textContent = b.author || "";
 
-        card.appendChild(top);
-        card.appendChild(img);
-        card.appendChild(a);
+      card.appendChild(top);
+      card.appendChild(img);
+      card.appendChild(a);
 
-        // Klick auf Card lädt Buch – aber Checkbox-Klick soll nicht laden:
-        pick.addEventListener("click", (ev) => ev.stopPropagation());
+      pick.addEventListener("click", (ev) => ev.stopPropagation());
 
-        card.addEventListener("click", async () => {
-          await loadBookFromLibrary(b.id);
-          if (!S.settings.pinShelf) hide(el.shelf);
-        });
+      card.addEventListener("click", async () => {
+        await loadBookFromLibrary(b.id);
+        if (!S.settings.pinShelf) hide(el.shelf);
+      });
 
-        el.shelfList.appendChild(card);
-
+      el.shelfList.appendChild(card);
     }
   } catch (e) {
     console.error("renderShelf failed", e);
@@ -1021,7 +1001,6 @@ async function handleFile(file) {
     updateProgressUI();
     showCurrent();
 
-    // Save full book so it can be reopened without file
     await saveBookToLibrary({
       id: parsed.id,
       title: S.book.title,
@@ -1076,25 +1055,21 @@ function buildHelpHtml() {
      <div class="b">Gelesene Bücher werden offline gespeichert (inkl. Cover & Lesezeichen). Tippe ein Buch an, um es ohne Datei neu zu öffnen.</div>`,
 
     `<div class="h">Wenn etwas „weg“ ist</div>
-     <div class="b">Safari im privaten Modus löscht/blocked Speicher. Am besten über die Home-Bildschirm-App nutzen. Außerdem: iOS räumt manchmal auf – deshalb wird persistenter Speicher angefordert.</div>`,
+     <div class="b">Privater Modus blockt/killt Speicher. Am besten als Home-Screen-App nutzen. iOS räumt manchmal auf – deshalb wird persistenter Speicher angefordert.</div>`,
   ];
   return lines.join("");
 }
 
 /* -----------------------------
-   Donate modal helpers
+   Donate helpers
 ------------------------------ */
 const DONATE = {
   paypal: "https://paypal.me/rophko",
-  // Du hast mir die Adresse mal geschickt – ich nehme exakt die:
   btc: "bc1qwr08y9ngmvplpr8tuk4w34rl4pkryur8u4cf5f"
 };
 
 function qrUrl(data) {
-  // Online-Fallback: QR braucht Internet (Spenden-Link braucht’s eh)
-  // QR server: simple, no key
-  const u = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" + encodeURIComponent(data);
-  return u;
+  return "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" + encodeURIComponent(data);
 }
 
 async function copyToClipboard(text) {
@@ -1102,7 +1077,6 @@ async function copyToClipboard(text) {
     await navigator.clipboard.writeText(text);
     setStatus("Kopiert ✅");
   } catch {
-    // iOS fallback
     const ta = document.createElement("textarea");
     ta.value = text;
     document.body.appendChild(ta);
@@ -1204,7 +1178,7 @@ function bindUI() {
   el.stopMinsOn?.addEventListener("change", () => { S.settings.stopMinsOn = el.stopMinsOn.checked; });
   el.stopMins?.addEventListener("input", () => { S.settings.stopMins = Number(el.stopMins.value || 0); });
 
-  // save/load buttons (FIX)
+  // save/load buttons
   el.btnSaveSettings?.addEventListener("click", () => {
     readSettingsFromUI();
     saveSettingsToLS();
@@ -1219,7 +1193,7 @@ function bindUI() {
 
   // --- help ---
   el.btnHelp?.addEventListener("click", () => {
-    el.helpBody.innerHTML = buildHelpHtml();
+    if (el.helpBody) el.helpBody.innerHTML = buildHelpHtml();
     show(el.helpBackdrop);
   });
   el.btnHelpClose?.addEventListener("click", () => hide(el.helpBackdrop));
@@ -1237,45 +1211,37 @@ function bindUI() {
 
   el.btnPaypalQR?.addEventListener("click", () => {
     const u = DONATE.paypal;
-    el.paypalQrImg.onload = () => {};
+    if (!el.paypalQrImg || !el.paypalQrWrap) return;
+
     el.paypalQrImg.onerror = () => {
       if (el.paypalQrHint) el.paypalQrHint.textContent = "QR konnte nicht geladen werden (Netz/Blocker).";
     };
+
     el.paypalQrImg.src = qrUrl(u);
     el.paypalQrWrap.style.display = "block";
     if (el.paypalQrHint) el.paypalQrHint.textContent = "";
   });
 
   el.btnCopyBtc?.addEventListener("click", () => copyToClipboard(DONATE.btc));
+
   el.btnBtcQR?.addEventListener("click", () => {
     const uri = "bitcoin:" + DONATE.btc;
+    if (!el.btcQrImg || !el.btcQrWrap) return;
+
     el.btcQrImg.onerror = () => {
       if (el.btcQrHint) el.btcQrHint.textContent = "QR konnte nicht geladen werden (Netz/Blocker).";
     };
+
     el.btcQrImg.src = qrUrl(uri);
     el.btcQrWrap.style.display = "block";
     if (el.btcQrHint) el.btcQrHint.textContent = "";
   });
 }
 
-
-  /* ---------- Help modal ---------- */
-  el.btnHelp?.addEventListener("click", () => {
-    if (el.helpBody) el.helpBody.innerHTML = buildHelpHtml();
-    el.helpBackdrop?.classList.remove("hidden");
-  });
-
-  el.btnHelpClose?.addEventListener("click", () => el.helpBackdrop?.classList.add("hidden"));
-  el.helpBackdrop?.addEventListener("click", (e) => {
-    if (e.target === el.helpBackdrop) el.helpBackdrop.classList.add("hidden");
-  });
-
-
 /* -----------------------------
    Boot
 ------------------------------ */
 (async function boot() {
-  // Try persistence early
   const p = await ensurePersistentStorage();
   if (p.ok && p.persisted === false) {
     console.log("Storage not persisted (browser may evict data).");
