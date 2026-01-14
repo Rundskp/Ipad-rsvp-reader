@@ -418,6 +418,7 @@ function renderToken(token) {
 function saveSettingsToLS() {
   localStorage.setItem(LS_KEY, JSON.stringify(S.settings));
 }
+console.log("Saved settings:", localStorage.getItem(LS_KEY));
 
 function loadSettingsFromLS() {
   try {
@@ -1236,6 +1237,10 @@ function bindUI() {
    el.btnSaveSettings?.addEventListener("click", () => window.__probe?.save?.());
 el.btnLoadSettings?.addEventListener("click", () => window.__probe?.load?.());
 el.btnPaypalQR?.addEventListener("click", () => window.__probe?.qrpp?.());
+el.paypalQrImg.onerror = () => {
+  console.warn("QR image failed to load:", el.paypalQrImg.src);
+  if (el.paypalQrHint) el.paypalQrHint.textContent = "QR konnte nicht geladen werden (Netz/Blocker).";
+};
 
   /* ---------- Help modal ---------- */
   el.btnHelp?.addEventListener("click", () => {
