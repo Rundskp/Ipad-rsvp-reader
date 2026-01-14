@@ -101,6 +101,20 @@ const el = {
   btcQrImg: $("btcQrImg"),
   btcQrHint: $("btcQrHint"),
 };
+/* -----------------------------
+   Toast (always above modals)
+------------------------------ */
+const toastEl = document.getElementById("toast");
+let _toastT = null;
+
+function toast(msg, ms = 1400) {
+  if (!toastEl) return;
+  toastEl.textContent = msg;
+  toastEl.classList.remove("hidden");
+  if (_toastT) clearTimeout(_toastT);
+  _toastT = setTimeout(() => toastEl.classList.add("hidden"), ms);
+}
+
 // === DEBUG: zeigt ob Buttons/IDs existieren + ob Click ankommt ===
 (() => {
   const missing = Object.entries(el)
@@ -345,7 +359,11 @@ const S = {
   },
 };
 
-function setStatus(msg) { if (el.status) el.status.textContent = msg; }
+function setStatus(msg) {
+  if (el.status) el.status.textContent = msg;
+  toast(msg, 1400);
+}
+
 function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
 
 function show(x) { x?.classList?.remove("hidden"); }

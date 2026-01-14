@@ -394,3 +394,20 @@ body{
 .bookPick{
   transform: scale(1.2);
 }
+.toast{
+  position: fixed;
+  left: 50%;
+  top: 14px;
+  transform: translateX(-50%);
+  z-index: 99999;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(20,22,28,0.92);
+  border: 1px solid rgba(255,255,255,0.10);
+  color: #fff;
+  font-size: 14px;
+  max-width: min(92vw, 520px);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+  backdrop-filter: blur(10px);
+}
+.toast.hidden{ display:none; }
