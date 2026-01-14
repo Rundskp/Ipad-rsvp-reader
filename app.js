@@ -344,8 +344,8 @@ if (content instanceof Document) {
 if (rawText.trim()) {
   all.push(rawText);
 }
-    if (rawtext) {
-      all.push(rawtext);
+    if (rawText) {
+      all.push(rawText
     }
   }
 
