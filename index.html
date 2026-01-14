@@ -250,41 +250,35 @@
   </div>
 </div>
 
-  <!-- Bottom shelf -->
+    <!-- Bottom shelf -->
   <footer id="shelf" class="shelf hidden">
     <div class="shelfHead">
       <div class="shelfTitle">Bibliothek</div>
+
+      <div class="row">
+        <button id="btnExportAll" class="btn">Export: Alles</button>
+        <button id="btnExportSelected" class="btn ghost">Export: Auswahl</button>
+
+        <label class="btn ghost" style="margin:0;">
+          Import
+          <input id="importFile" type="file" accept=".json,application/json" hidden />
+        </label>
+      </div>
+
       <label class="check small">
         <input id="pinShelf" type="checkbox" />
         fixieren
       </label>
+
       <button id="btnShelfClose" class="btn ghost">✕</button>
     </div>
+
     <div id="shelfList" class="shelfList muted">Noch keine Bücher gespeichert.</div>
-    <div class="shelfHead">
-  <div class="shelfTitle">Bibliothek</div>
-
-  <div class="row">
-    <button id="btnExportAll" class="btn">Export: Alles</button>
-    <button id="btnExportSelected" class="btn ghost">Export: Auswahl</button>
-
-    <label class="btn ghost" style="margin:0;">
-      Import
-      <input id="importFile" type="file" accept=".json,application/json" hidden />
-    </label>
-  </div>
-
-  <label class="check small">
-    <input id="pinShelf" type="checkbox" />
-    fixieren
-  </label>
-  <button id="btnShelfClose" class="btn ghost">✕</button>
-</div>
-
   </footer>
 
+
   <!-- libs -->
-  <script src="./jszip.min.js"></script>
+  <!-- <script src="./jszip.min.js"></script> -->
   <script src="./lib/epub.min.js"></script>
   <script src="./app.js"></script>
 
