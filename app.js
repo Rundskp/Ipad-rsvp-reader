@@ -780,7 +780,7 @@ async function renderShelf() {
 
         card.addEventListener("click", async () => {
           await loadBookFromLibrary(b.id);
-          if (!S.settings.pinShelf) closeShelf();
+          if (!S.settings.pinShelf) hide(el.shelf);
         });
 
         el.shelfList.appendChild(card);
@@ -1086,15 +1086,17 @@ function bindUI() {
     const f = ev.target.files?.[0];
     if (f) setTimeout(() => handleFile(f), 0);
     ev.target.value = "";
-    el.btnExportAll?.addEventListener("click", () => exportLibrary({ mode: "all" }));
-el.btnExportSelected?.addEventListener("click", () => exportLibrary({ mode: "selected" }));
-
-el.importFile?.addEventListener("change", (ev) => {
-  const f = ev.target.files?.[0];
-  if (f) importLibraryFromJsonFile(f);
-  ev.target.value = "";
   });
 
+  // export / import (NICHT im file-change block!)
+  el.btnExportAll?.addEventListener("click", () => exportLibrary({ mode: "all" }));
+  el.btnExportSelected?.addEventListener("click", () => exportLibrary({ mode: "selected" }));
+
+  el.importFile?.addEventListener("change", (ev) => {
+    const f = ev.target.files?.[0];
+    if (f) importLibraryFromJsonFile(f);
+    ev.target.value = "";
+  });
 
   // player
   el.btnPlay.addEventListener("click", togglePlay);
