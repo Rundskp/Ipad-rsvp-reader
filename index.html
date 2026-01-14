@@ -1,58 +1,125 @@
 <!doctype html>
 <html lang="de">
 <head>
-<link rel="manifest" href="./manifest.webmanifest">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <title>iPad RSVP Reader</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta name="theme-color" content="#0b0c10" />
+  <title>RSVP Reader</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
+  <!-- Topbar -->
   <header class="topbar">
     <div class="brand">
       <div class="dot"></div>
-      <div>
+      <div class="brandText">
         <div class="title">RSVP Reader</div>
-        <div class="sub">EPUB → Text → Wordrunner-Style</div>
+        <div id="status" class="sub">Warte auf Datei…</div>
       </div>
     </div>
 
-    <div class="actions">
+    <div class="topActions">
       <label class="btn">
         <input id="file" type="file" accept=".epub,.txt" hidden />
         Datei laden
       </label>
-      <button id="btnReset" class="btn ghost" disabled>Reset</button>
+
+      <button id="btnSidebar" class="btn ghost" title="Kapitel / Lesezeichen">☰</button>
+      <button id="btnHeader" class="btn ghost" title="Cover/Titel anzeigen">🛈</button>
+      <button id="btnSettings" class="btn ghost" title="Einstellungen">⚙︎</button>
+      <button id="btnShelf" class="btn ghost" title="Bibliothek">📚</button>
     </div>
   </header>
 
+  <!-- Optional header info (cover + title) -->
+  <section id="headerInfo" class="headerInfo hidden">
+    <div class="headerInfoInner">
+      <img id="coverImg" class="cover" alt="Cover" />
+      <div class="meta">
+        <div id="bookTitle" class="bookTitle">—</div>
+        <div id="bookAuthor" class="bookAuthor">—</div>
+        <div class="metaRow">
+          <span class="pill"><b>Fortschritt</b> <span id="prog">0%</span></span>
+          <span class="pill"><b>WPM</b> <span id="wpmVal">360</span></span>
+          <span class="pill"><b>Kapitel</b> <span id="chapVal">—</span></span>
+        </div>
+      </div>
+      <div class="pinCol">
+        <label class="check small">
+          <input id="pinHeader" type="checkbox" />
+          fixieren
+        </label>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main -->
   <main class="wrap">
+    <!-- Reader card -->
     <section class="card">
-      <div class="row">
-        <div class="kv">
-          <div class="k">Status</div>
-          <div id="status" class="v">Warte auf Datei…</div>
+      <div class="player">
+        <div class="display" id="display">
+          <span class="word" id="word">—</span>
         </div>
-        <div class="kv">
-          <div class="k">Fortschritt</div>
-          <div id="prog" class="v">0%</div>
+
+        <div class="transport">
+          <button id="btnBack" class="btn ghost" disabled>⟵</button>
+          <button id="btnPlay" class="btn primary" disabled>Play</button>
+          <button id="btnFwd" class="btn ghost" disabled>⟶</button>
+          <button id="btnBookmark" class="btn ghost" disabled>🔖</button>
+          <button id="btnReset" class="btn ghost" disabled>Reset</button>
         </div>
-        <div class="kv">
-          <div class="k">WPM</div>
-          <div id="wpmVal" class="v">360</div>
+
+        <div class="scrub">
+          <input id="seek" type="range" min="0" max="0" value="0" disabled>
+          <div class="hint">
+            <span id="pos">0</span> / <span id="total">0</span> Wörter
+            <span class="sep">•</span>
+            Tippen: links zurück, Mitte Play/Pause, rechts vor
+          </div>
         </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Sidebar -->
+  <aside id="sidebar" class="sidebar hidden">
+    <div class="sidebarHead">
+      <div class="sidebarTitle">Kapitel & Lesezeichen</div>
+      <button id="btnSidebarClose" class="btn ghost">✕</button>
+    </div>
+
+    <div class="tabs">
+      <button id="tabToc" class="tab active">Kapitel</button>
+      <button id="tabMarks" class="tab">Lesezeichen</button>
+    </div>
+
+    <div id="tocPane" class="pane">
+      <div id="tocList" class="list muted">Noch kein Buch geladen.</div>
+    </div>
+
+    <div id="marksPane" class="pane hidden">
+      <div id="marksList" class="list muted">Keine Lesezeichen.</div>
+    </div>
+  </aside>
+
+  <!-- Settings modal -->
+  <div id="settingsModal" class="modal hidden">
+    <div class="modalCard">
+      <div class="modalHead">
+        <div class="modalTitle">Einstellungen</div>
+        <button id="btnSettingsClose" class="btn ghost">✕</button>
       </div>
 
       <div class="controls">
         <div class="control">
-          <label for="wpm">Geschwindigkeit (WPM)</label>
+          <label>Geschwindigkeit (WPM)</label>
           <input id="wpm" type="range" min="120" max="900" step="10" value="360">
         </div>
 
         <div class="control">
-          <label for="chunk">Chunk (Wörter pro Anzeige)</label>
+          <label>Chunk (Wörter pro Anzeige)</label>
           <input id="chunk" type="range" min="1" max="6" step="1" value="1">
           <div class="hint"><span id="chunkVal">1</span> Wort/Wörter</div>
         </div>
@@ -60,7 +127,7 @@
         <div class="control">
           <label class="check">
             <input id="orp" type="checkbox" checked>
-            ORP-Highlight (Fixpunkt im Wort)
+            ORP-Highlight
           </label>
           <label class="check">
             <input id="punct" type="checkbox" checked>
@@ -69,55 +136,64 @@
         </div>
 
         <div class="control">
-          <label for="punctMs">Satzzeichen-Pause (ms)</label>
+          <label>Satzzeichen-Pause (ms)</label>
           <input id="punctMs" type="range" min="0" max="500" step="25" value="200">
           <div class="hint"><span id="punctVal">200</span> ms</div>
         </div>
+
+        <hr class="hr">
+
+        <div class="control">
+          <label class="check">
+            <input id="stopChapter" type="checkbox">
+            Auto-Stop am Kapitelende (nicht mitten im Satz)
+          </label>
+          <label class="check">
+            <input id="stopWordsOn" type="checkbox">
+            Auto-Stop nach Wörtern
+          </label>
+          <input id="stopWords" type="number" min="100" step="100" value="2000" class="num" />
+          <div class="hint">Stoppt erst nach Satzende (., !, ?).</div>
+        </div>
+
+        <div class="control">
+          <label class="check">
+            <input id="stopMinsOn" type="checkbox">
+            Auto-Stop nach Minuten
+          </label>
+          <input id="stopMins" type="number" min="1" step="1" value="10" class="num" />
+        </div>
+
+        <div class="rowBtns">
+          <button id="btnSaveSettings" class="btn">Speichern</button>
+          <button id="btnLoadSettings" class="btn ghost">Laden</button>
+        </div>
       </div>
+    </div>
+  </div>
 
-      <div class="player">
-        <div class="display" id="display" aria-label="RSVP Anzeige">
-          <span class="word" id="word">—</span>
-        </div>
+  <!-- Bottom shelf -->
+  <footer id="shelf" class="shelf hidden">
+    <div class="shelfHead">
+      <div class="shelfTitle">Bibliothek</div>
+      <label class="check small">
+        <input id="pinShelf" type="checkbox" />
+        fixieren
+      </label>
+      <button id="btnShelfClose" class="btn ghost">✕</button>
+    </div>
+    <div id="shelfList" class="shelfList muted">Noch keine Bücher gespeichert.</div>
+  </footer>
 
-        <div class="transport">
-          <button id="btnBack" class="btn ghost" disabled>⟵</button>
-          <button id="btnPlay" class="btn primary" disabled>Play</button>
-          <button id="btnFwd" class="btn ghost" disabled>⟶</button>
-          <button id="btnMark" class="btn ghost" disabled>Lesezeichen</button>
-        </div>
+  <!-- libs -->
+  <script src="./jszip.min.js"></script>
+  <script src="./lib/epub.min.js"></script>
+  <script src="./app.js"></script>
 
-        <div class="scrub">
-          <input id="seek" type="range" min="0" max="0" value="0" disabled>
-          <div class="hint">
-            <span id="pos">0</span> / <span id="total">0</span> Wörter
-            <span class="sep">•</span>
-            Tippen: links zurück, rechts vor, Mitte Play/Pause
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="card small">
-      <details>
-        <summary>Tipps (damit’s wirklich wirkt)</summary>
-        <ul>
-          <li>Starte bei 260–360 WPM. Dann langsam steigern.</li>
-          <li>Bei Sachtext: Chunk=1–2, Satzzeichen-Pause an.</li>
-          <li>Wenn du innerlich „mitliest“ (Stimme im Kopf), nicht bekämpfen – nur langsamer werden.</li>
-        </ul>
-      </details>
-    </section>
-  </main>
-
-  <!-- EPUB.js (CDN) -->
-<script src="./jszip.min.js"></script>
-<script src="./lib/epub.min.js"></script>
-<script src="./app.js"></script>
-<script>
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js").catch(console.error);
-  }
-</script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./sw.js").catch(console.error);
+    }
+  </script>
 </body>
 </html>
