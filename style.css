@@ -286,3 +286,111 @@ body{
 }
 .bookCard .t{ font-weight:900; font-size:12px; margin-top:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .bookCard .a{ color:var(--muted); font-size:11px; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* ---- Modals (Help/Donate) ---- */
+.modalBackdrop{
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  background: rgba(0,0,0,.55);
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+  padding: 14px max(14px, env(safe-area-inset-left));
+}
+.modal{
+  width: min(820px, 96vw);
+  margin-top: 12px;
+  border-radius: 16px;
+  background: rgba(18,19,26,.96);
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow: 0 10px 30px rgba(0,0,0,.5);
+  padding: 14px;
+}
+.modalHeader{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  margin-bottom: 10px;
+}
+.modalHeader h2{ margin:0; font-size:18px; }
+
+.helpBody{
+  color: rgba(233,234,238,.92);
+  line-height: 1.45;
+  font-size: 14px;
+}
+.helpBody .h{
+  font-weight: 900;
+  margin: 12px 0 6px;
+}
+.helpBody .b{
+  color: rgba(233,234,238,.86);
+}
+.helpBody .k{
+  display:inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.03);
+  font-weight: 800;
+  font-size: 12px;
+}
+.small{ font-size: 12px; color: rgba(255,255,255,.75); }
+
+.ctaGrid{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:12px;
+}
+@media (max-width:720px){ .ctaGrid{ grid-template-columns: 1fr; } }
+
+.payCard{
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.03);
+  border-radius: 14px;
+  padding: 12px;
+}
+.payBtnBig{
+  display:block;
+  margin-top: 8px;
+  border-radius: 14px;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.10);
+}
+.paypalImg{ width:100%; height:auto; display:block; }
+
+.qrImg{
+  width: 220px;
+  max-width: 100%;
+  border-radius: 14px;
+  border:1px solid rgba(255,255,255,.10);
+  background: white;
+  padding: 8px;
+}
+
+.addrBox{
+  margin-top: 8px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.12);
+  border-radius: 14px;
+  padding: 10px;
+}
+.mono{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  word-break: break-all;
+  margin-top: 6px;
+}
+.row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+.bookCardTop{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:8px;
+}
+.bookPick{
+  transform: scale(1.2);
+}

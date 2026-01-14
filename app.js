@@ -1,15 +1,18 @@
 /* -----------------------------
-   RSVP Reader V2 (iPad / Offline)
+   RSVP Reader V2.1 (iPad / Offline)
+   - Library in IndexedDB (books)
+   - Storage persistence request
+   - Help modal + Donate modal
 ------------------------------ */
 
 const $ = (id) => document.getElementById(id);
 
+/* ---------- Elements (must exist) ---------- */
 const el = {
-  // file + status
   file: $("file"),
   status: $("status"),
 
-  // header info
+  // Header info
   headerInfo: $("headerInfo"),
   coverImg: $("coverImg"),
   bookTitle: $("bookTitle"),
@@ -19,7 +22,7 @@ const el = {
   chapVal: $("chapVal"),
   pinHeader: $("pinHeader"),
 
-  // reader
+  // Reader
   display: $("display"),
   word: $("word"),
   btnPlay: $("btnPlay"),
@@ -36,6 +39,12 @@ const el = {
   btnHeader: $("btnHeader"),
   btnSettings: $("btnSettings"),
   btnShelf: $("btnShelf"),
+  btnHelp: $("btnHelp"),
+  btnDonate: $("btnDonate"),
+  btnExportAll: $("btnExportAll"),
+  btnExportSelected: $("btnExportSelected"),
+  importFile: $("importFile"),
+
 
   // sidebar
   sidebar: $("sidebar"),
@@ -70,12 +79,45 @@ const el = {
   shelfList: $("shelfList"),
   btnShelfClose: $("btnShelfClose"),
   pinShelf: $("pinShelf"),
+
+  // Help modal
+  helpBackdrop: $("helpBackdrop"),
+  btnHelpClose: $("btnHelpClose"),
+  helpBody: $("helpBody"),
+
+  // Donate modal
+  donateBackdrop: $("donateBackdrop"),
+  btnDonateClose: $("btnDonateClose"),
+  btnPaypalQR: $("btnPaypalQR"),
+  paypalQrWrap: $("paypalQrWrap"),
+  paypalQrImg: $("paypalQrImg"),
+  paypalQrHint: $("paypalQrHint"),
+
+  btcAddr: $("btcAddr"),
+  btnCopyBtc: $("btnCopyBtc"),
+  btnBtcQR: $("btnBtcQR"),
+  btcQrWrap: $("btcQrWrap"),
+  btcQrImg: $("btcQrImg"),
+  btcQrHint: $("btcQrHint"),
 };
 
-const LS_KEY = "rsvp_reader_v2_settings";
+/* -----------------------------
+   Storage persistence (iOS)
+------------------------------ */
+async function ensurePersistentStorage() {
+  try {
+    if (!navigator.storage || !navigator.storage.persist) return { ok: false, reason: "no_api" };
+    const already = await navigator.storage.persisted?.();
+    if (already) return { ok: true, persisted: true };
+    const granted = await navigator.storage.persist();
+    return { ok: true, persisted: granted };
+  } catch (e) {
+    return { ok: false, reason: String(e?.message || e) };
+  }
+}
 
 /* -----------------------------
-   IndexedDB (Library storage)
+   IndexedDB
 ------------------------------ */
 const DB_NAME = "rsvp_reader_db";
 const DB_VER = 1;
@@ -125,26 +167,133 @@ async function idbGetAll() {
   });
 }
 
-async function idbDelete(id) {
-  const db = await idbOpen();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, "readwrite");
-    tx.objectStore(STORE).delete(id);
-    tx.oncomplete = () => resolve(true);
-    tx.onerror = () => reject(tx.error);
-  });
+function downloadTextFile(filename, text) {
+  const blob = new Blob([text], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2500);
+}
+
+function nowStamp() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
+}
+
+async function exportLibrary({ mode }) {
+  // mode: "all" | "selected"
+  const all = await idbGetAll();
+  if (!all.length) {
+    setStatus("Nix zu exportieren (Bibliothek leer).");
+    return;
+  }
+
+  let books = all;
+
+  if (mode === "selected") {
+    const picked = [...document.querySelectorAll(".bookPick")]
+      .filter(cb => cb.checked)
+      .map(cb => cb.getAttribute("data-id"));
+    books = all.filter(b => picked.includes(b.id));
+    if (!books.length) {
+      setStatus("Keine Auswahl getroffen.");
+      return;
+    }
+  }
+
+  // Export-Paket: enthält Settings + Bücher
+  const payload = {
+    format: "rsvp-library",
+    version: 1,
+    exportedAt: Date.now(),
+    settings: S.settings,
+    books: books.map(b => ({
+      id: b.id,
+      title: b.title || "",
+      author: b.author || "",
+      coverDataUrl: b.coverDataUrl || "",
+      words: b.words || [],
+      chapters: b.chapters || [],
+      toc: b.toc || [],
+      idx: Number.isFinite(b.idx) ? b.idx : 0,
+      bookmarks: b.bookmarks || [],
+      createdAt: b.createdAt || Date.now(),
+      updatedAt: b.updatedAt || Date.now(),
+    })),
+  };
+
+  const name = `rsvp_library_${mode}_${nowStamp()}.json`;
+  downloadTextFile(name, JSON.stringify(payload));
+  setStatus(`Export fertig ✅ (${books.length} Buch/Bücher)`);
+}
+
+function validateImportPayload(p) {
+  if (!p || typeof p !== "object") return "Keine gültige JSON-Struktur.";
+  if (p.format !== "rsvp-library") return "Falsches Format (nicht rsvp-library).";
+  if (!Array.isArray(p.books)) return "Import: 'books' fehlt oder ist kein Array.";
+  return null;
+}
+
+async function importLibraryFromJsonFile(file) {
+  try {
+    const txt = await file.text();
+    const p = JSON.parse(txt);
+    const err = validateImportPayload(p);
+    if (err) throw new Error(err);
+
+    // Settings übernehmen (optional, aber gewünscht)
+    if (p.settings && typeof p.settings === "object") {
+      S.settings = { ...S.settings, ...p.settings };
+      saveSettingsToLS();
+      applySettingsToUI();
+    }
+
+    // Bücher rein in IndexedDB
+    let count = 0;
+    for (const b of p.books) {
+      // minimal sanity
+      if (!b?.id || !Array.isArray(b?.words)) continue;
+
+      await idbPut({
+        id: b.id,
+        title: b.title || "",
+        author: b.author || "",
+        coverDataUrl: b.coverDataUrl || "",
+        words: b.words,
+        chapters: b.chapters || [],
+        toc: b.toc || [],
+        idx: Number.isFinite(b.idx) ? b.idx : 0,
+        bookmarks: Array.isArray(b.bookmarks) ? b.bookmarks : [],
+        createdAt: b.createdAt || Date.now(),
+        updatedAt: Date.now(),
+      });
+      count++;
+    }
+
+    await renderShelf();
+    setStatus(`Import fertig ✅ (${count} Buch/Bücher)`);
+  } catch (e) {
+    console.error(e);
+    setStatus(`Import-Fehler: ${e?.message || e}`);
+  }
 }
 
 /* -----------------------------
-   State
+   State / Settings
 ------------------------------ */
+const LS_KEY = "rsvp_reader_v2_settings";
+
 const S = {
   words: [],
   idx: 0,
   playing: false,
   timer: null,
 
-  // book meta / id
   book: {
     id: null,
     title: "—",
@@ -154,12 +303,11 @@ const S = {
     toc: [],      // [{label, href}]
   },
 
-  // bookmarks: [{id, label, idx, createdAt}]
   bookmarks: [],
 
   // stop logic
-  playStartedAt: 0,        // ms
-  wordsAtPlayStart: 0,     // idx snapshot
+  playStartedAt: 0,
+  wordsAtPlayStart: 0,
   pendingStop: false,
 
   settings: {
@@ -180,9 +328,15 @@ const S = {
   },
 };
 
-function setStatus(msg) { el.status.textContent = msg; }
+function setStatus(msg) { if (el.status) el.status.textContent = msg; }
 function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
 
+function show(x) { x?.classList?.remove("hidden"); }
+function hide(x) { x?.classList?.add("hidden"); }
+
+/* -----------------------------
+   Text utils
+------------------------------ */
 function escapeHtml(s) {
   return String(s)
     .replaceAll("&", "&amp;")
@@ -201,12 +355,8 @@ function wordsFromText(txt) {
   return cleaned.split(" ").filter(Boolean);
 }
 
-function isSentenceEnd(token) {
-  return /[.!?…。！？]/.test(token);
-}
-function isPunctHeavy(token) {
-  return /[.!?…。！？;:]/.test(token) || /[,，]/.test(token);
-}
+function isSentenceEnd(token) { return /[.!?…。！？]/.test(token); }
+function isPunctHeavy(token) { return /[.!?…。！？;:]/.test(token) || /[,，]/.test(token); }
 
 function msPerToken(baseWpm, chunkSize) {
   const msPerWord = 60000 / baseWpm;
@@ -242,39 +392,8 @@ function renderToken(token) {
   const segAfter = escapeHtml(seg.slice(orpIdx + 1));
   const after = escapeHtml(token.slice(segStart + seg.length));
 
-  el.word.innerHTML =
-    `${before}${segBefore}<span class="orp">${segOrp}</span>${segAfter}${after}`;
+  el.word.innerHTML = `${before}${segBefore}<span class="orp">${segOrp}</span>${segAfter}${after}`;
 }
-
-/* -----------------------------
-   UI helpers (sidebar/shelf/header)
------------------------------- */
-function show(elm) { elm.classList.remove("hidden"); }
-function hide(elm) { elm.classList.add("hidden"); }
-
-function syncHeaderUI() {
-  el.bookTitle.textContent = S.book.title || "—";
-  el.bookAuthor.textContent = S.book.author || "—";
-  el.coverImg.src = S.book.coverDataUrl || "";
-  el.coverImg.style.display = S.book.coverDataUrl ? "block" : "none";
-  el.pinHeader.checked = !!S.settings.pinHeader;
-}
-
-function syncShelfUI() {
-  el.pinShelf.checked = !!S.settings.pinShelf;
-}
-
-function openHeader() { show(el.headerInfo); }
-function closeHeader() { if (!S.settings.pinHeader) hide(el.headerInfo); }
-
-function openShelf() { show(el.shelf); }
-function closeShelf() { if (!S.settings.pinShelf) hide(el.shelf); }
-
-function openSidebar() { show(el.sidebar); }
-function closeSidebar() { hide(el.sidebar); }
-
-function openSettings() { show(el.settingsModal); }
-function closeSettings() { hide(el.settingsModal); }
 
 /* -----------------------------
    Settings save/load
@@ -282,14 +401,13 @@ function closeSettings() { hide(el.settingsModal); }
 function saveSettingsToLS() {
   localStorage.setItem(LS_KEY, JSON.stringify(S.settings));
 }
+
 function loadSettingsFromLS() {
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (!raw) return;
     const p = JSON.parse(raw);
-    if (p && typeof p === "object") {
-      S.settings = { ...S.settings, ...p };
-    }
+    if (p && typeof p === "object") S.settings = { ...S.settings, ...p };
   } catch {}
 }
 
@@ -312,8 +430,10 @@ function applySettingsToUI() {
   el.stopMinsOn.checked = !!S.settings.stopMinsOn;
   el.stopMins.value = String(S.settings.stopMins);
 
+  el.pinHeader.checked = !!S.settings.pinHeader;
+  el.pinShelf.checked = !!S.settings.pinShelf;
+
   syncHeaderUI();
-  syncShelfUI();
 }
 
 function readSettingsFromUI() {
@@ -334,8 +454,19 @@ function readSettingsFromUI() {
 }
 
 /* -----------------------------
-   Progress + chapter tracking
+   Header + progress
 ------------------------------ */
+function syncHeaderUI() {
+  el.bookTitle.textContent = S.book.title || "—";
+  el.bookAuthor.textContent = S.book.author || "—";
+  if (S.book.coverDataUrl) {
+    el.coverImg.src = S.book.coverDataUrl;
+    el.coverImg.style.display = "block";
+  } else {
+    el.coverImg.style.display = "none";
+  }
+}
+
 function getChapterByWordIndex(idx) {
   for (const ch of (S.book.chapters || [])) {
     if (idx >= ch.start && idx < ch.end) return ch;
@@ -381,7 +512,7 @@ function showCurrent() {
 }
 
 /* -----------------------------
-   Player
+   Playback
 ------------------------------ */
 function stopPlayback(reason = "") {
   S.playing = false;
@@ -390,47 +521,36 @@ function stopPlayback(reason = "") {
   S.pendingStop = false;
   el.btnPlay.textContent = "Play";
   if (reason) setStatus(reason);
-  persistCurrentBookState(); // save idx/bookmarks to DB
+  persistCurrentBookState().catch(()=>{});
 }
 
-function checkAutoStop(nextToken, nextIdxAfterAdvance) {
-  // If already pending, stop at sentence end
+function checkAutoStop(currentToken, nextIdxAfterAdvance) {
   if (S.pendingStop) {
-    if (isSentenceEnd(nextToken)) return true;
+    if (isSentenceEnd(currentToken)) return true;
     return false;
   }
 
-  // Stop after minutes
   if (S.settings.stopMinsOn && S.playStartedAt) {
     const elapsedMs = Date.now() - S.playStartedAt;
     const limitMs = S.settings.stopMins * 60 * 1000;
-    if (limitMs > 0 && elapsedMs >= limitMs) {
-      S.pendingStop = true;
-    }
+    if (limitMs > 0 && elapsedMs >= limitMs) S.pendingStop = true;
   }
 
-  // Stop after words
   if (S.settings.stopWordsOn) {
     const limit = S.settings.stopWords;
     if (limit > 0) {
       const readWords = nextIdxAfterAdvance - S.wordsAtPlayStart;
-      if (readWords >= limit) {
-        S.pendingStop = true;
-      }
+      if (readWords >= limit) S.pendingStop = true;
     }
   }
 
-  // Stop at chapter end
   if (S.settings.stopChapter) {
     const ch = getChapterByWordIndex(nextIdxAfterAdvance);
     const prevCh = getChapterByWordIndex(nextIdxAfterAdvance - 1);
-    // If we crossed into a new chapter => pending stop
-    if (prevCh && ch && prevCh.href !== ch.href) {
-      S.pendingStop = true;
-    }
+    if (prevCh && ch && prevCh.href !== ch.href) S.pendingStop = true;
   }
 
-  if (S.pendingStop && isSentenceEnd(nextToken)) return true;
+  if (S.pendingStop && isSentenceEnd(currentToken)) return true;
   return false;
 }
 
@@ -448,10 +568,8 @@ function scheduleNext() {
   renderToken(token);
   updateProgressUI();
 
-  // advance
   S.idx = end;
 
-  // auto stop logic (use current token and new idx)
   if (checkAutoStop(token, S.idx)) {
     stopPlayback("Auto-Stop ✅");
     return;
@@ -460,29 +578,23 @@ function scheduleNext() {
   let delay = msPerToken(S.settings.wpm, chunk);
   if (S.settings.punct && isPunctHeavy(token)) delay += S.settings.punctMs;
 
-  // end
   if (end >= total) {
     stopPlayback("Ende ✅");
     return;
   }
-
   S.timer = setTimeout(scheduleNext, delay);
 }
 
 function togglePlay() {
   if (!S.words.length) return;
 
-  if (S.playing) {
-    stopPlayback();
-    return;
-  }
+  if (S.playing) { stopPlayback(); return; }
+
   S.playing = true;
   S.pendingStop = false;
   el.btnPlay.textContent = "Pause";
-
   S.playStartedAt = Date.now();
   S.wordsAtPlayStart = S.idx;
-
   scheduleNext();
 }
 
@@ -492,14 +604,14 @@ function step(deltaChunks) {
   const delta = deltaChunks * S.settings.chunk;
   S.idx = clamp(S.idx + delta, 0, Math.max(0, S.words.length - 1));
   showCurrent();
-  persistCurrentBookState();
+  persistCurrentBookState().catch(()=>{});
 }
 
 function resetPosition() {
   stopPlayback();
   S.idx = 0;
   showCurrent();
-  persistCurrentBookState();
+  persistCurrentBookState().catch(()=>{});
 }
 
 /* -----------------------------
@@ -516,7 +628,7 @@ function addBookmarkAtCurrent() {
   const bm = { id, label: makeBookmarkLabel(), idx: S.idx, createdAt: Date.now() };
   S.bookmarks.unshift(bm);
   renderBookmarks();
-  persistCurrentBookState();
+  persistCurrentBookState().catch(()=>{});
   setStatus("Lesezeichen gesetzt 🔖");
 }
 
@@ -524,7 +636,7 @@ function jumpToIndex(idx) {
   stopPlayback();
   S.idx = clamp(idx, 0, Math.max(0, S.words.length - 1));
   showCurrent();
-  persistCurrentBookState();
+  persistCurrentBookState().catch(()=>{});
 }
 
 function renderBookmarks() {
@@ -544,6 +656,9 @@ function renderBookmarks() {
   }
 }
 
+/* -----------------------------
+   TOC
+------------------------------ */
 function setTab(which) {
   if (which === "toc") {
     el.tabToc.classList.add("active");
@@ -558,9 +673,6 @@ function setTab(which) {
   }
 }
 
-/* -----------------------------
-   TOC / Chapters list
------------------------------- */
 function renderToc() {
   const toc = S.book.toc || [];
   if (!toc.length) {
@@ -571,7 +683,6 @@ function renderToc() {
   el.tocList.classList.remove("muted");
   el.tocList.innerHTML = "";
 
-  // Map href->chapter start word
   const hrefToStart = new Map();
   for (const ch of (S.book.chapters || [])) hrefToStart.set(ch.href, ch.start);
 
@@ -579,21 +690,22 @@ function renderToc() {
     const start = hrefToStart.get(t.href) ?? null;
     const div = document.createElement("div");
     div.className = "item";
-    div.innerHTML = `<div><b>${escapeHtml(t.label || t.href)}</b></div><div class="small">${start !== null ? `Springe zu Wort #${start}` : "Kapitel (ohne Mapping)"}</div>`;
+    div.innerHTML = `<div><b>${escapeHtml(t.label || t.href)}</b></div><div class="small">${start !== null ? `Springe zu Wort #${start}` : "Kapitel"}</div>`;
     div.addEventListener("click", () => {
       if (start !== null) jumpToIndex(start);
-      closeSidebar();
+      hide(el.sidebar);
     });
     el.tocList.appendChild(div);
   }
 }
 
 /* -----------------------------
-   Load / Save current book state
+   Library (save/load that MUST persist)
 ------------------------------ */
-function computeBookIdFromFile(file) {
-  // Not cryptographically stable, but good enough for a library key
-  return `f_${file.name}_${file.size}_${file.lastModified || 0}`;
+function stableBookId(file) {
+  // iOS can change lastModified; keep it stable-ish:
+  // name + size is usually enough, add type too
+  return `b_${file.name}_${file.size}_${file.type || "bin"}`;
 }
 
 async function persistCurrentBookState() {
@@ -601,62 +713,83 @@ async function persistCurrentBookState() {
   try {
     const existing = await idbGet(S.book.id);
     if (!existing) return;
-
     existing.idx = S.idx;
     existing.bookmarks = S.bookmarks;
     existing.updatedAt = Date.now();
     await idbPut(existing);
-
-    // update shelf view
     await renderShelf();
-  } catch {}
+  } catch (e) {
+    console.error("persistCurrentBookState failed", e);
+  }
 }
 
-async function saveBookToLibrary(payload) {
-  await idbPut(payload);
+async function saveBookToLibrary(bookObj) {
+  await ensurePersistentStorage();
+  await idbPut(bookObj);
   await renderShelf();
 }
 
 async function renderShelf() {
-  const all = await idbGetAll();
-  all.sort((a,b) => (b.updatedAt||b.createdAt||0) - (a.updatedAt||a.createdAt||0));
+  try {
+    const all = await idbGetAll();
+    all.sort((a,b) => (b.updatedAt||b.createdAt||0) - (a.updatedAt||a.createdAt||0));
 
-  if (!all.length) {
+    if (!all.length) {
+      el.shelfList.classList.add("muted");
+      el.shelfList.textContent = "Noch keine Bücher gespeichert.";
+      return;
+    }
+    el.shelfList.classList.remove("muted");
+    el.shelfList.innerHTML = "";
+
+    for (const b of all) {
+      const card = document.createElement("div");
+        card.className = "bookCard";
+
+        // Top row: checkbox + title
+        const top = document.createElement("div");
+        top.className = "bookCardTop";
+
+        const pick = document.createElement("input");
+        pick.type = "checkbox";
+        pick.className = "bookPick";
+        pick.setAttribute("data-id", b.id);
+
+        const t = document.createElement("div");
+        t.className = "t";
+        t.textContent = b.title || "—";
+
+        top.appendChild(pick);
+        top.appendChild(t);
+
+        const img = document.createElement("img");
+        img.alt = "Cover";
+        img.src = b.coverDataUrl || "";
+        img.style.display = b.coverDataUrl ? "block" : "none";
+
+        const a = document.createElement("div");
+        a.className = "a";
+        a.textContent = b.author || "";
+
+        card.appendChild(top);
+        card.appendChild(img);
+        card.appendChild(a);
+
+        // Klick auf Card lädt Buch – aber Checkbox-Klick soll nicht laden:
+        pick.addEventListener("click", (ev) => ev.stopPropagation());
+
+        card.addEventListener("click", async () => {
+          await loadBookFromLibrary(b.id);
+          if (!S.settings.pinShelf) closeShelf();
+        });
+
+        el.shelfList.appendChild(card);
+
+    }
+  } catch (e) {
+    console.error("renderShelf failed", e);
     el.shelfList.classList.add("muted");
-    el.shelfList.textContent = "Noch keine Bücher gespeichert.";
-    return;
-  }
-
-  el.shelfList.classList.remove("muted");
-  el.shelfList.innerHTML = "";
-
-  for (const b of all) {
-    const card = document.createElement("div");
-    card.className = "bookCard";
-
-    const img = document.createElement("img");
-    img.alt = "Cover";
-    img.src = b.coverDataUrl || "";
-    img.style.display = b.coverDataUrl ? "block" : "none";
-
-    const t = document.createElement("div");
-    t.className = "t";
-    t.textContent = b.title || "—";
-
-    const a = document.createElement("div");
-    a.className = "a";
-    a.textContent = b.author || "";
-
-    card.appendChild(img);
-    card.appendChild(t);
-    card.appendChild(a);
-
-    card.addEventListener("click", async () => {
-      await loadBookFromLibrary(b.id);
-      if (!S.settings.pinShelf) closeShelf();
-    });
-
-    el.shelfList.appendChild(card);
+    el.shelfList.textContent = "Bibliothek kann nicht geladen werden (IndexedDB blockiert?).";
   }
 }
 
@@ -683,8 +816,6 @@ async function loadBookFromLibrary(id) {
   showCurrent();
 
   setStatus(`Geladen: ${S.book.title} (${S.words.length} Wörter)`);
-  if (S.settings.pinHeader) openHeader();
-  if (S.settings.pinShelf) openShelf();
 }
 
 /* -----------------------------
@@ -696,25 +827,25 @@ function isNavItem(item) {
   if (Array.isArray(props)) return props.includes("nav");
   return String(props).includes("nav");
 }
-
 function looksLikeHtmlItem(item) {
   const href = String(item?.href || "").toLowerCase();
   const mt = String(item?.mediaType || "").toLowerCase();
   return mt.includes("html") || href.endsWith(".xhtml") || href.endsWith(".html");
 }
-
 function cleanDocText(doc) {
-  try {
-    doc.querySelectorAll("script,style,noscript,svg,math,iframe").forEach(n => n.remove());
-  } catch {}
-
+  try { doc.querySelectorAll("script,style,noscript,svg,math,iframe").forEach(n => n.remove()); } catch {}
   let txt = "";
   if (doc?.body?.textContent) txt = doc.body.textContent;
   else if (doc?.documentElement?.textContent) txt = doc.documentElement.textContent;
-
   return String(txt || "").replace(/\s+/g, " ").trim();
 }
-
+function blobToDataUrl(blob) {
+  return new Promise((resolve) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result || ""));
+    r.readAsDataURL(blob);
+  });
+}
 async function extractCoverDataUrl(book) {
   try {
     const url = await book.coverUrl();
@@ -727,18 +858,8 @@ async function extractCoverDataUrl(book) {
   }
 }
 
-function blobToDataUrl(blob) {
-  return new Promise((resolve) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result || ""));
-    r.readAsDataURL(blob);
-  });
-}
-
 async function loadEpubFromFile(file) {
-  if (typeof window.ePub !== "function") {
-    throw new Error("EPUB Engine (epub.js) nicht geladen.");
-  }
+  if (typeof window.ePub !== "function") throw new Error("EPUB Engine (epub.js) nicht geladen.");
 
   setStatus("Lade EPUB…");
   const buf = await file.arrayBuffer();
@@ -746,7 +867,6 @@ async function loadEpubFromFile(file) {
   const book = ePub(buf);
   await book.ready;
 
-  // metadata
   let title = file.name;
   let author = "";
   try {
@@ -757,17 +877,15 @@ async function loadEpubFromFile(file) {
 
   const coverDataUrl = await extractCoverDataUrl(book);
 
-  // toc
   let toc = [];
   try {
     const nav = await book.loaded.navigation;
-    toc = (nav?.toc || []).map(x => ({ label: x.label, href: x.href }));
+    toc = (nav?.toc || []).map(x => ({ label: x.label, href: (x.href || "").split("#")[0] }));
   } catch {}
 
   const spine = book.spine?.spineItems || [];
   if (!spine.length) throw new Error("EPUB: Keine Spine-Items gefunden.");
 
-  // Build word stream + chapter boundaries
   const chapters = [];
   const allParts = [];
   let wordCursor = 0;
@@ -775,7 +893,6 @@ async function loadEpubFromFile(file) {
 
   for (let i = 0; i < spine.length; i++) {
     const item = spine[i];
-
     if (item?.linear === "no") continue;
     if (isNavItem(item)) continue;
     if (!looksLikeHtmlItem(item)) continue;
@@ -783,57 +900,43 @@ async function loadEpubFromFile(file) {
     setStatus(`Extrahiere Kapitel ${i+1}/${spine.length}… (${kept} gesammelt)`);
 
     await item.load(book.load.bind(book));
-    const doc = item.document;
-    const rawText = cleanDocText(doc);
+    const rawText = cleanDocText(item.document);
     item.unload();
 
     if (rawText.length < 400) continue;
+    const w = wordsFromText(rawText);
+    if (w.length < 80) continue;
 
-    const words = wordsFromText(rawText);
-    if (words.length < 80) continue;
+    const labelGuess =
+      (toc.find(t => t.href === item.href)?.label) ||
+      `Kapitel ${chapters.length + 1}`;
 
-    const chStart = wordCursor;
-    wordCursor += words.length;
-    const chEnd = wordCursor;
+    const start = wordCursor;
+    wordCursor += w.length;
+    const end = wordCursor;
 
-    const labelGuess = (toc.find(t => (t.href || "").split("#")[0] === item.href)?.label)
-      || `Kapitel ${chapters.length + 1}`;
-
-    chapters.push({
-      label: labelGuess,
-      href: item.href,
-      start: chStart,
-      end: chEnd,
-    });
-
+    chapters.push({ label: labelGuess, href: item.href, start, end });
     allParts.push(rawText);
     kept++;
   }
 
   const combined = allParts.join("\n\n");
   const words = wordsFromText(combined);
-
   if (!words.length) throw new Error("Kein Text gefunden (EPUB evtl. Scan/Bild oder ungewöhnlich).");
 
-  // map toc hrefs: normalize (# anchors weg)
-  toc = toc.map(t => ({ ...t, href: (t.href || "").split("#")[0] }));
-
   return {
-    id: computeBookIdFromFile(file),
+    id: stableBookId(file),
     title, author, coverDataUrl,
     words, chapters, toc,
   };
 }
 
-/* -----------------------------
-   File handling
------------------------------- */
 async function loadTxtFromFile(file) {
   setStatus("Lade TXT…");
   const txt = await file.text();
   const words = wordsFromText(txt);
   return {
-    id: computeBookIdFromFile(file),
+    id: stableBookId(file),
     title: file.name,
     author: "",
     coverDataUrl: "",
@@ -843,6 +946,9 @@ async function loadTxtFromFile(file) {
   };
 }
 
+/* -----------------------------
+   File handling
+------------------------------ */
 async function handleFile(file) {
   try {
     stopPlayback();
@@ -850,19 +956,18 @@ async function handleFile(file) {
     S.idx = 0;
     S.bookmarks = [];
 
-    const ext = (file.name.split(".").pop() || "").toLowerCase();
+    await ensurePersistentStorage();
 
+    const ext = (file.name.split(".").pop() || "").toLowerCase();
     let parsed;
     if (ext === "epub") parsed = await loadEpubFromFile(file);
     else if (ext === "txt") parsed = await loadTxtFromFile(file);
     else throw new Error("Bitte .epub oder .txt laden.");
 
-    // If exists in library, merge stored bookmarks/progress
     const existing = await idbGet(parsed.id);
     const idx = existing?.idx ?? 0;
     const marks = existing?.bookmarks ?? [];
 
-    // set state
     S.book.id = parsed.id;
     S.book.title = parsed.title || "—";
     S.book.author = parsed.author || "—";
@@ -880,7 +985,7 @@ async function handleFile(file) {
     updateProgressUI();
     showCurrent();
 
-    // save full book into library (so it can be reopened without file)
+    // Save full book so it can be reopened without file
     await saveBookToLibrary({
       id: parsed.id,
       title: S.book.title,
@@ -896,8 +1001,6 @@ async function handleFile(file) {
     });
 
     setStatus(`Geladen: ${S.book.title} (${S.words.length} Wörter)`);
-    // auto open header if pinned
-    if (S.settings.pinHeader) openHeader();
   } catch (e) {
     setStatus(`Fehler: ${e?.message || e}`);
     console.error(e);
@@ -908,29 +1011,149 @@ async function handleFile(file) {
 }
 
 /* -----------------------------
-   Events
+   Help modal content
+------------------------------ */
+function buildHelpHtml() {
+  const lines = [
+    `<div class="h">Schnellstart</div>
+     <div class="b">Tippe <span class="k">Datei laden</span>, wähle ein <span class="k">.epub</span> oder <span class="k">.txt</span>. Danach mit <span class="k">Play</span> starten.</div>`,
+
+    `<div class="h">Tippen im Lesefeld</div>
+     <div class="b">Links = zurück, Mitte = Play/Pause, rechts = vor.</div>`,
+
+    `<div class="h">Sidebar ☰</div>
+     <div class="b"><span class="k">Kapitel</span> zeigt den Index (wenn im EPUB vorhanden). <span class="k">Lesezeichen</span> sind Sprungmarken.</div>`,
+
+    `<div class="h">Lesezeichen 🔖</div>
+     <div class="b">Setzt ein Lesezeichen bei der aktuellen Wortposition. In der Sidebar kannst du direkt hinspringen.</div>`,
+
+    `<div class="h">Cover/Titel 🛈</div>
+     <div class="b">Zeigt Cover + Titel + Fortschritt. Mit <span class="k">fixieren</span> bleibt es dauerhaft sichtbar.</div>`,
+
+    `<div class="h">Einstellungen ⚙︎</div>
+     <div class="b">WPM = Geschwindigkeit, Chunk = mehrere Wörter pro Anzeige, ORP = Fokus-Buchstabe, Satzzeichenpause = Extra-Zeit bei Punkt/Komma.</div>`,
+
+    `<div class="h">Auto-Stop</div>
+     <div class="b">Stoppt am Kapitelende oder nach X Wörtern oder nach X Minuten – aber immer erst am Satzende, damit’s nicht mitten im Satz abwürgt.</div>`,
+
+    `<div class="h">Bibliothek 📚</div>
+     <div class="b">Gelesene Bücher werden offline gespeichert (inkl. Cover & Lesezeichen). Tippe ein Buch an, um es ohne Datei neu zu öffnen.</div>`,
+
+    `<div class="h">Wenn etwas „weg“ ist</div>
+     <div class="b">Safari im privaten Modus löscht/blocked Speicher. Am besten über die Home-Bildschirm-App nutzen. Außerdem: iOS räumt manchmal auf – deshalb wird persistenter Speicher angefordert.</div>`,
+  ];
+  return lines.join("");
+}
+
+/* -----------------------------
+   Donate modal helpers
+------------------------------ */
+const DONATE = {
+  paypal: "https://paypal.me/rophko",
+  // Du hast mir die Adresse mal geschickt – ich nehme exakt die:
+  btc: "bc1qwr08y9ngmvplpr8tuk4w34rl4pkryur8u4cf5f"
+};
+
+function qrUrl(data) {
+  // Online-Fallback: QR braucht Internet (Spenden-Link braucht’s eh)
+  // QR server: simple, no key
+  const u = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" + encodeURIComponent(data);
+  return u;
+}
+
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    setStatus("Kopiert ✅");
+  } catch {
+    // iOS fallback
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+    setStatus("Kopiert ✅");
+  }
+}
+
+/* -----------------------------
+   Bind UI
 ------------------------------ */
 function bindUI() {
-  // top buttons
-  el.btnSidebar.addEventListener("click", () => openSidebar());
-  el.btnSidebarClose.addEventListener("click", closeSidebar);
+  // file
+  el.file.addEventListener("change", (ev) => {
+    const f = ev.target.files?.[0];
+    if (f) setTimeout(() => handleFile(f), 0);
+    ev.target.value = "";
+    el.btnExportAll?.addEventListener("click", () => exportLibrary({ mode: "all" }));
+el.btnExportSelected?.addEventListener("click", () => exportLibrary({ mode: "selected" }));
 
-  el.btnHeader.addEventListener("click", () => {
-    if (el.headerInfo.classList.contains("hidden")) openHeader();
-    else closeHeader();
+el.importFile?.addEventListener("change", (ev) => {
+  const f = ev.target.files?.[0];
+  if (f) importLibraryFromJsonFile(f);
+  ev.target.value = "";
   });
 
-  el.btnSettings.addEventListener("click", openSettings);
-  el.btnSettingsClose.addEventListener("click", closeSettings);
 
-  el.btnShelf.addEventListener("click", () => openShelf());
-  el.btnShelfClose.addEventListener("click", closeShelf);
+  // player
+  el.btnPlay.addEventListener("click", togglePlay);
+  el.btnBack.addEventListener("click", () => step(-1));
+  el.btnFwd.addEventListener("click", () => step(+1));
+  el.btnReset.addEventListener("click", resetPosition);
+  el.btnBookmark.addEventListener("click", addBookmarkAtCurrent);
 
-  // tabs
+  // seek
+  el.seek.addEventListener("input", () => {
+    stopPlayback();
+    S.idx = Number(el.seek.value);
+    showCurrent();
+    persistCurrentBookState().catch(()=>{});
+  });
+
+  // tap zones
+  el.display.addEventListener("click", (ev) => {
+    const r = el.display.getBoundingClientRect();
+    const x = ev.clientX - r.left;
+    const third = r.width / 3;
+    if (x < third) step(-1);
+    else if (x > 2*third) step(+1);
+    else togglePlay();
+  });
+
+  // sidebar
+  el.btnSidebar.addEventListener("click", () => show(el.sidebar));
+  el.btnSidebarClose.addEventListener("click", () => hide(el.sidebar));
   el.tabToc.addEventListener("click", () => setTab("toc"));
   el.tabMarks.addEventListener("click", () => setTab("marks"));
 
-  // settings controls
+  // header
+  el.btnHeader.addEventListener("click", () => {
+    if (el.headerInfo.classList.contains("hidden")) show(el.headerInfo);
+    else if (!S.settings.pinHeader) hide(el.headerInfo);
+  });
+  el.pinHeader.addEventListener("change", () => {
+    S.settings.pinHeader = el.pinHeader.checked;
+    saveSettingsToLS();
+    if (S.settings.pinHeader) show(el.headerInfo);
+    else hide(el.headerInfo);
+  });
+
+  // shelf
+  el.btnShelf.addEventListener("click", () => show(el.shelf));
+  el.btnShelfClose.addEventListener("click", () => { if (!S.settings.pinShelf) hide(el.shelf); });
+  el.pinShelf.addEventListener("change", () => {
+    S.settings.pinShelf = el.pinShelf.checked;
+    saveSettingsToLS();
+    if (S.settings.pinShelf) show(el.shelf);
+    else hide(el.shelf);
+  });
+
+  // settings modal
+  el.btnSettings.addEventListener("click", () => show(el.settingsModal));
+  el.btnSettingsClose.addEventListener("click", () => hide(el.settingsModal));
+  el.settingsModal.addEventListener("click", (e) => { if (e.target === el.settingsModal) hide(el.settingsModal); });
+
   el.wpm.addEventListener("input", () => {
     S.settings.wpm = Number(el.wpm.value);
     el.wpmVal.textContent = String(S.settings.wpm);
@@ -949,93 +1172,83 @@ function bindUI() {
   el.stopMinsOn.addEventListener("change", () => { S.settings.stopMinsOn = el.stopMinsOn.checked; });
   el.stopMins.addEventListener("input", () => { S.settings.stopMins = Number(el.stopMins.value || 0); });
 
-  el.pinHeader.addEventListener("change", () => {
-    S.settings.pinHeader = el.pinHeader.checked;
-    saveSettingsToLS();
-    if (S.settings.pinHeader) openHeader();
-    else closeHeader();
-  });
-  el.pinShelf.addEventListener("change", () => {
-    S.settings.pinShelf = el.pinShelf.checked;
-    saveSettingsToLS();
-    if (S.settings.pinShelf) openShelf();
-    else closeShelf();
-  });
-
   el.btnSaveSettings.addEventListener("click", () => {
     readSettingsFromUI();
     saveSettingsToLS();
     applySettingsToUI();
     setStatus("Einstellungen gespeichert ✅");
   });
-
   el.btnLoadSettings.addEventListener("click", () => {
     loadSettingsFromLS();
     applySettingsToUI();
     setStatus("Einstellungen geladen ✅");
   });
 
-  // player
-  el.btnPlay.addEventListener("click", togglePlay);
-  el.btnBack.addEventListener("click", () => step(-1));
-  el.btnFwd.addEventListener("click", () => step(+1));
-  el.btnReset.addEventListener("click", resetPosition);
-  el.btnBookmark.addEventListener("click", () => addBookmarkAtCurrent());
+  // Help modal
+  el.btnHelp?.addEventListener("click", () => {
+    el.helpBody.innerHTML = buildHelpHtml();
+    show(el.helpBackdrop);
+  });
+  el.btnHelpClose?.addEventListener("click", () => hide(el.helpBackdrop));
+  el.helpBackdrop?.addEventListener("click", (e) => { if (e.target === el.helpBackdrop) hide(el.helpBackdrop); });
 
-  // seek
-  el.seek.addEventListener("input", () => {
-    stopPlayback();
-    S.idx = Number(el.seek.value);
-    showCurrent();
-    persistCurrentBookState();
+  // Donate modal
+  el.btnDonate?.addEventListener("click", () => {
+    // fill btc address
+    if (el.btcAddr) el.btcAddr.textContent = DONATE.btc;
+    // reset qr sections
+    if (el.paypalQrWrap) el.paypalQrWrap.style.display = "none";
+    if (el.btcQrWrap) el.btcQrWrap.style.display = "none";
+    show(el.donateBackdrop);
+  });
+  el.btnDonateClose?.addEventListener("click", () => hide(el.donateBackdrop));
+  el.donateBackdrop?.addEventListener("click", (e) => { if (e.target === el.donateBackdrop) hide(el.donateBackdrop); });
+
+  // PayPal QR
+  el.btnPaypalQR?.addEventListener("click", () => {
+    const u = DONATE.paypal;
+    el.paypalQrImg.src = qrUrl(u);
+    el.paypalQrWrap.style.display = "block";
+    el.paypalQrHint.textContent = navigator.onLine ? "" : "QR braucht Internet (wie PayPal sowieso).";
   });
 
-  // file
-  el.file.addEventListener("change", (ev) => {
-    const f = ev.target.files?.[0];
-    if (f) setTimeout(() => handleFile(f), 0);
-    ev.target.value = "";
+  // BTC copy + QR
+  el.btnCopyBtc?.addEventListener("click", () => copyToClipboard(DONATE.btc));
+  el.btnBtcQR?.addEventListener("click", () => {
+    const uri = "bitcoin:" + DONATE.btc;
+    el.btcQrImg.src = qrUrl(uri);
+    el.btcQrWrap.style.display = "block";
+    el.btcQrHint.textContent = navigator.onLine ? "" : "QR braucht Internet (Wallet-Öffnen meist auch).";
   });
 
-  // tap zones
-  el.display.addEventListener("click", (ev) => {
-    const r = el.display.getBoundingClientRect();
-    const x = ev.clientX - r.left;
-    const third = r.width / 3;
-    if (x < third) step(-1);
-    else if (x > 2*third) step(+1);
-    else togglePlay();
-  });
-
-  // keyboard (optional)
-  window.addEventListener("keydown", (e) => {
-    if (e.key === " ") { e.preventDefault(); togglePlay(); }
-    if (e.key === "ArrowLeft") step(-1);
-    if (e.key === "ArrowRight") step(+1);
-    if (e.key.toLowerCase() === "b") addBookmarkAtCurrent();
-  });
-
-  // close modals on backdrop click
-  el.settingsModal.addEventListener("click", (e) => {
-    if (e.target === el.settingsModal) closeSettings();
-  });
 }
 
 /* -----------------------------
    Boot
 ------------------------------ */
 (async function boot() {
+  // Try persistence early
+  const p = await ensurePersistentStorage();
+  if (p.ok && p.persisted === false) {
+    // not an error, just info
+    console.log("Storage not persisted (may be evicted by iOS).");
+  }
+
   loadSettingsFromLS();
   applySettingsToUI();
   bindUI();
+  setTab("toc");
+
   updateProgressUI();
   showCurrent();
+
   await renderShelf();
 
-  // If pinned UI, show it at start
-  if (S.settings.pinHeader) openHeader();
-  if (S.settings.pinShelf) openShelf();
+  if (S.settings.pinHeader) show(el.headerInfo); else hide(el.headerInfo);
+  if (S.settings.pinShelf) show(el.shelf); else hide(el.shelf);
 
-  setTab("toc");
   setStatus("Warte auf Datei…");
-})();
+})().catch((e) => {
+  console.error(e);
+  setStatus("Boot-Fehler: IndexedDB blockiert? (Privater Modus?)");
+});
