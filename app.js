@@ -101,6 +101,22 @@ const el = {
   btcQrImg: $("btcQrImg"),
   btcQrHint: $("btcQrHint"),
 };
+// === DEBUG: zeigt ob Buttons/IDs existieren + ob Click ankommt ===
+(() => {
+  const missing = Object.entries(el)
+    .filter(([k,v]) => !v)
+    .map(([k]) => k);
+
+  console.log("RSVP app.js loaded ✅", new Date().toISOString());
+  if (missing.length) console.warn("Missing DOM IDs:", missing);
+
+  // Click-Probes (wenn das NICHT loggt, ist bindUI nicht aktiv oder alte Datei)
+  window.__probe = {
+    save: () => console.log("PROBE: save clicked ✅"),
+    load: () => console.log("PROBE: load clicked ✅"),
+    qrpp: () => console.log("PROBE: paypal-qr clicked ✅"),
+  };
+})();
 
 /* -----------------------------
    Storage persistence (iOS)
