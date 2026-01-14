@@ -330,8 +330,20 @@ async function loadEpub(file) {
     el.prog.textContent = `${Math.round((i / spine.length) * 100)}%`;
 
     // Lade XHTML/HTML
-    const html = await book.load(item.href);
-    const text = stripHtml(html);
+    const content = await book.load(item.href);
+
+let rawText = "";
+
+if (content instanceof Document) {
+  // EPUB liefert XML/XHTML
+  rawText = content.documentElement.textContent || "";
+} else if (typeof content === "string") {
+  rawText = stripHtml(content);
+}
+
+if (rawText.trim()) {
+  all.push(rawText);
+}
     if (text) {
       all.push(text);
     }
