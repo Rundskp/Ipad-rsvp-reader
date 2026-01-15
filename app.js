@@ -2,20 +2,23 @@
    RSVP Reader V2.1 (iPad / Offline)
    - Library in IndexedDB (books)
    - Storage persistence request
-   - Help modal + Donate modal
+   - Help + Donate as popovers (X only)
    - Export/Import library JSON
 ------------------------------ */
 console.log("RSVP app.js loaded ✅", new Date().toISOString());
 
 const $ = (id) => document.getElementById(id);
 
-/* ---------- Elements (must exist) ---------- */
+function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+function show(x) { x?.classList?.remove("hidden"); x && (x.hidden = false); }
+function hide(x) { x?.classList?.add("hidden"); x && (x.hidden = true); }
+
 /* ---------- Elements (must exist) ---------- */
 const el = {
   file: $("file"),
   status: $("status"),
 
-  // Header info
+  // Header info (dock)
   headerInfo: $("headerInfo"),
   coverImg: $("coverImg"),
   bookTitle: $("bookTitle"),
@@ -36,7 +39,7 @@ const el = {
   pos: $("pos"),
   total: $("total"),
 
-  // Top buttons (Panels togglen)
+  // Top buttons
   btnSidebar: $("btnSidebar"),
   btnHeader: $("btnHeader"),
   btnSettings: $("btnSettings"),
@@ -49,7 +52,7 @@ const el = {
   btnExportSelected: $("btnExportSelected"),
   importFile: $("importFile"),
 
-  // Sidebar (Panel)
+  // Sidebar (dock)
   sidebar: $("sidebar"),
   tabToc: $("tabToc"),
   tabMarks: $("tabMarks"),
@@ -58,7 +61,7 @@ const el = {
   tocList: $("tocList"),
   marksList: $("marksList"),
 
-  // Settings (Panel)
+  // Settings (popover)
   settingsModal: $("settingsModal"),
   wpm: $("wpm"),
   chunk: $("chunk"),
@@ -76,17 +79,18 @@ const el = {
   btnLoadSettings: $("btnLoadSettings"),
   btnSettingsClose: $("btnSettingsClose"),
 
-  // Shelf (Panel)
+  // Shelf (dock)
   shelf: $("shelf"),
   shelfList: $("shelfList"),
 
-  // Help (Panel)
+  // Help (popover)
   helpBackdrop: $("helpBackdrop"),
   helpBody: $("helpBody"),
   btnHelpClose: $("btnHelpClose"),
 
-  // Donate (Panel)
+  // Donate (popover)
   donateBackdrop: $("donateBackdrop"),
+  btnDonateClose: $("btnDonateClose"),
   btnPaypalQR: $("btnPaypalQR"),
   paypalQrWrap: $("paypalQrWrap"),
   paypalQrImg: $("paypalQrImg"),
@@ -98,9 +102,15 @@ const el = {
   btcQrWrap: $("btcQrWrap"),
   btcQrImg: $("btcQrImg"),
   btcQrHint: $("btcQrHint"),
-  btnDonateClose: $("btnDonateClose"),
 };
 
+/* -----------------------------
+   DEBUG: missing IDs
+------------------------------ */
+(() => {
+  const missing = Object.entries(el).filter(([_,v]) => !v).map(([k]) => k);
+  if (missing.length) console.warn("Missing DOM IDs:", missing);
+})();
 
 /* -----------------------------
    Toast (always above modals)
@@ -120,18 +130,6 @@ function setStatus(msg) {
   if (el.status) el.status.textContent = msg;
   toast(msg, 1400);
 }
-
-function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
-function show(x) { x?.classList?.remove("hidden"); }
-function hide(x) { x?.classList?.add("hidden"); }
-
-/* -----------------------------
-   DEBUG: missing IDs
------------------------------- */
-(() => {
-  const missing = Object.entries(el).filter(([_,v]) => !v).map(([k]) => k);
-  if (missing.length) console.warn("Missing DOM IDs:", missing);
-})();
 
 /* -----------------------------
    Storage persistence (iOS)
@@ -345,7 +343,6 @@ const S = {
     stopWords: 2000,
     stopMinsOn: false,
     stopMins: 10,
-
   },
 };
 
@@ -462,7 +459,6 @@ function readSettingsFromUI() {
   S.settings.stopWords = Number(el.stopWords.value || 0);
   S.settings.stopMinsOn = el.stopMinsOn.checked;
   S.settings.stopMins = Number(el.stopMins.value || 0);
-
 }
 
 /* -----------------------------
@@ -705,7 +701,9 @@ function renderToc() {
     div.innerHTML = `<div><b>${escapeHtml(t.label || t.href)}</b></div><div class="small">${start !== null ? `Springe zu Wort #${start}` : "Kapitel"}</div>`;
     div.addEventListener("click", () => {
       if (start !== null) jumpToIndex(start);
-      hide(el.sidebar);
+      // Sidebar schließen, wenn Dock-System verfügbar
+      if (typeof window.__dockClose === "function") window.__dockClose("sidebar");
+      else hide(el.sidebar);
     });
     el.tocList.appendChild(div);
   }
@@ -800,8 +798,6 @@ async function renderShelf() {
     el.shelfList.textContent = "Bibliothek kann nicht geladen werden (IndexedDB blockiert?).";
   }
 }
-
-
 
 async function loadBookFromLibrary(id) {
   const b = await idbGet(id);
@@ -1020,7 +1016,7 @@ async function handleFile(file) {
 }
 
 /* -----------------------------
-   Help modal content
+   Help content
 ------------------------------ */
 function buildHelpHtml() {
   const lines = [
@@ -1037,19 +1033,19 @@ function buildHelpHtml() {
      <div class="b">Setzt ein Lesezeichen bei der aktuellen Wortposition. In der Sidebar kannst du direkt hinspringen.</div>`,
 
     `<div class="h">Cover/Titel 🛈</div>
-     <div class="b">Zeigt Cover + Titel + Fortschritt. Mit <span class="k">fixieren</span> bleibt es dauerhaft sichtbar.</div>`,
+     <div class="b">Zeigt Cover + Titel + Fortschritt.</div>`,
 
     `<div class="h">Einstellungen ⚙︎</div>
      <div class="b">WPM = Geschwindigkeit, Chunk = mehrere Wörter pro Anzeige, ORP = Fokus-Buchstabe, Satzzeichenpause = Extra-Zeit bei Punkt/Komma.</div>`,
 
     `<div class="h">Auto-Stop</div>
-     <div class="b">Stoppt am Kapitelende oder nach X Wörtern oder nach X Minuten – aber immer erst am Satzende, damit’s nicht mitten im Satz abwürgt.</div>`,
+     <div class="b">Stoppt am Kapitelende oder nach X Wörtern oder nach X Minuten – aber immer erst am Satzende.</div>`,
 
     `<div class="h">Bibliothek 📚</div>
-     <div class="b">Gelesene Bücher werden offline gespeichert (inkl. Cover & Lesezeichen). Tippe ein Buch an, um es ohne Datei neu zu öffnen.</div>`,
+     <div class="b">Gelesene Bücher werden offline gespeichert (inkl. Cover & Lesezeichen).</div>`,
 
     `<div class="h">Wenn etwas „weg“ ist</div>
-     <div class="b">Privater Modus blockt/killt Speicher. Am besten als Home-Screen-App nutzen. iOS räumt manchmal auf – deshalb wird persistenter Speicher angefordert.</div>`,
+     <div class="b">Privater Modus blockt/killt Speicher. Am besten als Home-Screen-App nutzen.</div>`,
   ];
   return lines.join("");
 }
@@ -1082,17 +1078,18 @@ async function copyToClipboard(text) {
 }
 
 /* -----------------------------
-   Bind UI
+   Bind UI (NO panel toggling here!)
+   - Panels/Popovers are controlled ONLY by initDockPanels()
 ------------------------------ */
 function bindUI() {
-  // --- file ---
+  // file
   el.file?.addEventListener("change", (ev) => {
     const f = ev.target.files?.[0];
     if (f) handleFile(f);
     ev.target.value = "";
   });
 
-  // --- export/import ---
+  // export/import
   el.btnExportAll?.addEventListener("click", () => exportLibrary({ mode: "all" }));
   el.btnExportSelected?.addEventListener("click", () => exportLibrary({ mode: "selected" }));
   el.importFile?.addEventListener("change", (ev) => {
@@ -1101,14 +1098,14 @@ function bindUI() {
     ev.target.value = "";
   });
 
-  // --- player ---
+  // player
   el.btnPlay?.addEventListener("click", togglePlay);
   el.btnBack?.addEventListener("click", () => step(-1));
   el.btnFwd?.addEventListener("click", () => step(+1));
   el.btnReset?.addEventListener("click", resetPosition);
   el.btnBookmark?.addEventListener("click", addBookmarkAtCurrent);
 
-  // --- seek ---
+  // seek
   el.seek?.addEventListener("input", () => {
     stopPlayback();
     S.idx = Number(el.seek.value);
@@ -1116,7 +1113,7 @@ function bindUI() {
     persistCurrentBookState().catch(()=>{});
   });
 
-  // --- tap zones ---
+  // tap zones
   el.display?.addEventListener("click", (ev) => {
     const r = el.display.getBoundingClientRect();
     const x = ev.clientX - r.left;
@@ -1126,28 +1123,11 @@ function bindUI() {
     else togglePlay();
   });
 
-  // --- sidebar ---
-  el.btnSidebar?.addEventListener("click", () => show(el.sidebar));
-  el.btnSidebarClose?.addEventListener("click", () => hide(el.sidebar));
+  // tabs in sidebar
   el.tabToc?.addEventListener("click", () => setTab("toc"));
   el.tabMarks?.addEventListener("click", () => setTab("marks"));
 
-  // --- header toggle/pin ---
-  el.btnHeader?.addEventListener("click", () => {
-    if (el.headerInfo.classList.contains("hidden")) show(el.headerInfo);
-  });
-
-  // --- shelf toggle/pin ---
-  el.btnShelf?.addEventListener("click", () => show(el.shelf));
-  el.btnShelfClose?.addEventListener("click");
-  });
-
-  // --- settings modal ---
-  el.btnSettings?.addEventListener("click", () => show(el.settingsModal));
-  el.btnSettingsClose?.addEventListener("click", () => hide(el.settingsModal));
-  el.settingsModal?.addEventListener("click", (e) => { if (e.target === el.settingsModal) hide(el.settingsModal); });
-
-  // live updates
+  // settings live updates (works even when popover closed)
   el.wpm?.addEventListener("input", () => { S.settings.wpm = Number(el.wpm.value); el.wpmVal.textContent = String(S.settings.wpm); });
   el.chunk?.addEventListener("input", () => { S.settings.chunk = Number(el.chunk.value); el.chunkVal.textContent = String(S.settings.chunk); });
   el.orp?.addEventListener("change", () => { S.settings.orp = el.orp.checked; showCurrent(); });
@@ -1173,24 +1153,7 @@ function bindUI() {
     setStatus("Einstellungen geladen ✅");
   });
 
-  // --- help ---
-  el.btnHelp?.addEventListener("click", () => {
-    if (el.helpBody) el.helpBody.innerHTML = buildHelpHtml();
-    show(el.helpBackdrop);
-  });
-  el.btnHelpClose?.addEventListener("click", () => hide(el.helpBackdrop));
-  el.helpBackdrop?.addEventListener("click", (e) => { if (e.target === el.helpBackdrop) hide(el.helpBackdrop); });
-
-  // --- donate ---
-  el.btnDonate?.addEventListener("click", () => {
-    if (el.btcAddr) el.btcAddr.textContent = DONATE.btc;
-    if (el.paypalQrWrap) el.paypalQrWrap.style.display = "none";
-    if (el.btcQrWrap) el.btcQrWrap.style.display = "none";
-    show(el.donateBackdrop);
-  });
-  el.btnDonateClose?.addEventListener("click", () => hide(el.donateBackdrop));
-  el.donateBackdrop?.addEventListener("click", (e) => { if (e.target === el.donateBackdrop) hide(el.donateBackdrop); });
-
+  // Donate QR + copy (works inside popover)
   el.btnPaypalQR?.addEventListener("click", () => {
     const u = DONATE.paypal;
     if (!el.paypalQrImg || !el.paypalQrWrap) return;
@@ -1221,10 +1184,9 @@ function bindUI() {
 }
 
 /* =====================================================
-   Dock Panels: Top-Buttons togglen Panels (mehrere offen)
-   - nutzt .topBtn[data-panel]  <->  [data-panel-id]
-   - arbeitet mit deiner "hidden" Klasse
-   - entfernt alte Listener durch Button-Klonen (bindUI kann sonst schlucken)
+   Dock + Popover Panels (ONE source of truth)
+   - Dock: header / sidebar / shelf => toggle
+   - Popover: settings / help / donate => open under button, close only via X
    ===================================================== */
 
 let _dockPanelsInited = false;
@@ -1243,25 +1205,19 @@ function initDockPanels() {
 
   // Panels finden
   const panels = [...document.querySelectorAll("[data-panel-id]")];
-
   const panelById = (id) => panels.find(p => p.dataset.panelId === id);
 
-  // Nur diese togglen "dock"
   const DOCK_TOGGLES = new Set(["header", "sidebar", "shelf"]);
-
-  // Popovers (unter Button)
   const POPOVERS = new Set(["settings", "help", "donate"]);
 
   const showWithAnim = (p) => {
     p.classList.remove("hidden");
     p.hidden = false;
-    // Animation triggern
     requestAnimationFrame(() => p.classList.add("isOpen"));
   };
 
   const hideWithAnim = (p) => {
     p.classList.remove("isOpen");
-    // nach Transition verstecken
     setTimeout(() => {
       p.classList.add("hidden");
       p.hidden = true;
@@ -1270,36 +1226,22 @@ function initDockPanels() {
 
   const isVisible = (p) => !p.classList.contains("hidden");
 
-  // Dock open/close (position ist CSS-gesteuert)
-  const openDock = (p, btn) => {
-    showWithAnim(p);
-    btn?.classList.add("isActive");
-  };
+  const openDock = (p, btn) => { showWithAnim(p); btn?.classList.add("isActive"); };
+  const closeDock = (p, btn) => { hideWithAnim(p); btn?.classList.remove("isActive"); };
 
-  const closeDock = (p, btn) => {
-    hideWithAnim(p);
-    btn?.classList.remove("isActive");
-  };
-
-  // Popover unter Button positionieren
   const positionPopoverUnderButton = (p, btn) => {
     const r = btn.getBoundingClientRect();
     const gap = 8;
 
-    // erst sichtbar machen, damit wir Höhe messen können
     p.style.left = "0px";
     p.style.top = "0px";
     p.style.right = "auto";
 
-    // grob: links an Buttonkante
     let left = r.left;
-    // clamp in viewport
     const maxLeft = window.innerWidth - p.offsetWidth - 12;
     left = Math.max(12, Math.min(left, maxLeft));
 
-    // unter Button
     let top = r.bottom + gap;
-    // wenn unten rausläuft -> nach oben klappen
     const maxTop = window.innerHeight - p.offsetHeight - 12;
     if (top > maxTop) top = Math.max(12, r.top - gap - p.offsetHeight);
 
@@ -1307,9 +1249,18 @@ function initDockPanels() {
     p.style.top  = `${top}px`;
   };
 
-  const openPopover = (p, btn) => {
+  const openPopover = (p, btn, id) => {
+    // populate on open
+    if (id === "help" && el.helpBody) el.helpBody.innerHTML = buildHelpHtml();
+    if (id === "donate") {
+      if (el.btcAddr) el.btcAddr.textContent = DONATE.btc;
+      if (el.paypalQrWrap) el.paypalQrWrap.style.display = "none";
+      if (el.btcQrWrap) el.btcQrWrap.style.display = "none";
+      if (el.paypalQrHint) el.paypalQrHint.textContent = "";
+      if (el.btcQrHint) el.btcQrHint.textContent = "";
+    }
+
     showWithAnim(p);
-    // nach Sichtbar: position setzen
     requestAnimationFrame(() => positionPopoverUnderButton(p, btn));
     btn?.classList.add("isActive");
   };
@@ -1317,6 +1268,15 @@ function initDockPanels() {
   const closePopover = (p, btn) => {
     hideWithAnim(p);
     btn?.classList.remove("isActive");
+  };
+
+  // expose close helper (used by TOC)
+  window.__dockClose = (id) => {
+    const p = panelById(id);
+    const b = document.querySelector(`.topBtn[data-panel="${id}"]`);
+    if (!p) return;
+    if (POPOVERS.has(id)) closePopover(p, b);
+    else closeDock(p, b);
   };
 
   // X-Buttons: NUR damit schließen (kein outside click)
@@ -1327,8 +1287,6 @@ function initDockPanels() {
       const p = panelById(panelId);
       const b = document.getElementById(btnId);
       if (!p) return;
-
-      // Popover schließen
       closePopover(p, b);
     });
   };
@@ -1337,7 +1295,7 @@ function initDockPanels() {
   hookClose(document.getElementById("btnHelpClose"),     "help",     "btnHelp");
   hookClose(document.getElementById("btnDonateClose"),   "donate",   "btnDonate");
 
-  // Button-Klicks: Dock togglen oder Popover öffnen/schließen
+  // Topbar Buttons
   buttons.forEach(btn => {
     btn.addEventListener("click", (e) => {
       e.preventDefault();
@@ -1352,16 +1310,13 @@ function initDockPanels() {
       }
 
       if (POPOVERS.has(id)) {
-        isVisible(p) ? closePopover(p, btn) : openPopover(p, btn);
+        isVisible(p) ? closePopover(p, btn) : openPopover(p, btn, id);
         return;
       }
-
-      // fallback: toggle wie dock
-      isVisible(p) ? closeDock(p, btn) : openDock(p, btn);
     });
   });
 
-  // Resize/Scroll: offene Popovers neu positionieren (optional aber wirkt hochwertig)
+  // reposition open popovers on resize/scroll
   const repositionOpenPopovers = () => {
     for (const id of POPOVERS) {
       const p = panelById(id);
@@ -1373,7 +1328,6 @@ function initDockPanels() {
   window.addEventListener("resize", repositionOpenPopovers, { passive: true });
   window.addEventListener("scroll", repositionOpenPopovers, { passive: true });
 }
-
 
 /* -----------------------------
    Boot
@@ -1387,7 +1341,6 @@ function initDockPanels() {
   loadSettingsFromLS();
   applySettingsToUI();
 
-  // Panels immer initialisieren – auch wenn bindUI später irgendwo schreit
   initDockPanels();
 
   try {
@@ -1397,13 +1350,10 @@ function initDockPanels() {
   }
 
   setTab("toc");
-
-
   updateProgressUI();
   showCurrent();
 
   await renderShelf();
-
   setStatus("Warte auf Datei…");
 })().catch((e) => {
   console.error(e);
