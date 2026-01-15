@@ -23,7 +23,6 @@ const el = {
   prog: $("prog"),
   wpmVal: $("wpmVal"),
   chapVal: $("chapVal"),
-  pinHeader: $("pinHeader"),
 
   // Reader
   display: $("display"),
@@ -75,6 +74,7 @@ const el = {
   stopMins: $("stopMins"),
   btnSaveSettings: $("btnSaveSettings"),
   btnLoadSettings: $("btnLoadSettings"),
+  btnSettingsClose: $("btnSettingsClose"),
 
   // Shelf (Panel)
   shelf: $("shelf"),
@@ -84,6 +84,7 @@ const el = {
   // Help (Panel)
   helpBackdrop: $("helpBackdrop"),
   helpBody: $("helpBody"),
+  btnHelpClose: $("btnHelpClose"),
 
   // Donate (Panel)
   donateBackdrop: $("donateBackdrop"),
@@ -98,6 +99,7 @@ const el = {
   btcQrWrap: $("btcQrWrap"),
   btcQrImg: $("btcQrImg"),
   btcQrHint: $("btcQrHint"),
+  btnDonateClose: $("btnDonateClose"),
 };
 
 
@@ -1248,81 +1250,151 @@ function bindUI() {
 
 let _dockPanelsInited = false;
 
+let _dockPanelsInited = false;
+
 function initDockPanels() {
   if (_dockPanelsInited) return;
   _dockPanelsInited = true;
 
-  // 1) Buttons finden
+  // Buttons finden + alte Listener killen
   let buttons = [...document.querySelectorAll(".topBtn[data-panel]")];
-
-  // 2) Alte Listener killen (damit alte Modal-Logik uns nicht blockiert)
   buttons = buttons.map((btn) => {
     const clone = btn.cloneNode(true);
     btn.replaceWith(clone);
     return clone;
   });
 
-  // 3) Panels finden (ALLE mit data-panel-id, egal ob overlay/aside/footer)
+  // Panels finden
   const panels = [...document.querySelectorAll("[data-panel-id]")];
 
-  console.log("DockPanels init:", {
-    buttons: buttons.length,
-    panels: panels.length,
-    btnIds: buttons.map(b => b.id),
-    panelIds: panels.map(p => p.dataset.panelId)
-  });
-
   const panelById = (id) => panels.find(p => p.dataset.panelId === id);
-  const isHidden = (p) => p.classList.contains("hidden");
 
-  const openPanel = (p) => {
+  // Nur diese togglen "dock"
+  const DOCK_TOGGLES = new Set(["header", "sidebar", "shelf"]);
+
+  // Popovers (unter Button)
+  const POPOVERS = new Set(["settings", "help", "donate"]);
+
+  const showWithAnim = (p) => {
     p.classList.remove("hidden");
-    p.hidden = false;            // falls irgendwo hidden-attribut verwendet wird
-    p.classList.add("isOpen");
-
-    const btn = buttons.find(b => b.dataset.panel === p.dataset.panelId);
-    if (btn) btn.classList.add("isActive");
+    p.hidden = false;
+    // Animation triggern
+    requestAnimationFrame(() => p.classList.add("isOpen"));
   };
 
-  const closePanel = (p) => {
+  const hideWithAnim = (p) => {
     p.classList.remove("isOpen");
-    p.classList.add("hidden");
-    p.hidden = true;
-
-    const btn = buttons.find(b => b.dataset.panel === p.dataset.panelId);
-    if (btn) btn.classList.remove("isActive");
+    // nach Transition verstecken
+    setTimeout(() => {
+      p.classList.add("hidden");
+      p.hidden = true;
+    }, 160);
   };
 
-  // Close-Buttons endgültig raus (falls noch irgendwo im HTML)
-  ["#btnSidebarClose","#btnSettingsClose","#btnShelfClose","#btnHelpClose","#btnDonateClose"]
-    .forEach(sel => {
-      const n = document.querySelector(sel);
-      if (n) n.remove();
-    });
+  const isVisible = (p) => !p.classList.contains("hidden");
 
-  // 4) Click-Handler
+  // Dock open/close (position ist CSS-gesteuert)
+  const openDock = (p, btn) => {
+    showWithAnim(p);
+    btn?.classList.add("isActive");
+  };
+
+  const closeDock = (p, btn) => {
+    hideWithAnim(p);
+    btn?.classList.remove("isActive");
+  };
+
+  // Popover unter Button positionieren
+  const positionPopoverUnderButton = (p, btn) => {
+    const r = btn.getBoundingClientRect();
+    const gap = 8;
+
+    // erst sichtbar machen, damit wir Höhe messen können
+    p.style.left = "0px";
+    p.style.top = "0px";
+    p.style.right = "auto";
+
+    // grob: links an Buttonkante
+    let left = r.left;
+    // clamp in viewport
+    const maxLeft = window.innerWidth - p.offsetWidth - 12;
+    left = Math.max(12, Math.min(left, maxLeft));
+
+    // unter Button
+    let top = r.bottom + gap;
+    // wenn unten rausläuft -> nach oben klappen
+    const maxTop = window.innerHeight - p.offsetHeight - 12;
+    if (top > maxTop) top = Math.max(12, r.top - gap - p.offsetHeight);
+
+    p.style.left = `${left}px`;
+    p.style.top  = `${top}px`;
+  };
+
+  const openPopover = (p, btn) => {
+    showWithAnim(p);
+    // nach Sichtbar: position setzen
+    requestAnimationFrame(() => positionPopoverUnderButton(p, btn));
+    btn?.classList.add("isActive");
+  };
+
+  const closePopover = (p, btn) => {
+    hideWithAnim(p);
+    btn?.classList.remove("isActive");
+  };
+
+  // X-Buttons: NUR damit schließen (kein outside click)
+  const hookClose = (closeEl, panelId, btnId) => {
+    if (!closeEl) return;
+    closeEl.addEventListener("click", (e) => {
+      e.preventDefault();
+      const p = panelById(panelId);
+      const b = document.getElementById(btnId);
+      if (!p) return;
+
+      // Popover schließen
+      closePopover(p, b);
+    });
+  };
+
+  hookClose(document.getElementById("btnSettingsClose"), "settings", "btnSettings");
+  hookClose(document.getElementById("btnHelpClose"),     "help",     "btnHelp");
+  hookClose(document.getElementById("btnDonateClose"),   "donate",   "btnDonate");
+
+  // Button-Klicks: Dock togglen oder Popover öffnen/schließen
   buttons.forEach(btn => {
     btn.addEventListener("click", (e) => {
       e.preventDefault();
 
       const id = btn.dataset.panel;
-      console.log("TopBtn click:", btn.id, "->", id);
-
       const p = panelById(id);
-      if (!p) {
-        console.warn("Panel not found for:", id, "available:", panels.map(x => x.dataset.panelId));
+      if (!p) return;
+
+      if (DOCK_TOGGLES.has(id)) {
+        isVisible(p) ? closeDock(p, btn) : openDock(p, btn);
         return;
       }
 
-      isHidden(p) ? openPanel(p) : closePanel(p);
+      if (POPOVERS.has(id)) {
+        isVisible(p) ? closePopover(p, btn) : openPopover(p, btn);
+        return;
+      }
+
+      // fallback: toggle wie dock
+      isVisible(p) ? closeDock(p, btn) : openDock(p, btn);
     });
   });
 
-  // 5) ESC schließt alle Panels
-  document.addEventListener("keydown", (e) => {
-    if (e.key !== "Escape") return;
-    panels.forEach(closePanel);
-  });
+  // Resize/Scroll: offene Popovers neu positionieren (optional aber wirkt hochwertig)
+  const repositionOpenPopovers = () => {
+    for (const id of POPOVERS) {
+      const p = panelById(id);
+      if (!p || !isVisible(p)) continue;
+      const btn = document.querySelector(`.topBtn[data-panel="${id}"]`);
+      if (btn) positionPopoverUnderButton(p, btn);
+    }
+  };
+  window.addEventListener("resize", repositionOpenPopovers, { passive: true });
+  window.addEventListener("scroll", repositionOpenPopovers, { passive: true });
 }
 
 
@@ -1354,10 +1426,6 @@ function initDockPanels() {
   showCurrent();
 
   await renderShelf();
-
-
-  if (S.settings.pinHeader) show(el.headerInfo); else hide(el.headerInfo);
-  if (S.settings.pinShelf) show(el.shelf); else hide(el.shelf);
 
   setStatus("Warte auf Datei…");
 })().catch((e) => {

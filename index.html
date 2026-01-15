@@ -50,12 +50,6 @@
         <span class="pill"><b>Kapitel</b> <span id="chapVal">—</span></span>
       </div>
     </div>
-    <div class="pinCol">
-      <label class="check small">
-        <input id="pinHeader" type="checkbox" />
-        fixieren
-      </label>
-    </div>
   </div>
 </section>
 
@@ -110,12 +104,12 @@
   </aside>
 
 <!-- Settings panel -->
-    <div id="settingsModal" class="overlay panel hidden" data-panel-id="settings">
+<div id="settingsModal" class="popoverPanel hidden" data-panel-id="settings">
       <div class="dialog">
         <div class="dialogHead">
           <div class="dialogTitle">Einstellungen</div>
-          <!-- X entfällt, Button oben toggelt -->
-          <!-- <button id="btnSettingsClose" class="btn ghost">✕</button> -->
+          <button id="btnSettingsClose" class="btn ghost" type="button" title="Schließen">✕</button>
+
         </div>
 
 
@@ -180,23 +174,26 @@
   </div>
 
   <!-- Help modal -->
-  <div id="helpBackdrop" class="overlay panel hidden" data-panel-id="help">
+<div id="helpBackdrop" class="popoverPanel hidden" data-panel-id="help">
     <div class="dialog">
-      <div class="dialogHead">
-        <div class="dialogTitle">❓ Hilfe</div>
-  <!-- Close entfällt: Topbar-Button toggelt -->
-      </div>
+<div class="dialogHead">
+  <div class="dialogTitle">❓ Hilfe</div>
+  <button id="btnHelpClose" class="btn ghost" type="button" title="Schließen">✕</button>
+</div>
+
       <div id="helpBody" class="helpBody"></div>
     </div>
   </div>
 
   <!-- Donate modal -->
-  <div id="donateBackdrop" class="overlay panel hidden" data-panel-id="donate">
+<div id="donateBackdrop" class="popoverPanel hidden" data-panel-id="donate">
+
     <div class="dialog">
-      <div class="dialogHead">
-        <div class="dialogTitle">☕️ Spenden</div>
-  <!-- Close entfällt: Topbar-Button toggelt -->
-      </div>
+    <div class="dialogHead">
+      <div class="dialogTitle">☕️ Spenden</div>
+      <button id="btnDonateClose" class="btn ghost" type="button" title="Schließen">✕</button>
+    </div>
+
 
       <p class="small">
         Falls dir mein Tool gefällt und du mich unterstützen willst:
@@ -265,11 +262,6 @@
           <input id="importFile" type="file" accept=".json,application/json" hidden />
         </label>
       </div>
-
-      <label class="check small">
-        <input id="pinShelf" type="checkbox" />
-        fixieren
-      </label>
 
   <!-- Close entfällt: Topbar-Button toggelt -->
     </div>

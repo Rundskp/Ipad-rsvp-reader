@@ -245,6 +245,55 @@ body{
    Panel-Varianten (Docking)
 ---------------------------------- */
 
+/* -------- Popover Panels (unter Button) -------- */
+.popoverPanel{
+  position: fixed;
+  z-index: 200;
+  width: min(520px, calc(100vw - 24px));
+  max-height: min(70vh, 520px);
+  overflow: auto;
+
+  opacity: 0;
+  transform: translateY(-8px) scale(.98);
+  pointer-events: none;
+
+  transition: opacity .14s ease, transform .14s ease;
+}
+
+.popoverPanel.isOpen{
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+/* Popover-Inhalt nutzt volle Breite */
+.popoverPanel .dialog{
+  width: 100%;
+  max-width: none;
+  margin-top: 0;
+}
+
+/* -------- Dock-Panels Animation -------- */
+.panel{
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+  transition: opacity .14s ease, transform .14s ease;
+}
+
+.panel.isOpen{
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+/* Active Top-Button */
+.topBtn.isActive{
+  outline: 2px solid rgba(120,180,255,.55);
+  outline-offset: 2px;
+}
+
+
 /* Sidebar links */
 .panel-left{
   left: 12px;
