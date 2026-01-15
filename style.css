@@ -519,3 +519,16 @@ body{
 }
 .toast.hidden{ display:none; }
 #toast { position: fixed; z-index: 99999; }
+
+.labelRow{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.pill.small{
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 999px;
+}

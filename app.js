@@ -64,6 +64,7 @@ const el = {
   // Settings (popover)
   settingsModal: $("settingsModal"),
   wpm: $("wpm"),
+  wpmSettingVal: $("wpmSettingVal"),
   chunk: $("chunk"),
   chunkVal: $("chunkVal"),
   orp: $("orp"),
@@ -428,6 +429,8 @@ function applySettingsToUI() {
 
   el.wpm.value = String(S.settings.wpm);
   el.wpmVal.textContent = String(S.settings.wpm);
+  if (el.wpmSettingVal) el.wpmSettingVal.textContent = String(S.settings.wpm);
+
 
   el.chunk.value = String(S.settings.chunk);
   el.chunkVal.textContent = String(S.settings.chunk);
@@ -1128,7 +1131,11 @@ function bindUI() {
   el.tabMarks?.addEventListener("click", () => setTab("marks"));
 
   // settings live updates (works even when popover closed)
-  el.wpm?.addEventListener("input", () => { S.settings.wpm = Number(el.wpm.value); el.wpmVal.textContent = String(S.settings.wpm); });
+el.wpm?.addEventListener("input", () => { 
+  S.settings.wpm = Number(el.wpm.value); 
+  el.wpmVal.textContent = String(S.settings.wpm);
+  if (el.wpmSettingVal) el.wpmSettingVal.textContent = String(S.settings.wpm);
+});
   el.chunk?.addEventListener("input", () => { S.settings.chunk = Number(el.chunk.value); el.chunkVal.textContent = String(S.settings.chunk); });
   el.orp?.addEventListener("change", () => { S.settings.orp = el.orp.checked; showCurrent(); });
   el.punct?.addEventListener("change", () => { S.settings.punct = el.punct.checked; });
