@@ -62,11 +62,11 @@ body{
 }
 
 .card{
-  background: rgba(18,19,26,.85);
+  background: rgba(18,19,26,.55);
   border:1px solid rgba(255,255,255,.08);
   border-radius:16px;
   padding:14px;
-  box-shadow: 0 10px 30px rgba(0,0,0,.35);
+  box-shadow: 0 14px 40px rgba(0,0,0,.32);
 }
 
 .headerInfo{
@@ -76,7 +76,7 @@ body{
   padding: 10px var(--pad);
   border-bottom:1px solid rgba(255,255,255,.06);
   background: rgba(11,12,16,.65);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(8px);
 }
 .headerInfoInner{
   max-width: 980px;
@@ -368,6 +368,74 @@ body{
   max-width: none;
   margin-top: 0;
 }
+
+/* ============================
+   HeaderInfo als zentrierte Top-Bar (edel)
+============================ */
+.headerInfoBar{
+  position: fixed;
+  top: 58px;                 /* direkt unter Topbar */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 160;
+
+  width: min(980px, calc(100vw - 24px));
+  padding: 10px 12px;
+
+  border-radius: 18px;
+
+  background: rgba(18,19,26,.55);
+  border: 1px solid rgba(255,255,255,.10);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+
+  box-shadow: 0 14px 40px rgba(0,0,0,.32);
+}
+
+/* wenn verborgen */
+.headerInfoBar.hidden{ display:none; }
+
+/* Inhalt kompakter und “bar-like” */
+.headerInfoBar .headerInfoInner{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+/* Cover kleiner, damit’s nicht wie ein Card-Popup wirkt */
+.headerInfoBar .cover{
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex: 0 0 auto;
+}
+
+/* Title nicht zu hoch */
+.headerInfoBar .bookTitle{
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.15;
+  max-width: 52vw;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.headerInfoBar .bookAuthor{
+  font-size: 12px;
+  opacity: .78;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Pills etwas “leichter” */
+.headerInfoBar .pill{
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.08);
+}
+
 
 .dialogHead{
   display:flex;

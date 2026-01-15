@@ -1214,8 +1214,15 @@ function initDockPanels() {
   const panels = [...document.querySelectorAll("[data-panel-id]")];
   const panelById = (id) => panels.find(p => p.dataset.panelId === id);
 
-  const DOCK_TOGGLES = new Set(["header", "sidebar", "shelf"]);
+  // Nur diese togglen "dock"
+  const DOCK_TOGGLES = new Set(["sidebar", "shelf"]);
+
+  // Header ist jetzt eine eigene Top-Bar (kein Panel)
+  const HEADER_BAR_ID = "headerInfo";
+
+  // Popovers (unter Button)
   const POPOVERS = new Set(["settings", "help", "donate"]);
+
 
   const showWithAnim = (p) => {
     p.classList.remove("hidden");
@@ -1307,9 +1314,25 @@ function initDockPanels() {
     btn.addEventListener("click", (e) => {
       e.preventDefault();
 
-      const id = btn.dataset.panel;
-      const p = panelById(id);
-      if (!p) return;
+    const id = btn.dataset.panel;
+
+    // Header-Bar: eigenes Toggle (nicht Panel-System)
+    if (id === "header") {
+      const bar = document.getElementById(HEADER_BAR_ID);
+      if (!bar) return;
+
+      const isHidden = bar.classList.contains("hidden");
+      if (isHidden) bar.classList.remove("hidden");
+      else bar.classList.add("hidden");
+
+      btn.classList.toggle("isActive", !isHidden);
+      return;
+    }
+
+    // normale Panels
+    const p = panelById(id);
+    if (!p) return;
+
 
       if (DOCK_TOGGLES.has(id)) {
         isVisible(p) ? closeDock(p, btn) : openDock(p, btn);
