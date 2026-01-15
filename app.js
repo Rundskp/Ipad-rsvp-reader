@@ -1254,6 +1254,7 @@ function initDockPanels() {
 
   const buttons = [...document.querySelectorAll(".topBtn[data-panel]")];
   const panels  = [...document.querySelectorAll(".panel[data-panel-id]")];
+  console.log("DockPanels init:", { buttons: buttons.length, panels: panels.length });
 
   const panelById = (id) => panels.find(p => p.dataset.panelId === id);
 
@@ -1287,14 +1288,28 @@ function initDockPanels() {
     }, 180);
   };
 
-  buttons.forEach(btn => {
-    btn.addEventListener("click", (e) => {
-      e.preventDefault();
-      const p = panelById(btn.dataset.panel);
-      if (!p) return;
-      isOpen(p) ? closePanel(p) : openPanel(p);
-    });
+buttons.forEach(btn => {
+  btn.addEventListener("click", (e) => {
+    e.preventDefault();
+
+    const id = btn.dataset.panel;
+    console.log("TopBtn click:", btn.id, "->", id);
+
+    const p = panelById(id);
+    if (!p) {
+      console.warn("Panel not found for:", id, "available:", panels.map(x => x.dataset.panelId));
+      return;
+    }
+
+    const nowOpen = isOpen(p);
+    console.log("Panel state before:", id, nowOpen ? "OPEN" : "CLOSED");
+
+    nowOpen ? closePanel(p) : openPanel(p);
+
+    console.log("Panel state after:", id, isOpen(p) ? "OPEN" : "CLOSED");
   });
+});
+
 
   // ESC schließt alles (optional, aber praktisch)
   document.addEventListener("keydown", (e) => {
@@ -1315,6 +1330,12 @@ function initDockPanels() {
 
   const buttons = [...document.querySelectorAll(".topBtn[data-panel]")];
   const panels  = [...document.querySelectorAll("[data-panel-id]")];
+console.log("DockPanels init:", {
+  buttons: buttons.length,
+  panels: panels.length,
+  btnIds: buttons.map(b => b.id),
+  panelIds: panels.map(p => p.dataset.panelId)
+});
 
   const panelById = (id) => panels.find(p => p.dataset.panelId === id);
 
@@ -1377,9 +1398,18 @@ function initDockPanels() {
 
   loadSettingsFromLS();
   applySettingsToUI();
-  bindUI();
+
+  // Panels immer initialisieren – auch wenn bindUI später irgendwo schreit
   initDockPanels();
+
+  try {
+    bindUI();
+  } catch (e) {
+    console.error("bindUI failed – Panels sollten trotzdem funktionieren:", e);
+  }
+
   setTab("toc");
+
 
   updateProgressUI();
   showCurrent();
