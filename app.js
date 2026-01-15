@@ -127,10 +127,16 @@ function toast(msg, ms = 1400) {
   _toastT = setTimeout(() => toastEl.classList.add("hidden"), ms);
 }
 
-function setStatus(msg) {
-  if (el.status) el.status.textContent = msg;
-  toast(msg, 1400);
+function setStatus(msg, { sticky = false, toastMs = 1400 } = {}) {
+  // Toast immer kurz
+  toast(msg, toastMs);
+
+  // Statuszeile oben links nur wenn sticky
+  if (el.status) {
+    if (sticky) el.status.textContent = msg;
+  }
 }
+
 
 /* -----------------------------
    Storage persistence (iOS)
@@ -824,7 +830,7 @@ async function loadBookFromLibrary(id) {
   updateProgressUI();
   showCurrent();
 
-  setStatus(`Geladen: ${S.book.title} (${S.words.length} Wörter)`);
+setStatus(`Geladen: ${S.book.title} (${S.words.length} Wörter)`, { sticky: true, toastMs: 900 });
 }
 
 /* -----------------------------
@@ -1008,7 +1014,8 @@ async function handleFile(file) {
       updatedAt: Date.now(),
     });
 
-    setStatus(`Geladen: ${S.book.title} (${S.words.length} Wörter)`);
+    setStatus(`Geladen: ${S.book.title} (${S.words.length} Wörter)`, { sticky: true, toastMs: 900 });
+
   } catch (e) {
     setStatus(`Fehler: ${e?.message || e}`);
     console.error(e);
@@ -1152,12 +1159,13 @@ el.wpm?.addEventListener("input", () => {
     readSettingsFromUI();
     saveSettingsToLS();
     applySettingsToUI();
-    setStatus("Einstellungen gespeichert ✅");
+    setStatus("Einstellungen gespeichert ✅", { toastMs: 1100 });
+
   });
   el.btnLoadSettings?.addEventListener("click", () => {
     loadSettingsFromLS();
     applySettingsToUI();
-    setStatus("Einstellungen geladen ✅");
+    setStatus("Einstellungen geladen ✅", { toastMs: 1100 });
   });
 
   // Donate QR + copy (works inside popover)

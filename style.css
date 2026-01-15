@@ -629,3 +629,35 @@ body{
   padding: 4px 8px;
   border-radius: 999px;
 }
+
+/* Sidebar: schmaler + weniger "wand" */
+.sidebar{
+  width: min(380px, calc(100vw - 24px));
+  max-width: 380px;
+}
+
+/* am Desktop noch etwas schmaler */
+@media (min-width: 1100px){
+  .sidebar{ width: 360px; max-width: 360px; }
+}
+
+/* Scrollbars: dunkel & dezent */
+*::-webkit-scrollbar{
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track{
+  background: rgba(255,255,255,.04);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb{
+  background: rgba(255,255,255,.14);
+  border-radius: 999px;
+  border: 2px solid rgba(0,0,0,.35); /* macht den Thumb dunkler/ruhiger */
+}
+
+*::-webkit-scrollbar-thumb:hover{
+  background: rgba(255,255,255,.22);
+}
