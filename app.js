@@ -734,7 +734,7 @@ async function persistCurrentBookState() {
     existing.bookmarks = S.bookmarks;
     existing.updatedAt = Date.now();
     await idbPut(existing);
-    await renderShelf();
+    // renderShelf NICHT bei jedem Fortschritt – nur beim Öffnen/Import/Export nötig
   } catch (e) {
     console.error("persistCurrentBookState failed", e);
   }
@@ -748,19 +748,35 @@ async function saveBookToLibrary(bookObj) {
 
 async function renderShelf() {
   try {
-    el.shelfList.replaceChildren();
+    // 1) immer sauber leeren
+    el.shelfList.textContent = "";
     el.shelfList.classList.remove("muted");
 
     const all = await idbGetAll();
-    all.sort((a,b) => (b.updatedAt||b.createdAt||0) - (a.updatedAt||a.createdAt||0));
 
-    if (!all.length) {
+    // 2) Dedupe: gleiche ID nur einmal (letztes updatedAt gewinnt)
+    const byId = new Map();
+    for (const b of all) {
+      if (!b?.id) continue;
+      const prev = byId.get(b.id);
+      const prevT = (prev?.updatedAt || prev?.createdAt || 0);
+      const curT  = (b.updatedAt || b.createdAt || 0);
+      if (!prev || curT >= prevT) byId.set(b.id, b);
+    }
+
+    const books = [...byId.values()]
+      .sort((a,b) => (b.updatedAt||b.createdAt||0) - (a.updatedAt||a.createdAt||0));
+
+    if (!books.length) {
       el.shelfList.classList.add("muted");
       el.shelfList.textContent = "Noch keine Bücher gespeichert.";
       return;
     }
 
-    for (const b of all) {
+    // 3) Fragment = schnell + kein Flackern
+    const frag = document.createDocumentFragment();
+
+    for (const b of books) {
       const card = document.createElement("div");
       card.className = "bookCard";
 
@@ -798,15 +814,18 @@ async function renderShelf() {
         await loadBookFromLibrary(b.id);
       });
 
-      el.shelfList.appendChild(card);
+      frag.appendChild(card);
     }
+
+    el.shelfList.appendChild(frag);
   } catch (e) {
     console.error("renderShelf failed", e);
-    el.shelfList.replaceChildren();
+    el.shelfList.textContent = "";
     el.shelfList.classList.add("muted");
     el.shelfList.textContent = "Bibliothek kann nicht geladen werden (IndexedDB blockiert?).";
   }
 }
+
 
 async function loadBookFromLibrary(id) {
   const b = await idbGet(id);
