@@ -1318,16 +1318,16 @@ function initDockPanels() {
 
     // Header-Bar: eigenes Toggle (nicht Panel-System)
     if (id === "header") {
-      const bar = document.getElementById(HEADER_BAR_ID);
+      const bar = document.getElementById("headerInfo");
       if (!bar) return;
 
-      const isHidden = bar.classList.contains("hidden");
-      if (isHidden) bar.classList.remove("hidden");
-      else bar.classList.add("hidden");
+      const willShow = bar.classList.contains("hidden");
+      bar.classList.toggle("hidden");
 
-      btn.classList.toggle("isActive", !isHidden);
+      btn.classList.toggle("isActive", willShow);
       return;
     }
+
 
     // normale Panels
     const p = panelById(id);
