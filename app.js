@@ -1250,8 +1250,6 @@ function bindUI() {
 
 let _dockPanelsInited = false;
 
-let _dockPanelsInited = false;
-
 function initDockPanels() {
   if (_dockPanelsInited) return;
   _dockPanelsInited = true;
