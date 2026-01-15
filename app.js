@@ -1240,86 +1240,10 @@ function bindUI() {
 }
 
 /* =====================================================
-   TOP BUTTON → PANEL TOGGLE SYSTEM (dockable)
-   - Buttons oben rasten ein (isActive)
-   - Panels können parallel offen sein
-   - Optional: data-group exklusiv innerhalb Gruppe
-   ===================================================== */
-
-let _panelsInitialized = false;
-
-function initDockPanels() {
-  if (_panelsInitialized) return;
-  _panelsInitialized = true;
-
-  const buttons = [...document.querySelectorAll(".topBtn[data-panel]")];
-  const panels  = [...document.querySelectorAll(".panel[data-panel-id]")];
-  console.log("DockPanels init:", { buttons: buttons.length, panels: panels.length });
-
-  const panelById = (id) => panels.find(p => p.dataset.panelId === id);
-
-  const isOpen = (p) => p.classList.contains("isOpen");
-
-  const openPanel = (p) => {
-    // Optional: Gruppe exklusiv (nur wenn data-group gesetzt ist)
-    const group = p.dataset.group;
-    if (group) {
-      panels.forEach(other => {
-        if (other !== p && other.dataset.group === group) closePanel(other);
-      });
-    }
-
-    p.hidden = false;
-    p.classList.add("isOpen");
-
-    const btn = buttons.find(b => b.dataset.panel === p.dataset.panelId);
-    if (btn) btn.classList.add("isActive");
-  };
-
-  const closePanel = (p) => {
-    p.classList.remove("isOpen");
-
-    const btn = buttons.find(b => b.dataset.panel === p.dataset.panelId);
-    if (btn) btn.classList.remove("isActive");
-
-    // nach Transition verstecken
-    setTimeout(() => {
-      if (!isOpen(p)) p.hidden = true;
-    }, 180);
-  };
-
-buttons.forEach(btn => {
-  btn.addEventListener("click", (e) => {
-    e.preventDefault();
-
-    const id = btn.dataset.panel;
-    console.log("TopBtn click:", btn.id, "->", id);
-
-    const p = panelById(id);
-    if (!p) {
-      console.warn("Panel not found for:", id, "available:", panels.map(x => x.dataset.panelId));
-      return;
-    }
-
-    const nowOpen = isOpen(p);
-    console.log("Panel state before:", id, nowOpen ? "OPEN" : "CLOSED");
-
-    nowOpen ? closePanel(p) : openPanel(p);
-
-    console.log("Panel state after:", id, isOpen(p) ? "OPEN" : "CLOSED");
-  });
-});
-
-
-  // ESC schließt alles (optional, aber praktisch)
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") panels.forEach(closePanel);
-  });
-}
-/* =====================================================
    Dock Panels: Top-Buttons togglen Panels (mehrere offen)
    - nutzt .topBtn[data-panel]  <->  [data-panel-id]
-   - entfernt X-Buttons (optional) damit nur Topbar steuert
+   - arbeitet mit deiner "hidden" Klasse
+   - entfernt alte Listener durch Button-Klonen (bindUI kann sonst schlucken)
    ===================================================== */
 
 let _dockPanelsInited = false;
@@ -1328,20 +1252,32 @@ function initDockPanels() {
   if (_dockPanelsInited) return;
   _dockPanelsInited = true;
 
-  const buttons = [...document.querySelectorAll(".topBtn[data-panel]")];
-  const panels  = [...document.querySelectorAll("[data-panel-id]")];
-console.log("DockPanels init:", {
-  buttons: buttons.length,
-  panels: panels.length,
-  btnIds: buttons.map(b => b.id),
-  panelIds: panels.map(p => p.dataset.panelId)
-});
+  // 1) Buttons finden
+  let buttons = [...document.querySelectorAll(".topBtn[data-panel]")];
+
+  // 2) Alte Listener killen (damit alte Modal-Logik uns nicht blockiert)
+  buttons = buttons.map((btn) => {
+    const clone = btn.cloneNode(true);
+    btn.replaceWith(clone);
+    return clone;
+  });
+
+  // 3) Panels finden (ALLE mit data-panel-id, egal ob overlay/aside/footer)
+  const panels = [...document.querySelectorAll("[data-panel-id]")];
+
+  console.log("DockPanels init:", {
+    buttons: buttons.length,
+    panels: panels.length,
+    btnIds: buttons.map(b => b.id),
+    panelIds: panels.map(p => p.dataset.panelId)
+  });
 
   const panelById = (id) => panels.find(p => p.dataset.panelId === id);
+  const isHidden = (p) => p.classList.contains("hidden");
 
   const openPanel = (p) => {
     p.classList.remove("hidden");
-    p.hidden = false; // falls jemand hidden-attribut nutzt
+    p.hidden = false;            // falls irgendwo hidden-attribut verwendet wird
     p.classList.add("isOpen");
 
     const btn = buttons.find(b => b.dataset.panel === p.dataset.panelId);
@@ -1357,29 +1293,32 @@ console.log("DockPanels init:", {
     if (btn) btn.classList.remove("isActive");
   };
 
-  const togglePanel = (id) => {
-    const p = panelById(id);
-    if (!p) return;
-    const isOpen = !p.classList.contains("hidden");
-    isOpen ? closePanel(p) : openPanel(p);
-  };
+  // Close-Buttons endgültig raus (falls noch irgendwo im HTML)
+  ["#btnSidebarClose","#btnSettingsClose","#btnShelfClose","#btnHelpClose","#btnDonateClose"]
+    .forEach(sel => {
+      const n = document.querySelector(sel);
+      if (n) n.remove();
+    });
 
-  // X-Buttons entfernen, damit nur Topbar toggelt (falls noch vorhanden)
-  const kill = (sel) => {
-    const n = document.querySelector(sel);
-    if (n) n.remove();
-  };
-  kill("#btnSettingsClose"); // dein Settings-X
-
-  // Button-Klick -> Toggle genau dieses Panel
+  // 4) Click-Handler
   buttons.forEach(btn => {
     btn.addEventListener("click", (e) => {
       e.preventDefault();
-      togglePanel(btn.dataset.panel);
+
+      const id = btn.dataset.panel;
+      console.log("TopBtn click:", btn.id, "->", id);
+
+      const p = panelById(id);
+      if (!p) {
+        console.warn("Panel not found for:", id, "available:", panels.map(x => x.dataset.panelId));
+        return;
+      }
+
+      isHidden(p) ? openPanel(p) : closePanel(p);
     });
   });
 
-  // ESC schließt alle Panels (optional, aber gold)
+  // 5) ESC schließt alle Panels
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
     panels.forEach(closePanel);
