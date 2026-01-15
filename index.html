@@ -15,34 +15,12 @@
 <!-- Topbar -->
 <header class="topbar">
   <!-- LEFT: file input (muss existieren, Label darf woanders stehen) -->
-  <div class="topLeft">
-    <label class="btn" for="file">Datei laden</label>
-    <input id="file" type="file" accept=".epub,.txt" hidden />
-    <!-- status bleibt im DOM, aber optisch aus -->
-    <div id="status" class="statusSr">Warte auf Datei…</div>
-  </div>
+  <div class="topLeft"></div>
 
   <!-- CENTER: Brille (nur Deko) -->
   <div class="topCenter" aria-hidden="true">
     <div class="logoGlasses">
-      <svg class="glassesSvg" viewBox="0 0 220 70" aria-hidden="true">
-        <!-- Rahmen geschlossen + dünner -->
-        <path class="gFrame"
-          d="M18 36
-             C34 28, 46 28, 60 34
-             C62 18, 74 14, 90 16
-             C106 18, 114 30, 112 42
-             C110 56, 92 58, 76 54
-             C64 51, 58 44, 60 34
-
-             M202 36
-             C186 28, 174 28, 160 34
-             C158 18, 146 14, 130 16
-             C114 18, 106 30, 108 42
-             C110 56, 128 58, 144 54
-             C156 51, 162 44, 160 34"
-
-        />
+      <svg class="glassesSvg" viewBox="0 0 300 80" width="300" height="80" aria-hidden="true"> <ellipse cx="90" cy="42" rx="34" ry="22" class="gFrame"></ellipse> <ellipse cx="210" cy="42" rx="34" ry="22" class="gFrame"></ellipse> <line x1="124" y1="42" x2="176" y2="42" class="gBridge"></line> <line x1="56" y1="42" x2="18" y2="34" class="gTemple"></line> <line x1="244" y1="42" x2="282" y2="34" class="gTemple"></line> </svg>
         <!-- Steg mittig -->
         <path class="gBridge" d="M112 34 C118 30, 126 30, 132 34" />
         <!-- dezente Gläser -->
@@ -54,6 +32,9 @@
 
   <!-- RIGHT: Buttons (IDs müssen existieren!) -->
   <div class="topActions">
+    <label class="btn" for="file">Datei laden</label>
+<input id="file" type="file" accept=".epub,.txt" hidden />
+
     <button id="btnSidebar"  class="btn ghost topBtn" data-panel="sidebar"  title="Kapitel / Lesezeichen">☰</button>
     <button id="btnHeader"   class="btn ghost topBtn" data-panel="header"   title="Cover/Titel">🛈</button>
     <button id="btnSettings" class="btn ghost topBtn" data-panel="settings" title="Einstellungen">⚙︎</button>
