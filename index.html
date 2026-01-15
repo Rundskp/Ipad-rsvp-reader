@@ -12,35 +12,36 @@
 </head>
 <body>
   <!-- Topbar -->
-  <header class="topbar">
-<div class="brand brandGlass">
-  <div class="brandLens" aria-hidden="true"></div>
+<header class="topbar">
+  <div class="topbarSpacer"></div>
 
-  <div class="brandMain">
-    <div class="dot"></div>
-    <div class="brandText">
-      <div class="title">RSVP Reader</div>
-      <div id="status" class="sub">Warte auf Datei…</div>
+  <div class="topbarCenter">
+    <!-- HIER kommt nur die Brille rein -->
+    <div class="logoGlasses">
+      <!-- dein SVG unverändert -->
+      <svg viewBox="0 0 220 70" class="glassesSvg" aria-hidden="true">
+        <path class="gFrame"
+          d="M10 38
+             C30 30, 40 28, 55 35
+             C62 10, 88 10, 95 35
+             C103 40, 117 40, 125 35
+             C132 10, 158 10, 165 35
+             C180 28, 190 30, 210 38" />
+        <path class="gLens"
+          d="M55 35 C58 52, 90 52, 95 35 C90 20, 60 20, 55 35Z" />
+        <path class="gLens"
+          d="M125 35 C128 52, 160 52, 165 35 C160 20, 130 20, 125 35Z" />
+        <path class="gBridge"
+          d="M98 35 C105 30, 115 30, 122 35" />
+      </svg>
     </div>
   </div>
-</div>
 
+  <div class="topActions">
+    <!-- Datei laden, Buttons usw bleiben -->
+  </div>
+</header>
 
-    <div class="topActions">
-      <label class="btn">
-        <input id="file" type="file" accept=".epub,.txt" hidden />
-        Datei laden
-      </label>
-
-<button id="btnSidebar"  class="btn ghost topBtn" data-panel="sidebar"  title="Kapitel / Lesezeichen">☰</button>
-<button id="btnHeader"   class="btn ghost topBtn" data-panel="header"   title="Cover/Titel anzeigen">🛈</button>
-<button id="btnSettings" class="btn ghost topBtn" data-panel="settings" title="Einstellungen">⚙︎</button>
-<button id="btnHelp"     class="btn ghost topBtn" data-panel="help"     title="Hilfe">?</button>
-<button id="btnDonate"   class="btn ghost topBtn" data-panel="donate"   title="Spenden">☕️</button>
-<button id="btnShelf"    class="btn ghost topBtn" data-panel="shelf"    title="Bibliothek">📚</button>
-
-    </div>
-  </header>
 
 <!-- Optional header info (cover + title) -->
 <section id="headerInfo" class="headerInfoBar hidden">
