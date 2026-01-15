@@ -10,6 +10,7 @@ console.log("RSVP app.js loaded ✅", new Date().toISOString());
 const $ = (id) => document.getElementById(id);
 
 /* ---------- Elements (must exist) ---------- */
+/* ---------- Elements (must exist) ---------- */
 const el = {
   file: $("file"),
   status: $("status"),
@@ -36,7 +37,7 @@ const el = {
   pos: $("pos"),
   total: $("total"),
 
-  // top buttons
+  // Top buttons (Panels togglen)
   btnSidebar: $("btnSidebar"),
   btnHeader: $("btnHeader"),
   btnSettings: $("btnSettings"),
@@ -44,14 +45,13 @@ const el = {
   btnHelp: $("btnHelp"),
   btnDonate: $("btnDonate"),
 
-  // export/import in shelf
+  // Export / Import (Shelf)
   btnExportAll: $("btnExportAll"),
   btnExportSelected: $("btnExportSelected"),
   importFile: $("importFile"),
 
-  // sidebar
+  // Sidebar (Panel)
   sidebar: $("sidebar"),
-  btnSidebarClose: $("btnSidebarClose"),
   tabToc: $("tabToc"),
   tabMarks: $("tabMarks"),
   tocPane: $("tocPane"),
@@ -59,9 +59,8 @@ const el = {
   tocList: $("tocList"),
   marksList: $("marksList"),
 
-  // settings modal
+  // Settings (Panel)
   settingsModal: $("settingsModal"),
-  btnSettingsClose: $("btnSettingsClose"),
   wpm: $("wpm"),
   chunk: $("chunk"),
   chunkVal: $("chunkVal"),
@@ -77,20 +76,17 @@ const el = {
   btnSaveSettings: $("btnSaveSettings"),
   btnLoadSettings: $("btnLoadSettings"),
 
-  // shelf
+  // Shelf (Panel)
   shelf: $("shelf"),
   shelfList: $("shelfList"),
-  btnShelfClose: $("btnShelfClose"),
   pinShelf: $("pinShelf"),
 
-  // Help modal
+  // Help (Panel)
   helpBackdrop: $("helpBackdrop"),
-  btnHelpClose: $("btnHelpClose"),
   helpBody: $("helpBody"),
 
-  // Donate modal
+  // Donate (Panel)
   donateBackdrop: $("donateBackdrop"),
-  btnDonateClose: $("btnDonateClose"),
   btnPaypalQR: $("btnPaypalQR"),
   paypalQrWrap: $("paypalQrWrap"),
   paypalQrImg: $("paypalQrImg"),
@@ -103,6 +99,7 @@ const el = {
   btcQrImg: $("btcQrImg"),
   btcQrHint: $("btcQrHint"),
 };
+
 
 /* -----------------------------
    Toast (always above modals)
