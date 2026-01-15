@@ -79,7 +79,6 @@ const el = {
   // Shelf (Panel)
   shelf: $("shelf"),
   shelfList: $("shelfList"),
-  pinShelf: $("pinShelf"),
 
   // Help (Panel)
   helpBackdrop: $("helpBackdrop"),
@@ -347,8 +346,6 @@ const S = {
     stopMinsOn: false,
     stopMins: 10,
 
-    pinHeader: false,
-    pinShelf: false,
   },
 };
 
@@ -450,9 +447,6 @@ function applySettingsToUI() {
   el.stopMinsOn.checked = !!S.settings.stopMinsOn;
   el.stopMins.value = String(S.settings.stopMins);
 
-  el.pinHeader.checked = !!S.settings.pinHeader;
-  el.pinShelf.checked = !!S.settings.pinShelf;
-
   syncHeaderUI();
 }
 
@@ -469,8 +463,6 @@ function readSettingsFromUI() {
   S.settings.stopMinsOn = el.stopMinsOn.checked;
   S.settings.stopMins = Number(el.stopMins.value || 0);
 
-  S.settings.pinHeader = el.pinHeader.checked;
-  S.settings.pinShelf = el.pinShelf.checked;
 }
 
 /* -----------------------------
@@ -797,7 +789,6 @@ async function renderShelf() {
 
       card.addEventListener("click", async () => {
         await loadBookFromLibrary(b.id);
-        if (!S.settings.pinShelf) hide(el.shelf);
       });
 
       el.shelfList.appendChild(card);
@@ -1144,23 +1135,11 @@ function bindUI() {
   // --- header toggle/pin ---
   el.btnHeader?.addEventListener("click", () => {
     if (el.headerInfo.classList.contains("hidden")) show(el.headerInfo);
-    else if (!S.settings.pinHeader) hide(el.headerInfo);
-  });
-  el.pinHeader?.addEventListener("change", () => {
-    S.settings.pinHeader = el.pinHeader.checked;
-    saveSettingsToLS();
-    if (S.settings.pinHeader) show(el.headerInfo);
-    else hide(el.headerInfo);
   });
 
   // --- shelf toggle/pin ---
   el.btnShelf?.addEventListener("click", () => show(el.shelf));
-  el.btnShelfClose?.addEventListener("click", () => { if (!S.settings.pinShelf) hide(el.shelf); });
-  el.pinShelf?.addEventListener("change", () => {
-    S.settings.pinShelf = el.pinShelf.checked;
-    saveSettingsToLS();
-    if (S.settings.pinShelf) show(el.shelf);
-    else hide(el.shelf);
+  el.btnShelfClose?.addEventListener("click");
   });
 
   // --- settings modal ---
