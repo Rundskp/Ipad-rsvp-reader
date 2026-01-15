@@ -27,36 +27,38 @@
         Datei laden
       </label>
 
-      <button id="btnSidebar" class="btn ghost" title="Kapitel / Lesezeichen">☰</button>
-      <button id="btnHeader" class="btn ghost" title="Cover/Titel anzeigen">🛈</button>
-      <button id="btnSettings" class="btn ghost" title="Einstellungen">⚙︎</button>
-      <button id="btnHelp" class="btn ghost" title="Hilfe">?</button>
-      <button id="btnDonate" class="btn ghost" title="Spenden">☕️</button>
-      <button id="btnShelf" class="btn ghost" title="Bibliothek">📚</button>
+<button id="btnSidebar"  class="btn ghost topBtn" data-panel="sidebar"  title="Kapitel / Lesezeichen">☰</button>
+<button id="btnHeader"   class="btn ghost topBtn" data-panel="header"   title="Cover/Titel anzeigen">🛈</button>
+<button id="btnSettings" class="btn ghost topBtn" data-panel="settings" title="Einstellungen">⚙︎</button>
+<button id="btnHelp"     class="btn ghost topBtn" data-panel="help"     title="Hilfe">?</button>
+<button id="btnDonate"   class="btn ghost topBtn" data-panel="donate"   title="Spenden">☕️</button>
+<button id="btnShelf"    class="btn ghost topBtn" data-panel="shelf"    title="Bibliothek">📚</button>
+
     </div>
   </header>
 
-  <!-- Optional header info (cover + title) -->
-  <section id="headerInfo" class="headerInfo hidden">
-    <div class="headerInfoInner">
-      <img id="coverImg" class="cover" alt="Cover" />
-      <div class="meta">
-        <div id="bookTitle" class="bookTitle">—</div>
-        <div id="bookAuthor" class="bookAuthor">—</div>
-        <div class="metaRow">
-          <span class="pill"><b>Fortschritt</b> <span id="prog">0%</span></span>
-          <span class="pill"><b>WPM</b> <span id="wpmVal">360</span></span>
-          <span class="pill"><b>Kapitel</b> <span id="chapVal">—</span></span>
-        </div>
-      </div>
-      <div class="pinCol">
-        <label class="check small">
-          <input id="pinHeader" type="checkbox" />
-          fixieren
-        </label>
+<!-- Optional header info (cover + title) -->
+<section id="headerInfo" class="headerInfo panel hidden" data-panel-id="header">
+  <div class="headerInfoInner">
+    <img id="coverImg" class="cover" alt="Cover" />
+    <div class="meta">
+      <div id="bookTitle" class="bookTitle">—</div>
+      <div id="bookAuthor" class="bookAuthor">—</div>
+      <div class="metaRow">
+        <span class="pill"><b>Fortschritt</b> <span id="prog">0%</span></span>
+        <span class="pill"><b>WPM</b> <span id="wpmVal">360</span></span>
+        <span class="pill"><b>Kapitel</b> <span id="chapVal">—</span></span>
       </div>
     </div>
-  </section>
+    <div class="pinCol">
+      <label class="check small">
+        <input id="pinHeader" type="checkbox" />
+        fixieren
+      </label>
+    </div>
+  </div>
+</section>
+
 
   <!-- Main -->
   <main class="wrap">
@@ -87,10 +89,10 @@
   </main>
 
   <!-- Sidebar -->
-  <aside id="sidebar" class="sidebar hidden">
+  <aside id="sidebar" class="sidebar panel panel-left hidden" data-panel-id="sidebar">
     <div class="sidebarHead">
       <div class="sidebarTitle">Kapitel & Lesezeichen</div>
-      <button id="btnSidebarClose" class="btn ghost">✕</button>
+<!-- Close entfällt, Topbar-Button toggelt -->
     </div>
 
     <div class="tabs">
@@ -107,13 +109,15 @@
     </div>
   </aside>
 
-  <!-- Settings modal -->
-  <div id="settingsModal" class="overlay hidden">
-    <div class="dialog">
-      <div class="dialogHead">
-        <div class="dialogTitle">Einstellungen</div>
-        <button id="btnSettingsClose" class="btn ghost">✕</button>
-      </div>
+<!-- Settings panel -->
+    <div id="settingsModal" class="overlay panel hidden" data-panel-id="settings">
+      <div class="dialog">
+        <div class="dialogHead">
+          <div class="dialogTitle">Einstellungen</div>
+          <!-- X entfällt, Button oben toggelt -->
+          <!-- <button id="btnSettingsClose" class="btn ghost">✕</button> -->
+        </div>
+
 
       <div class="controls">
         <div class="control">
@@ -176,22 +180,22 @@
   </div>
 
   <!-- Help modal -->
-  <div id="helpBackdrop" class="overlay hidden">
+  <div id="helpBackdrop" class="overlay panel hidden" data-panel-id="help">
     <div class="dialog">
       <div class="dialogHead">
         <div class="dialogTitle">❓ Hilfe</div>
-        <button id="btnHelpClose" class="btn">Schließen</button>
+  <!-- Close entfällt: Topbar-Button toggelt -->
       </div>
       <div id="helpBody" class="helpBody"></div>
     </div>
   </div>
 
   <!-- Donate modal -->
-  <div id="donateBackdrop" class="overlay hidden">
+  <div id="donateBackdrop" class="overlay panel hidden" data-panel-id="donate">
     <div class="dialog">
       <div class="dialogHead">
         <div class="dialogTitle">☕️ Spenden</div>
-        <button id="btnDonateClose" class="btn">Schließen</button>
+  <!-- Close entfällt: Topbar-Button toggelt -->
       </div>
 
       <p class="small">
@@ -248,7 +252,7 @@
   </div>
 
   <!-- Bottom shelf -->
-  <footer id="shelf" class="shelf hidden">
+  <footer id="shelf" class="shelf panel panel-bottom hidden" data-panel-id="shelf">
     <div class="shelfHead">
       <div class="shelfTitle">Bibliothek</div>
 
@@ -267,7 +271,7 @@
         fixieren
       </label>
 
-      <button id="btnShelfClose" class="btn ghost" type="button">✕</button>
+  <!-- Close entfällt: Topbar-Button toggelt -->
     </div>
 
     <div id="shelfList" class="shelfList muted">Noch keine Bücher gespeichert.</div>

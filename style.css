@@ -222,6 +222,54 @@ body{
 }
 
 /* Overlay/dialog for all modals */
+/* Top-Buttons: eingerastet */
+.topBtn.isActive{
+  outline: 2px solid rgba(120,180,255,.55);
+  outline-offset: 2px;
+}
+
+/* Panels (dockbar) */
+.panel{
+  position: fixed;
+  top: 58px;              /* unter Topbar; ggf. 56/60 je nach Höhe */
+  right: 12px;
+  width: min(520px, calc(100vw - 24px));
+  max-height: calc(100vh - 70px);
+  overflow: auto;
+  border-radius: 16px;
+  box-shadow: 0 18px 55px rgba(0,0,0,.45);
+  z-index: 130;           /* über Topbar/Content */
+}
+
+/* ----------------------------------
+   Panel-Varianten (Docking)
+---------------------------------- */
+
+/* Sidebar links */
+.panel-left{
+  left: 12px;
+  right: auto;
+}
+
+/* Shelf unten */
+.panel-bottom{
+  top: auto;
+  bottom: 12px;
+  left: 12px;
+  right: 12px;
+  width: auto;
+  max-height: min(45vh, 420px);
+}
+/* Shelf: unten stärker abgerundet */
+.panel-bottom{
+  border-radius: 16px 16px 12px 12px;
+}
+.panel-bottom{
+  border-radius: 14px 14px 6px 6px;
+}
+
+
+/* Standard overlay (für echte Modals): fullscreen + dunkler Hintergrund */
 .overlay{
   position: fixed;
   inset: 0;
@@ -232,6 +280,30 @@ body{
   align-items:flex-start;
   padding: 14px max(14px, env(safe-area-inset-left));
 }
+
+/* overlay + panel (dockbar):
+   - darf NICHT fullscreen blockieren
+   - Hintergrund weg
+   - Klicks auf Seite wieder möglich, aber Dialog bleibt klickbar
+*/
+.overlay.panel{
+  background: transparent;
+  display: block;          /* nicht flex zentrieren */
+  padding: 0;
+  pointer-events: none;    /* overlay fängt keine Klicks */
+}
+
+/* Panel-Inhalt bleibt klickbar */
+.overlay.panel .dialog{
+  margin: 0;
+  pointer-events: auto;
+}
+
+/* Hidden muss beide Fälle sauber ausknipsen */
+.hidden{
+  display: none !important;
+}
+
 .dialog{
   width: min(820px, 96vw);
   margin-top: 12px;
@@ -241,6 +313,13 @@ body{
   box-shadow: 0 10px 30px rgba(0,0,0,.5);
   padding: 14px;
 }
+/* Dialog in docked Panels: soll die Panel-Breite nutzen und sauber einrasten */
+.overlay.panel .dialog{
+  width: 100%;
+  max-width: none;
+  margin-top: 0;
+}
+
 .dialogHead{
   display:flex;
   justify-content:space-between;

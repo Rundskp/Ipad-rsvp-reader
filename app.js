@@ -750,6 +750,9 @@ async function saveBookToLibrary(bookObj) {
 
 async function renderShelf() {
   try {
+    el.shelfList.replaceChildren();
+    el.shelfList.classList.remove("muted");
+
     const all = await idbGetAll();
     all.sort((a,b) => (b.updatedAt||b.createdAt||0) - (a.updatedAt||a.createdAt||0));
 
@@ -758,8 +761,6 @@ async function renderShelf() {
       el.shelfList.textContent = "Noch keine Bücher gespeichert.";
       return;
     }
-    el.shelfList.classList.remove("muted");
-    el.shelfList.innerHTML = "";
 
     for (const b of all) {
       const card = document.createElement("div");
@@ -804,10 +805,13 @@ async function renderShelf() {
     }
   } catch (e) {
     console.error("renderShelf failed", e);
+    el.shelfList.replaceChildren();
     el.shelfList.classList.add("muted");
     el.shelfList.textContent = "Bibliothek kann nicht geladen werden (IndexedDB blockiert?).";
   }
 }
+
+
 
 async function loadBookFromLibrary(id) {
   const b = await idbGet(id);
@@ -1238,6 +1242,133 @@ function bindUI() {
   });
 }
 
+/* =====================================================
+   TOP BUTTON → PANEL TOGGLE SYSTEM (dockable)
+   - Buttons oben rasten ein (isActive)
+   - Panels können parallel offen sein
+   - Optional: data-group exklusiv innerhalb Gruppe
+   ===================================================== */
+
+let _panelsInitialized = false;
+
+function initDockPanels() {
+  if (_panelsInitialized) return;
+  _panelsInitialized = true;
+
+  const buttons = [...document.querySelectorAll(".topBtn[data-panel]")];
+  const panels  = [...document.querySelectorAll(".panel[data-panel-id]")];
+
+  const panelById = (id) => panels.find(p => p.dataset.panelId === id);
+
+  const isOpen = (p) => p.classList.contains("isOpen");
+
+  const openPanel = (p) => {
+    // Optional: Gruppe exklusiv (nur wenn data-group gesetzt ist)
+    const group = p.dataset.group;
+    if (group) {
+      panels.forEach(other => {
+        if (other !== p && other.dataset.group === group) closePanel(other);
+      });
+    }
+
+    p.hidden = false;
+    p.classList.add("isOpen");
+
+    const btn = buttons.find(b => b.dataset.panel === p.dataset.panelId);
+    if (btn) btn.classList.add("isActive");
+  };
+
+  const closePanel = (p) => {
+    p.classList.remove("isOpen");
+
+    const btn = buttons.find(b => b.dataset.panel === p.dataset.panelId);
+    if (btn) btn.classList.remove("isActive");
+
+    // nach Transition verstecken
+    setTimeout(() => {
+      if (!isOpen(p)) p.hidden = true;
+    }, 180);
+  };
+
+  buttons.forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      const p = panelById(btn.dataset.panel);
+      if (!p) return;
+      isOpen(p) ? closePanel(p) : openPanel(p);
+    });
+  });
+
+  // ESC schließt alles (optional, aber praktisch)
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") panels.forEach(closePanel);
+  });
+}
+/* =====================================================
+   Dock Panels: Top-Buttons togglen Panels (mehrere offen)
+   - nutzt .topBtn[data-panel]  <->  [data-panel-id]
+   - entfernt X-Buttons (optional) damit nur Topbar steuert
+   ===================================================== */
+
+let _dockPanelsInited = false;
+
+function initDockPanels() {
+  if (_dockPanelsInited) return;
+  _dockPanelsInited = true;
+
+  const buttons = [...document.querySelectorAll(".topBtn[data-panel]")];
+  const panels  = [...document.querySelectorAll("[data-panel-id]")];
+
+  const panelById = (id) => panels.find(p => p.dataset.panelId === id);
+
+  const openPanel = (p) => {
+    p.classList.remove("hidden");
+    p.hidden = false; // falls jemand hidden-attribut nutzt
+    p.classList.add("isOpen");
+
+    const btn = buttons.find(b => b.dataset.panel === p.dataset.panelId);
+    if (btn) btn.classList.add("isActive");
+  };
+
+  const closePanel = (p) => {
+    p.classList.remove("isOpen");
+    p.classList.add("hidden");
+    p.hidden = true;
+
+    const btn = buttons.find(b => b.dataset.panel === p.dataset.panelId);
+    if (btn) btn.classList.remove("isActive");
+  };
+
+  const togglePanel = (id) => {
+    const p = panelById(id);
+    if (!p) return;
+    const isOpen = !p.classList.contains("hidden");
+    isOpen ? closePanel(p) : openPanel(p);
+  };
+
+  // X-Buttons entfernen, damit nur Topbar toggelt (falls noch vorhanden)
+  const kill = (sel) => {
+    const n = document.querySelector(sel);
+    if (n) n.remove();
+  };
+  kill("#btnSettingsClose"); // dein Settings-X
+
+  // Button-Klick -> Toggle genau dieses Panel
+  buttons.forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      togglePanel(btn.dataset.panel);
+    });
+  });
+
+  // ESC schließt alle Panels (optional, aber gold)
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    panels.forEach(closePanel);
+  });
+}
+
+
 /* -----------------------------
    Boot
 ------------------------------ */
@@ -1250,12 +1381,14 @@ function bindUI() {
   loadSettingsFromLS();
   applySettingsToUI();
   bindUI();
+  initDockPanels();
   setTab("toc");
 
   updateProgressUI();
   showCurrent();
 
   await renderShelf();
+
 
   if (S.settings.pinHeader) show(el.headerInfo); else hide(el.headerInfo);
   if (S.settings.pinShelf) show(el.shelf); else hide(el.shelf);
