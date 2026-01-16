@@ -5,6 +5,8 @@
    - Help + Donate as popovers (X only)
    - Export/Import library JSON
 ------------------------------ */
+console.log("APPJS VERSION ✅", new Date().toISOString());
+alert("APPJS VERSION ✅ " + new Date().toISOString());
 console.log("RSVP app.js loaded ✅", new Date().toISOString());
 
 const $ = (id) => document.getElementById(id);
