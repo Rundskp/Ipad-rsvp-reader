@@ -669,3 +669,46 @@ body{
 
 .topLeft   { grid-column: 1; }
 .topActions{ grid-column: 3; justify-content: flex-end; }
+
+/* ============================
+   GLASSES – Premium Finish
+============================ */
+
+.glassesMark {
+  opacity: 1;
+  filter:
+    drop-shadow(0 2px 6px rgba(0,0,0,.85))
+    drop-shadow(0 10px 26px rgba(0,0,0,.75));
+}
+
+/* Hauptkontur – tiefes Schwarz */
+.glassesMark path {
+  fill: #050507; /* echtes Tiefschwarz */
+}
+
+/* Subtiler Glanz (nur wenn SVG Gradient aktiv ist) */
+.glassesMark {
+  background: none;
+}
+
+/* Fake-"Politur"-Effekt */
+.glassesMark::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(255,255,255,.10),
+    rgba(255,255,255,0) 35%,
+    rgba(0,0,0,.35) 100%
+  );
+  mix-blend-mode: soft-light;
+  opacity: .45;
+}
+
+.glassesMark {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.08),
+    inset 0 -1px 0 rgba(0,0,0,.6);
+}
