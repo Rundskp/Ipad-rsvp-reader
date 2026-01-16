@@ -2,7 +2,7 @@
 // - kein cache.addAll() (weil 1x 404 = INSTALL FAIL)
 // - cached einzeln und überspringt kaputte Requests
 
-const CACHE = "rsvp-cache-v13";
+const CACHE = "rsvp-cache-v14";
 
 // WICHTIG: nur Dateien rein, die es wirklich gibt.
 // Wenn du Pfade änderst, hier anpassen.
