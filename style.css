@@ -153,7 +153,7 @@ body{
   gap:12px;
 }
 
-/* “wie gestern”: Cover + Typo angenehm */
+/*Cover + Typo angenehm */
 .headerInfoBar .cover{
   width: 66px;
   height: 66px;
@@ -649,4 +649,11 @@ body{
 
 *::-webkit-scrollbar-thumb:hover{
   background: rgba(255,255,255,.22);
+}
+
+.statusSr{
+  position:absolute;
+  left:-9999px;
+  width:1px; height:1px;
+  overflow:hidden;
 }
