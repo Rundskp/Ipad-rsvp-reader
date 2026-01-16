@@ -712,9 +712,6 @@ body{
   overflow:hidden;
 }
 
-.glassesMark path {
-  fill: rgba(255,255,255,0.85);
-}
 
 .topLeft   { grid-column: 1; }
 .topActions{ grid-column: 3; justify-content: flex-end; }
@@ -728,11 +725,6 @@ body{
   filter:
     drop-shadow(0 2px 6px rgba(0,0,0,.85))
     drop-shadow(0 10px 26px rgba(0,0,0,.75));
-}
-
-/* Hauptkontur – tiefes Schwarz */
-.glassesMark path {
-  fill: #050507; /* echtes Tiefschwarz */
 }
 
 /* Subtiler Glanz (nur wenn SVG Gradient aktiv ist) */
