@@ -754,8 +754,15 @@ body{
     inset 0 -1px 0 rgba(0,0,0,.6);
 }
 
-/* nix pauschal einfärben */
-.glassesMark path{ fill: initial; }
-
 /* nur der Rahmen kriegt den Gradient */
-.glassesMark .frame{ fill: url(#metalChrome); }
+.glassesMark{
+  height:40px;
+  width:min(560px,62vw);
+  display:block;
+  opacity: .95;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,.85)) drop-shadow(0 10px 26px rgba(0,0,0,.75));
+}
+
+/* GANZ WICHTIG: kein fill/ stroke auf path global setzen. */
+.glassesMark .frame{ /* nix hier nötig */ }
+.glassesMark .sheen{ /* nix hier nötig */ }
