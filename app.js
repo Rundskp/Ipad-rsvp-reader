@@ -1395,29 +1395,40 @@ function initDockPanels() {
    Boot
 ------------------------------ */
 (async function boot() {
-  const p = await ensurePersistentStorage();
-  if (p.ok && p.persisted === false) {
-    console.log("Storage not persisted (browser may evict data).");
-  }
-
-  loadSettingsFromLS();
-  applySettingsToUI();
-
-  initDockPanels();
-
+  // 1) UI IMMER zuerst – sonst sind Buttons tot, wenn Storage zickt
   try {
     bindUI();
   } catch (e) {
-    console.error("bindUI failed – Panels sollten trotzdem funktionieren:", e);
+    console.error("bindUI failed:", e);
   }
+
+  initDockPanels();
+
+  // 2) Storage: best effort, darf niemals Boot killen
+  try {
+    const p = await ensurePersistentStorage();
+    if (p?.ok && p.persisted === false) {
+      console.log("Storage not persisted (browser may evict data).");
+    }
+  } catch (e) {
+    console.warn("Storage init failed (fallback mode):", e);
+    // Optional: Flag setzen, falls du wo anders unterscheiden willst
+    window.__storageDegraded = true;
+  }
+
+  // 3) Rest wie gehabt – auch hier defensiv
+  try { loadSettingsFromLS(); } catch(e){ console.warn("loadSettingsFromLS failed:", e); }
+  try { applySettingsToUI(); } catch(e){ console.warn("applySettingsToUI failed:", e); }
 
   setTab("toc");
   updateProgressUI();
   showCurrent();
 
-  await renderShelf();
+  try { await renderShelf(); } catch(e){ console.warn("renderShelf failed:", e); }
+
   setStatus("Warte auf Datei…");
 })().catch((e) => {
+  // Dieser Catch sollte jetzt kaum mehr feuern – aber wir lassen ihn drin
   console.error(e);
-  setStatus("Boot-Fehler: IndexedDB blockiert? (Privater Modus?)");
+  setStatus("Boot-Fehler (Fallback aktiv)");
 });
