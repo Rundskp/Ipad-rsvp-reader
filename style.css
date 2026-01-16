@@ -336,24 +336,50 @@ body{
 
 /* =========================
    SIDEBAR (Kapitel/Lesezeichen)
-   - schmaler
-   - nie von Shelf überlappt
+   - darf NICHT bis zur Shelf runtergehen
+   - Schatten sollen ineinander “fließen”
 ========================= */
 
-/* Sidebar als saubere Spalte */
-.sidebar {
-  display: flex;
+.sidebar{
+  /* nutzt deine panel-basics weiter */
+  display:flex;
   flex-direction: column;
-  height: calc(100dvh - var(--topbarH, 0px));
-  gap: 14px;                 /* gibt dir den coolen Schatten-Übergang */
+  gap: 10px;
+  padding-bottom: 0;
 }
-/* Kapitelblock: bewusst begrenzt + eigener Scroll */
-.sidebar .chaptersPanel {
+
+/* Body enthält Scrollbereich + Luftzone */
+.sidebarBody{
+  display:flex;
+  flex-direction: column;
+
+  /* absolute Sicherheitsbremse:
+     Sidebar endet vor der Shelf, selbst wenn die Shelf offen ist */
+  max-height: calc(100dvh - 70px - var(--shelfSafe));
+}
+
+/* nur der Inhalt scrollt, nicht der ganze Panel */
+.sidebarScroll{
+  overflow:auto;
+
+  /* genau dein Wunsch:
+     “bis etwas nach Kapitel 2” – abhängig von Viewport */
+  max-height: clamp(260px, 42vh, 460px);
+
+  padding-right: 6px; /* scrollbar nicht am Rand */
+}
+
+/* künstliche Luft nach unten für Shadow-Überlauf */
+.sidebarGap{
+  height: 18px; /* damit Schatten sauber überblenden */
   flex: 0 0 auto;
-  max-height: clamp(260px, 42vh, 460px);  /* <- DAS ist “bis etwas nach Kapitel 2” */
-  overflow: auto;
-  padding-right: 6px;        /* damit Scrollbar ned am Rand pickt */
 }
+
+/* Desktop Breite */
+@media (min-width:1100px){
+  .sidebar{ width: 340px; max-width: 340px; }
+}
+
 
 /* Bibliothek bekommt den Rest und kann auch scrollen */
 .sidebar .libraryPanel {
