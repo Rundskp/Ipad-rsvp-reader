@@ -717,52 +717,43 @@ body{
 .topActions{ grid-column: 3; justify-content: flex-end; }
 
 /* ============================
-   GLASSES – Premium Finish
+   GLASSES – Premium Finish (safe)
 ============================ */
 
-.glassesMark {
-  opacity: 1;
+/* Wrapper ist der "Container" für After-Glow usw. */
+.glassesWrap{
+  position: relative;
+  height: 40px;
+  width: min(560px, 62vw);
+  display: block;
+
+  /* edle Tiefe */
   filter:
     drop-shadow(0 2px 6px rgba(0,0,0,.85))
     drop-shadow(0 10px 26px rgba(0,0,0,.75));
 }
 
-/* Subtiler Glanz (nur wenn SVG Gradient aktiv ist) */
-.glassesMark {
-  background: none;
-}
+/* Politur-Overlay (funktioniert jetzt wirklich) */
+.glassesWrap::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
 
-/* Fake-"Politur"-Effekt */
-.glassesMark::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
   background: linear-gradient(
     180deg,
-    rgba(255,255,255,.10),
+    rgba(255,255,255,.12),
     rgba(255,255,255,0) 35%,
     rgba(0,0,0,.35) 100%
   );
+
   mix-blend-mode: soft-light;
-  opacity: .45;
+  opacity: .55;
 }
 
-.glassesMark {
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.08),
-    inset 0 -1px 0 rgba(0,0,0,.6);
-}
-
-/* nur der Rahmen kriegt den Gradient */
+/* Das SVG selbst nur anzeigen, keine fancy box-shadows hier */
 .glassesMark{
-  height:40px;
-  width:min(560px,62vw);
+  width: 100%;
+  height: 100%;
   display:block;
-  opacity: .95;
-  filter: drop-shadow(0 2px 6px rgba(0,0,0,.85)) drop-shadow(0 10px 26px rgba(0,0,0,.75));
 }
-
-/* GANZ WICHTIG: kein fill/ stroke auf path global setzen. */
-.glassesMark .frame{ /* nix hier nötig */ }
-.glassesMark .sheen{ /* nix hier nötig */ }
