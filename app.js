@@ -1249,6 +1249,10 @@ function initDockPanels() {
 
   // Popovers (unter Button)
   const POPOVERS = new Set(["settings", "help", "donate"]);
+// wenn Shelf offen ist, soll Sidebar unten "Platz lassen"
+const setShelfSafe = (on) => {
+  document.documentElement.style.setProperty("--shelfSafe", on ? "240px" : "0px");
+};
 
 
   const showWithAnim = (p) => {
@@ -1267,8 +1271,25 @@ function initDockPanels() {
 
   const isVisible = (p) => !p.classList.contains("hidden");
 
-  const openDock = (p, btn) => { showWithAnim(p); btn?.classList.add("isActive"); };
-  const closeDock = (p, btn) => { hideWithAnim(p); btn?.classList.remove("isActive"); };
+  const openDock = (p, btn) => {
+  showWithAnim(p);
+  btn?.classList.add("isActive");
+
+  // Shelf offen -> Sidebar darf nicht drüberrutschen
+  if (p.dataset.panelId === "shelf") setShelfSafe(true);
+};
+
+  const closeDock = (p, btn) => {
+  hideWithAnim(p);
+  btn?.classList.remove("isActive");
+
+  // Shelf zu -> Sidebar darf wieder bis unten
+  if (p.dataset.panelId === "shelf") setShelfSafe(false);
+};
+
+  const setShelfSafe = (on) => {
+  document.documentElement.style.setProperty("--shelfSafe", on ? "220px" : "0px");
+};
 
   const positionPopoverUnderButton = (p, btn) => {
     const r = btn.getBoundingClientRect();
@@ -1384,6 +1405,9 @@ function initDockPanels() {
   };
   window.addEventListener("resize", repositionOpenPopovers, { passive: true });
   window.addEventListener("scroll", repositionOpenPopovers, { passive: true });
+  // safety: beim Start immer zurücksetzen
+setShelfSafe(false);
+
 }
 
 /* -----------------------------

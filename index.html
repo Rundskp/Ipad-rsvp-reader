@@ -14,21 +14,28 @@
   <!-- Topbar -->
 <!-- Topbar -->
 <header class="topbar">
+<div class="topLogo" aria-hidden="true">
+  <!-- DEIN SVG (unverändert), aber mit viewBox + class -->
+  <svg class="glassesMark"
+    xmlns="http://www.w3.org/2000/svg"
+    xmlns:xlink="http://www.w3.org/1999/xlink"
+    viewBox="0 0 2499 391"
+    preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <linearGradient id="PSgrad_0" x1="0%" x2="0%" y1="100%" y2="0%">
+        <stop offset="0%" stop-color="rgb(0,0,0)" stop-opacity="1" />
+        <stop offset="100%" stop-color="rgb(0,0,0)" stop-opacity="0" />
+      </linearGradient>
+    </defs>
+
+    <path fill-rule="evenodd" fill="url(#PSgrad_0)"
+      d="M802.1000,0.1000 C858.937,-0.082 ... 981.793,100.153 899.000,100.000 Z"/>
+  </svg>
+</div>
+
   <!-- LEFT: file input (muss existieren, Label darf woanders stehen) -->
   <div class="topLeft"></div>
 
-  <!-- CENTER: Brille (nur Deko) -->
-  <div class="topCenter" aria-hidden="true">
-    <div class="logoGlasses">
-      <svg class="glassesSvg" viewBox="0 0 300 80" width="300" height="80" aria-hidden="true"> <ellipse cx="90" cy="42" rx="34" ry="22" class="gFrame"></ellipse> <ellipse cx="210" cy="42" rx="34" ry="22" class="gFrame"></ellipse> <line x1="124" y1="42" x2="176" y2="42" class="gBridge"></line> <line x1="56" y1="42" x2="18" y2="34" class="gTemple"></line> <line x1="244" y1="42" x2="282" y2="34" class="gTemple"></line> </svg>
-        <!-- Steg mittig -->
-        <path class="gBridge" d="M112 34 C118 30, 126 30, 132 34" />
-        <!-- dezente Gläser -->
-        <path class="gLens" d="M66 34 C64 46, 72 52, 82 54 C96 56, 108 48, 108 36 C106 26, 96 20, 84 20 C74 20, 66 24, 66 34Z" />
-        <path class="gLens" d="M154 34 C156 46, 148 52, 138 54 C124 56, 112 48, 112 36 C114 26, 124 20, 136 20 C146 20, 154 24, 154 34Z" />
-      </svg>
-    </div>
-  </div>
 
   <!-- RIGHT: Buttons (IDs müssen existieren!) -->
   <div class="topActions">
