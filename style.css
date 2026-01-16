@@ -42,23 +42,28 @@ body{
 }
 
 /* Logo zentriert, ohne Layout zu sprengen */
+
 .topLogo{
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  top: 6px;
-  height: 44px;
+  top: 8px;
+
+  height: 40px;
   display: flex;
   align-items: center;
   pointer-events: none;
+  z-index: 5;
 }
 
 .glassesMark{
-  height: 40px;              /* dünner / eleganter */
-  width: min(560px, 62vw);   /* “Breite vom Coverfeld”-Gefühl */
+  height: 40px;
+  width: min(560px, 62vw);
+  display: block;
   opacity: .9;
-  filter: drop-shadow(0 10px 22px rgba(0,0,0,.55));
+  filter: drop-shadow(0 8px 20px rgba(0,0,0,.6));
 }
+
 
 .topLeft{
   display:flex;
