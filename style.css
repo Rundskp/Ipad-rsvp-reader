@@ -662,3 +662,10 @@ body{
   width:1px; height:1px;
   overflow:hidden;
 }
+
+.glassesMark path {
+  fill: rgba(255,255,255,0.85);
+}
+
+.topLeft   { grid-column: 1; }
+.topActions{ grid-column: 3; justify-content: flex-end; }
