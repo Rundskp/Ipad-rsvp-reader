@@ -1249,10 +1249,6 @@ function initDockPanels() {
 
   // Popovers (unter Button)
   const POPOVERS = new Set(["settings", "help", "donate"]);
-// wenn Shelf offen ist, soll Sidebar unten "Platz lassen"
-const setShelfSafe = (on) => {
-  document.documentElement.style.setProperty("--shelfSafe", on ? "240px" : "0px");
-};
 
 
   const showWithAnim = (p) => {
