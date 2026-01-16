@@ -31,10 +31,12 @@ body{
   position: sticky;
   top: 0;
   z-index: 999;
+  position: relative;
+
   height: 56px;
   padding: 8px 12px;
   display: grid;
-  grid-template-columns: 1fr auto 1fr; /* links | logo | rechts */
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
 
   background: rgba(10,12,16,.78);
@@ -43,8 +45,27 @@ body{
   border-bottom: 1px solid rgba(255,255,255,.06);
 }
 
+/* Nix in pseudo layers soll klicken blockieren */
+.topbar::before,
+.topbar::after{
+  pointer-events: none;
+}
 
-/* Logo zentriert, ohne Layout zu sprengen */
+/* Buttons müssen immer klicken dürfen */
+.topActions,
+.topActions *{
+  pointer-events: auto;
+  position: relative;
+  z-index: 10;
+}
+
+/* Logo darf niemals Klicks fressen */
+.topLogo,
+.glassesWrap,
+.glassesWrap::after,
+.glassesMark{
+  pointer-events: none;
+}
 
 .topLeft{
   grid-column: 1;
@@ -52,16 +73,15 @@ body{
   display:flex;
   align-items:center;
   gap:10px;
+  position: relative;
+  z-index: 10;
 }
 
 .topLogo{
   grid-column: 2;
   justify-self: center;
-  position: relative;     /* WICHTIG: nicht mehr absolute */
-  left: auto;
-  top: auto;
+  position: relative;
   transform: none;
-  pointer-events: none;
   z-index: 1;
 }
 
@@ -71,10 +91,8 @@ body{
   display:flex;
   align-items:center;
   gap:10px;
-  flex-wrap: nowrap;      /* damit nix in Zeile 2 bricht */
+  flex-wrap: nowrap;
 }
-
-
 .glassesMark{
   height: 40px;
   width: min(560px, 62vw);
