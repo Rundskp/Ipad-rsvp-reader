@@ -362,12 +362,23 @@ body{
 .sidebarScroll{
   overflow:auto;
 
-  /* genau dein Wunsch:
-     “bis etwas nach Kapitel 2” – abhängig von Viewport */
-  max-height: clamp(260px, 42vh, 460px);
+  /* höher, damit “Kapitel 2” nicht halb drin hängt */
+  max-height: clamp(320px, 52vh, 560px);
 
-  padding-right: 6px; /* scrollbar nicht am Rand */
+  /* WICHTIG: unten Luft, damit die letzte Card nicht abgeschnitten wirkt */
+  padding-right: 6px;
+  padding-bottom: 18px;
+
+  /* optional: nicer scroll physics */
+  -webkit-overflow-scrolling: touch;
 }
+.list{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  padding-bottom: 10px; /* zusätzliches “Atemloch” */
+}
+
 
 /* künstliche Luft nach unten für Shadow-Überlauf */
 .sidebarGap{
