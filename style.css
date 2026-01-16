@@ -340,13 +340,25 @@ body{
    - nie von Shelf überlappt
 ========================= */
 
-.sidebar{
-  width: min(360px, calc(100vw - 24px));
-  max-width: 360px;
+/* Sidebar als saubere Spalte */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - var(--topbarH, 0px));
+  gap: 14px;                 /* gibt dir den coolen Schatten-Übergang */
+}
+/* Kapitelblock: bewusst begrenzt + eigener Scroll */
+.sidebar .chaptersPanel {
+  flex: 0 0 auto;
+  max-height: clamp(260px, 42vh, 460px);  /* <- DAS ist “bis etwas nach Kapitel 2” */
+  overflow: auto;
+  padding-right: 6px;        /* damit Scrollbar ned am Rand pickt */
+}
 
-  top: 70px; /* unter Topbar */
-  bottom: calc(12px + var(--shelfSafe));
-  max-height: none;
+/* Bibliothek bekommt den Rest und kann auch scrollen */
+.sidebar .libraryPanel {
+  flex: 1 1 auto;
+  min-height: 180px;
   overflow: auto;
 }
 
