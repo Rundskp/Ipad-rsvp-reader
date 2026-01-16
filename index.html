@@ -12,10 +12,13 @@
 
 <body>
   <!-- Topbar -->
-  <header class="topbar">
-<div class="topLogo" aria-hidden="true">
-  <div class="glassesWrap">
-<svg class="glassesMark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2499 391" preserveAspectRatio="xMidYMid meet">
+header class="topbar">
+  <div class="topLeft"></div>
+
+  <div class="topLogo" aria-hidden="true">
+    <div class="glassesWrap">
+      <svg class="glassesMark" xmlns="http://www.w3.org/2000/svg"
+           viewBox="0 0 2499 391" preserveAspectRatio="xMidYMid meet">
       <defs>
         <!-- Chrome / Metall: sichtbar auch klein -->
               <linearGradient id="metalChrome" x1="0%" x2="0%" y1="0%" y2="100%">
@@ -60,28 +63,24 @@
 
       <!-- 2) Glanzkante oben drüber (macht den “Effekt”, ohne Form zu ändern) -->
       <path fill-rule="evenodd" fill="none" stroke="url(#edgeSheen)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" d="M802.1000,0.1000 C858.937,-0.082 913.163,11.196 962.1000,23.1000 C1058.686,48.584 1150.889,72.931 1248.000,88.1000 C1283.976,94.953 1356.859,69.186 1387.000,60.1000 C1457.476,41.860 1527.512,29.361 1600.1000,13.000 C1624.664,10.334 1648.336,7.666 1672.000,4.1000 C1709.147,-1.204 1779.459,19.174 1812.000,26.1000 C1850.330,33.999 1888.670,41.001 1926.1000,47.1000 C1998.051,65.532 2063.022,77.572 2132.1000,94.1000 C2195.994,105.999 2259.006,117.001 2322.000,127.1000 C2352.022,134.392 2385.552,134.987 2407.000,150.000"></path>
-    </svg>
-    
-
-
-
+          </svg>
     </div>
+  </div>
 
-    <div class="topLeft"></div>
+  <div class="topActions">
+    <label class="btn" for="file">Datei laden</label>
+    <input id="file" type="file" accept=".epub,.txt" hidden />
 
-    <div class="topActions">
-      <label class="btn" for="file">Datei laden</label>
-      <input id="file" type="file" accept=".epub,.txt" hidden />
+    <button id="btnSidebar"  class="btn ghost topBtn" data-panel="sidebar"  title="Kapitel / Lesezeichen">☰</button>
+    <button id="btnHeader"   class="btn ghost topBtn" data-panel="header"   title="Cover/Titel">🛈</button>
+    <button id="btnSettings" class="btn ghost topBtn" data-panel="settings" title="Einstellungen">⚙︎</button>
+    <button id="btnHelp"     class="btn ghost topBtn" data-panel="help"     title="Hilfe">?</button>
+    <button id="btnDonate"   class="btn ghost topBtn" data-panel="donate"   title="Spenden">☕️</button>
+    <button id="btnShelf"    class="btn ghost topBtn" data-panel="shelf"    title="Bibliothek">📚</button>
+  </div>
 
-      <button id="btnSidebar"  class="btn ghost topBtn" data-panel="sidebar"  title="Kapitel / Lesezeichen">☰</button>
-      <button id="btnHeader"   class="btn ghost topBtn" data-panel="header"   title="Cover/Titel">🛈</button>
-      <button id="btnSettings" class="btn ghost topBtn" data-panel="settings" title="Einstellungen">⚙︎</button>
-      <button id="btnHelp"     class="btn ghost topBtn" data-panel="help"     title="Hilfe">?</button>
-      <button id="btnDonate"   class="btn ghost topBtn" data-panel="donate"   title="Spenden">☕️</button>
-      <button id="btnShelf"    class="btn ghost topBtn" data-panel="shelf"    title="Bibliothek">📚</button>
-    </div>
-    <div id="status" class="statusSr" aria-live="polite"></div>
-  </header>
+  <div id="status" class="statusSr" aria-live="polite"></div>
+</header>
 
   <!-- Optional header info (cover + title) -->
   <section id="headerInfo" class="headerInfoBar hidden">
@@ -332,3 +331,4 @@
   </script>
 </body>
 </html>
+
