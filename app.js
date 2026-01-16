@@ -10,15 +10,15 @@ console.log("RSVP app.js loaded ✅", new Date().toISOString());
 const $ = (id) => document.getElementById(id);
 
 function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
-function show(x) { x?.classList?.remove("hidden"); x && (x.hidden = false); }
-function hide(x) { x?.classList?.add("hidden"); x && (x.hidden = true); }
+function show(x) { if (!x) return; x.classList.remove("hidden"); x.hidden = false; }
+function hide(x) { if (!x) return; x.classList.add("hidden"); x.hidden = true; }
 
 /* ---------- Elements (must exist) ---------- */
 const el = {
   file: $("file"),
   status: $("status"),
 
-  // Header info (dock)
+  // Header info (toggle via btnHeader)
   headerInfo: $("headerInfo"),
   coverImg: $("coverImg"),
   bookTitle: $("bookTitle"),
@@ -96,7 +96,6 @@ const el = {
   paypalQrWrap: $("paypalQrWrap"),
   paypalQrImg: $("paypalQrImg"),
   paypalQrHint: $("paypalQrHint"),
-
   btcAddr: $("btcAddr"),
   btnCopyBtc: $("btnCopyBtc"),
   btnBtcQR: $("btnBtcQR"),
@@ -114,7 +113,7 @@ const el = {
 })();
 
 /* -----------------------------
-   Toast (always above modals)
+   Toast (above everything)
 ------------------------------ */
 const toastEl = $("toast");
 let _toastT = null;
@@ -127,16 +126,11 @@ function toast(msg, ms = 1400) {
   _toastT = setTimeout(() => toastEl.classList.add("hidden"), ms);
 }
 
+// Status links oben: nur sticky, sonst bleibt’s wie es ist (oder leer wenn du’s so willst)
 function setStatus(msg, { sticky = false, toastMs = 1400 } = {}) {
-  // Toast immer kurz
   toast(msg, toastMs);
-
-  // Statuszeile oben links nur wenn sticky
-  if (el.status) {
-    if (sticky) el.status.textContent = msg;
-  }
+  if (el.status && sticky) el.status.textContent = msg;
 }
-
 
 /* -----------------------------
    Storage persistence (iOS)
@@ -437,7 +431,6 @@ function applySettingsToUI() {
   el.wpmVal.textContent = String(S.settings.wpm);
   if (el.wpmSettingVal) el.wpmSettingVal.textContent = String(S.settings.wpm);
 
-
   el.chunk.value = String(S.settings.chunk);
   el.chunkVal.textContent = String(S.settings.chunk);
 
@@ -474,13 +467,15 @@ function readSettingsFromUI() {
    Header + progress
 ------------------------------ */
 function syncHeaderUI() {
-  el.bookTitle.textContent = S.book.title || "—";
-  el.bookAuthor.textContent = S.book.author || "—";
-  if (S.book.coverDataUrl) {
-    el.coverImg.src = S.book.coverDataUrl;
-    el.coverImg.style.display = "block";
-  } else {
-    el.coverImg.style.display = "none";
+  if (el.bookTitle) el.bookTitle.textContent = S.book.title || "—";
+  if (el.bookAuthor) el.bookAuthor.textContent = S.book.author || "—";
+  if (el.coverImg) {
+    if (S.book.coverDataUrl) {
+      el.coverImg.src = S.book.coverDataUrl;
+      el.coverImg.style.display = "block";
+    } else {
+      el.coverImg.style.display = "none";
+    }
   }
 }
 
@@ -496,27 +491,29 @@ function updateProgressUI() {
   const idx = clamp(S.idx, 0, Math.max(0, total - 1));
   const pct = total ? Math.round((idx / total) * 100) : 0;
 
-  el.prog.textContent = `${pct}%`;
-  el.pos.textContent = String(idx);
-  el.total.textContent = String(total);
+  if (el.prog) el.prog.textContent = `${pct}%`;
+  if (el.pos) el.pos.textContent = String(idx);
+  if (el.total) el.total.textContent = String(total);
 
-  el.seek.max = String(Math.max(0, total - 1));
-  el.seek.value = String(idx);
-  el.seek.disabled = total === 0;
+  if (el.seek) {
+    el.seek.max = String(Math.max(0, total - 1));
+    el.seek.value = String(idx);
+    el.seek.disabled = total === 0;
+  }
 
   const ch = getChapterByWordIndex(idx);
-  el.chapVal.textContent = ch?.label || "—";
+  if (el.chapVal) el.chapVal.textContent = ch?.label || "—";
 
-  el.btnPlay.disabled = total === 0;
-  el.btnBack.disabled = total === 0;
-  el.btnFwd.disabled = total === 0;
-  el.btnReset.disabled = total === 0;
-  el.btnBookmark.disabled = total === 0;
+  if (el.btnPlay) el.btnPlay.disabled = total === 0;
+  if (el.btnBack) el.btnBack.disabled = total === 0;
+  if (el.btnFwd) el.btnFwd.disabled = total === 0;
+  if (el.btnReset) el.btnReset.disabled = total === 0;
+  if (el.btnBookmark) el.btnBookmark.disabled = total === 0;
 }
 
 function showCurrent() {
   if (!S.words.length) {
-    el.word.textContent = "—";
+    if (el.word) el.word.textContent = "—";
     updateProgressUI();
     return;
   }
@@ -536,16 +533,13 @@ function stopPlayback(reason = "") {
   if (S.timer) clearTimeout(S.timer);
   S.timer = null;
   S.pendingStop = false;
-  el.btnPlay.textContent = "Play";
+  if (el.btnPlay) el.btnPlay.textContent = "Play";
   if (reason) setStatus(reason);
   persistCurrentBookState().catch(()=>{});
 }
 
 function checkAutoStop(currentToken, nextIdxAfterAdvance) {
-  if (S.pendingStop) {
-    if (isSentenceEnd(currentToken)) return true;
-    return false;
-  }
+  if (S.pendingStop) return isSentenceEnd(currentToken);
 
   if (S.settings.stopMinsOn && S.playStartedAt) {
     const elapsedMs = Date.now() - S.playStartedAt;
@@ -567,8 +561,7 @@ function checkAutoStop(currentToken, nextIdxAfterAdvance) {
     if (prevCh && ch && prevCh.href !== ch.href) S.pendingStop = true;
   }
 
-  if (S.pendingStop && isSentenceEnd(currentToken)) return true;
-  return false;
+  return (S.pendingStop && isSentenceEnd(currentToken));
 }
 
 function scheduleNext() {
@@ -609,7 +602,7 @@ function togglePlay() {
 
   S.playing = true;
   S.pendingStop = false;
-  el.btnPlay.textContent = "Pause";
+  if (el.btnPlay) el.btnPlay.textContent = "Pause";
   S.playStartedAt = Date.now();
   S.wordsAtPlayStart = S.idx;
   scheduleNext();
@@ -657,6 +650,8 @@ function jumpToIndex(idx) {
 }
 
 function renderBookmarks() {
+  if (!el.marksList) return;
+
   if (!S.bookmarks.length) {
     el.marksList.classList.add("muted");
     el.marksList.textContent = "Keine Lesezeichen.";
@@ -677,6 +672,8 @@ function renderBookmarks() {
    TOC
 ------------------------------ */
 function setTab(which) {
+  if (!el.tabToc || !el.tabMarks || !el.tocPane || !el.marksPane) return;
+
   if (which === "toc") {
     el.tabToc.classList.add("active");
     el.tabMarks.classList.remove("active");
@@ -691,6 +688,8 @@ function setTab(which) {
 }
 
 function renderToc() {
+  if (!el.tocList) return;
+
   const toc = S.book.toc || [];
   if (!toc.length) {
     el.tocList.classList.add("muted");
@@ -710,7 +709,6 @@ function renderToc() {
     div.innerHTML = `<div><b>${escapeHtml(t.label || t.href)}</b></div><div class="small">${start !== null ? `Springe zu Wort #${start}` : "Kapitel"}</div>`;
     div.addEventListener("click", () => {
       if (start !== null) jumpToIndex(start);
-      // Sidebar schließen, wenn Dock-System verfügbar
       if (typeof window.__dockClose === "function") window.__dockClose("sidebar");
       else hide(el.sidebar);
     });
@@ -734,7 +732,6 @@ async function persistCurrentBookState() {
     existing.bookmarks = S.bookmarks;
     existing.updatedAt = Date.now();
     await idbPut(existing);
-    // renderShelf NICHT bei jedem Fortschritt – nur beim Öffnen/Import/Export nötig
   } catch (e) {
     console.error("persistCurrentBookState failed", e);
   }
@@ -748,13 +745,13 @@ async function saveBookToLibrary(bookObj) {
 
 async function renderShelf() {
   try {
-    // 1) immer sauber leeren
+    if (!el.shelfList) return;
+
     el.shelfList.textContent = "";
     el.shelfList.classList.remove("muted");
 
     const all = await idbGetAll();
 
-    // 2) Dedupe: gleiche ID nur einmal (letztes updatedAt gewinnt)
     const byId = new Map();
     for (const b of all) {
       if (!b?.id) continue;
@@ -773,7 +770,6 @@ async function renderShelf() {
       return;
     }
 
-    // 3) Fragment = schnell + kein Flackern
     const frag = document.createDocumentFragment();
 
     for (const b of books) {
@@ -809,10 +805,7 @@ async function renderShelf() {
       card.appendChild(a);
 
       pick.addEventListener("click", (ev) => ev.stopPropagation());
-
-      card.addEventListener("click", async () => {
-        await loadBookFromLibrary(b.id);
-      });
+      card.addEventListener("click", async () => { await loadBookFromLibrary(b.id); });
 
       frag.appendChild(card);
     }
@@ -820,12 +813,12 @@ async function renderShelf() {
     el.shelfList.appendChild(frag);
   } catch (e) {
     console.error("renderShelf failed", e);
+    if (!el.shelfList) return;
     el.shelfList.textContent = "";
     el.shelfList.classList.add("muted");
     el.shelfList.textContent = "Bibliothek kann nicht geladen werden (IndexedDB blockiert?).";
   }
 }
-
 
 async function loadBookFromLibrary(id) {
   const b = await idbGet(id);
@@ -849,7 +842,7 @@ async function loadBookFromLibrary(id) {
   updateProgressUI();
   showCurrent();
 
-setStatus(`Geladen: ${S.book.title} (${S.words.length} Wörter)`, { sticky: true, toastMs: 900 });
+  setStatus(`Geladen: ${S.book.title} (${S.words.length} Wörter)`, { sticky: true, toastMs: 900 });
 }
 
 /* -----------------------------
@@ -1034,7 +1027,6 @@ async function handleFile(file) {
     });
 
     setStatus(`Geladen: ${S.book.title} (${S.words.length} Wörter)`, { sticky: true, toastMs: 900 });
-
   } catch (e) {
     setStatus(`Fehler: ${e?.message || e}`);
     console.error(e);
@@ -1051,28 +1043,20 @@ function buildHelpHtml() {
   const lines = [
     `<div class="h">Schnellstart</div>
      <div class="b">Tippe <span class="k">Datei laden</span>, wähle ein <span class="k">.epub</span> oder <span class="k">.txt</span>. Danach mit <span class="k">Play</span> starten.</div>`,
-
     `<div class="h">Tippen im Lesefeld</div>
      <div class="b">Links = zurück, Mitte = Play/Pause, rechts = vor.</div>`,
-
     `<div class="h">Sidebar ☰</div>
      <div class="b"><span class="k">Kapitel</span> zeigt den Index (wenn im EPUB vorhanden). <span class="k">Lesezeichen</span> sind Sprungmarken.</div>`,
-
     `<div class="h">Lesezeichen 🔖</div>
      <div class="b">Setzt ein Lesezeichen bei der aktuellen Wortposition. In der Sidebar kannst du direkt hinspringen.</div>`,
-
     `<div class="h">Cover/Titel 🛈</div>
      <div class="b">Zeigt Cover + Titel + Fortschritt.</div>`,
-
     `<div class="h">Einstellungen ⚙︎</div>
      <div class="b">WPM = Geschwindigkeit, Chunk = mehrere Wörter pro Anzeige, ORP = Fokus-Buchstabe, Satzzeichenpause = Extra-Zeit bei Punkt/Komma.</div>`,
-
     `<div class="h">Auto-Stop</div>
      <div class="b">Stoppt am Kapitelende oder nach X Wörtern oder nach X Minuten – aber immer erst am Satzende.</div>`,
-
     `<div class="h">Bibliothek 📚</div>
      <div class="b">Gelesene Bücher werden offline gespeichert (inkl. Cover & Lesezeichen).</div>`,
-
     `<div class="h">Wenn etwas „weg“ ist</div>
      <div class="b">Privater Modus blockt/killt Speicher. Am besten als Home-Screen-App nutzen.</div>`,
   ];
@@ -1108,7 +1092,6 @@ async function copyToClipboard(text) {
 
 /* -----------------------------
    Bind UI (NO panel toggling here!)
-   - Panels/Popovers are controlled ONLY by initDockPanels()
 ------------------------------ */
 function bindUI() {
   // file
@@ -1156,16 +1139,21 @@ function bindUI() {
   el.tabToc?.addEventListener("click", () => setTab("toc"));
   el.tabMarks?.addEventListener("click", () => setTab("marks"));
 
-  // settings live updates (works even when popover closed)
-el.wpm?.addEventListener("input", () => { 
-  S.settings.wpm = Number(el.wpm.value); 
-  el.wpmVal.textContent = String(S.settings.wpm);
-  if (el.wpmSettingVal) el.wpmSettingVal.textContent = String(S.settings.wpm);
-});
-  el.chunk?.addEventListener("input", () => { S.settings.chunk = Number(el.chunk.value); el.chunkVal.textContent = String(S.settings.chunk); });
+  // settings live updates
+  el.wpm?.addEventListener("input", () => {
+    S.settings.wpm = Number(el.wpm.value);
+    if (el.wpmVal) el.wpmVal.textContent = String(S.settings.wpm);
+    if (el.wpmSettingVal) el.wpmSettingVal.textContent = String(S.settings.wpm);
+  });
+
+  el.chunk?.addEventListener("input", () => {
+    S.settings.chunk = Number(el.chunk.value);
+    if (el.chunkVal) el.chunkVal.textContent = String(S.settings.chunk);
+  });
+
   el.orp?.addEventListener("change", () => { S.settings.orp = el.orp.checked; showCurrent(); });
   el.punct?.addEventListener("change", () => { S.settings.punct = el.punct.checked; });
-  el.punctMs?.addEventListener("input", () => { S.settings.punctMs = Number(el.punctMs.value); el.punctVal.textContent = String(S.settings.punctMs); });
+  el.punctMs?.addEventListener("input", () => { S.settings.punctMs = Number(el.punctMs.value); if (el.punctVal) el.punctVal.textContent = String(S.settings.punctMs); });
 
   el.stopChapter?.addEventListener("change", () => { S.settings.stopChapter = el.stopChapter.checked; });
   el.stopWordsOn?.addEventListener("change", () => { S.settings.stopWordsOn = el.stopWordsOn.checked; });
@@ -1179,7 +1167,6 @@ el.wpm?.addEventListener("input", () => {
     saveSettingsToLS();
     applySettingsToUI();
     setStatus("Einstellungen gespeichert ✅", { toastMs: 1100 });
-
   });
   el.btnLoadSettings?.addEventListener("click", () => {
     loadSettingsFromLS();
@@ -1187,15 +1174,12 @@ el.wpm?.addEventListener("input", () => {
     setStatus("Einstellungen geladen ✅", { toastMs: 1100 });
   });
 
-  // Donate QR + copy (works inside popover)
+  // Donate QR + copy
   el.btnPaypalQR?.addEventListener("click", () => {
     const u = DONATE.paypal;
     if (!el.paypalQrImg || !el.paypalQrWrap) return;
 
-    el.paypalQrImg.onerror = () => {
-      if (el.paypalQrHint) el.paypalQrHint.textContent = "QR konnte nicht geladen werden (Netz/Blocker).";
-    };
-
+    el.paypalQrImg.onerror = () => { if (el.paypalQrHint) el.paypalQrHint.textContent = "QR konnte nicht geladen werden (Netz/Blocker)."; };
     el.paypalQrImg.src = qrUrl(u);
     el.paypalQrWrap.style.display = "block";
     if (el.paypalQrHint) el.paypalQrHint.textContent = "";
@@ -1207,10 +1191,7 @@ el.wpm?.addEventListener("input", () => {
     const uri = "bitcoin:" + DONATE.btc;
     if (!el.btcQrImg || !el.btcQrWrap) return;
 
-    el.btcQrImg.onerror = () => {
-      if (el.btcQrHint) el.btcQrHint.textContent = "QR konnte nicht geladen werden (Netz/Blocker).";
-    };
-
+    el.btcQrImg.onerror = () => { if (el.btcQrHint) el.btcQrHint.textContent = "QR konnte nicht geladen werden (Netz/Blocker)."; };
     el.btcQrImg.src = qrUrl(uri);
     el.btcQrWrap.style.display = "block";
     if (el.btcQrHint) el.btcQrHint.textContent = "";
@@ -1219,9 +1200,10 @@ el.wpm?.addEventListener("input", () => {
 
 /* =====================================================
    Dock + Popover Panels (ONE source of truth)
-   - Dock: header / sidebar / shelf => toggle
+   - Dock: sidebar / shelf => toggle
+   - Header: toggles #headerInfo (not a panel)
    - Popover: settings / help / donate => open under button, close only via X
-   ===================================================== */
+===================================================== */
 
 let _dockPanelsInited = false;
 
@@ -1229,7 +1211,7 @@ function initDockPanels() {
   if (_dockPanelsInited) return;
   _dockPanelsInited = true;
 
-  // Buttons finden + alte Listener killen
+  // Buttons finden + alte Listener killen (wichtig wenn du öfter reloadest / hot-swappst)
   let buttons = [...document.querySelectorAll(".topBtn[data-panel]")];
   buttons = buttons.map((btn) => {
     const clone = btn.cloneNode(true);
@@ -1241,15 +1223,12 @@ function initDockPanels() {
   const panels = [...document.querySelectorAll("[data-panel-id]")];
   const panelById = (id) => panels.find(p => p.dataset.panelId === id);
 
-  // Nur diese togglen "dock"
+  // Dock toggles
   const DOCK_TOGGLES = new Set(["sidebar", "shelf"]);
-
-  // Header ist jetzt eine eigene Top-Bar (kein Panel)
-  const HEADER_BAR_ID = "headerInfo";
-
-  // Popovers (unter Button)
+  // Popovers
   const POPOVERS = new Set(["settings", "help", "donate"]);
 
+  const isVisible = (p) => !p.classList.contains("hidden");
 
   const showWithAnim = (p) => {
     p.classList.remove("hidden");
@@ -1265,28 +1244,41 @@ function initDockPanels() {
     }, 160);
   };
 
-  const isVisible = (p) => !p.classList.contains("hidden");
+  // Sidebar kuerzen wenn Shelf offen (damit Bottombar nicht überlagert)
+  // --- Shelf safe area: misst echte Shelf-Höhe automatisch
+    function setShelfSafe(on) {
+      const shelfEl =
+        document.querySelector('[data-panel-id="shelf"]') ||
+        document.getElementById("shelf");
+
+      if (!on || !shelfEl) {
+        document.documentElement.style.setProperty("--shelfSafe", "0px");
+        return;
+      }
+
+      // Falls Shelf noch animiert/öffnet: nach dem Render messen
+      requestAnimationFrame(() => {
+        const r = shelfEl.getBoundingClientRect();
+        const h = Math.max(0, Math.round(r.height));
+        // +12px Luft, damit nix “küsst”
+        document.documentElement.style.setProperty("--shelfSafe", `${h + 12}px`);
+      });
+    }
+
 
   const openDock = (p, btn) => {
-  showWithAnim(p);
-  btn?.classList.add("isActive");
-
-  // Shelf offen -> Sidebar darf nicht drüberrutschen
-  if (p.dataset.panelId === "shelf") setShelfSafe(true);
-};
+    showWithAnim(p);
+    btn?.classList.add("isActive");
+    if (p.dataset.panelId === "shelf") setShelfSafe(true);
+  };
 
   const closeDock = (p, btn) => {
-  hideWithAnim(p);
-  btn?.classList.remove("isActive");
+    hideWithAnim(p);
+    btn?.classList.remove("isActive");
+    if (p.dataset.panelId === "shelf") setShelfSafe(false);
+  };
 
-  // Shelf zu -> Sidebar darf wieder bis unten
-  if (p.dataset.panelId === "shelf") setShelfSafe(false);
-};
-
-  const setShelfSafe = (on) => {
-  document.documentElement.style.setProperty("--shelfSafe", on ? "220px" : "0px");
-};
-
+  // Popover positioning
   const positionPopoverUnderButton = (p, btn) => {
     const r = btn.getBoundingClientRect();
     const gap = 8;
@@ -1308,7 +1300,6 @@ function initDockPanels() {
   };
 
   const openPopover = (p, btn, id) => {
-    // populate on open
     if (id === "help" && el.helpBody) el.helpBody.innerHTML = buildHelpHtml();
     if (id === "donate") {
       if (el.btcAddr) el.btcAddr.textContent = DONATE.btc;
@@ -1337,7 +1328,7 @@ function initDockPanels() {
     else closeDock(p, b);
   };
 
-  // X-Buttons: NUR damit schließen (kein outside click)
+  // X buttons only (no outside click)
   const hookClose = (closeEl, panelId, btnId) => {
     if (!closeEl) return;
     closeEl.addEventListener("click", (e) => {
@@ -1349,34 +1340,28 @@ function initDockPanels() {
     });
   };
 
-  hookClose(document.getElementById("btnSettingsClose"), "settings", "btnSettings");
-  hookClose(document.getElementById("btnHelpClose"),     "help",     "btnHelp");
-  hookClose(document.getElementById("btnDonateClose"),   "donate",   "btnDonate");
+  hookClose(el.btnSettingsClose, "settings", "btnSettings");
+  hookClose(el.btnHelpClose, "help", "btnHelp");
+  hookClose(el.btnDonateClose, "donate", "btnDonate");
 
-  // Topbar Buttons
+  // Top buttons
   buttons.forEach(btn => {
     btn.addEventListener("click", (e) => {
       e.preventDefault();
 
-    const id = btn.dataset.panel;
+      const id = btn.dataset.panel;
 
-    // Header-Bar: eigenes Toggle (nicht Panel-System)
-    if (id === "header") {
-      const bar = document.getElementById("headerInfo");
-      if (!bar) return;
+      // Header toggle: only toggles headerInfo
+      if (id === "header") {
+        if (!el.headerInfo) return;
+        const willShow = el.headerInfo.classList.contains("hidden");
+        willShow ? show(el.headerInfo) : hide(el.headerInfo);
+        btn.classList.toggle("isActive", willShow);
+        return;
+      }
 
-      const willShow = bar.classList.contains("hidden");
-      bar.classList.toggle("hidden");
-
-      btn.classList.toggle("isActive", willShow);
-      return;
-    }
-
-
-    // normale Panels
-    const p = panelById(id);
-    if (!p) return;
-
+      const p = panelById(id);
+      if (!p) return;
 
       if (DOCK_TOGGLES.has(id)) {
         isVisible(p) ? closeDock(p, btn) : openDock(p, btn);
@@ -1401,9 +1386,9 @@ function initDockPanels() {
   };
   window.addEventListener("resize", repositionOpenPopovers, { passive: true });
   window.addEventListener("scroll", repositionOpenPopovers, { passive: true });
-  // safety: beim Start immer zurücksetzen
-setShelfSafe(false);
 
+  // safety start state
+  setShelfSafe(false);
 }
 
 /* -----------------------------
