@@ -1,12 +1,24 @@
-/* -----------------------------
-   RSVP Reader V2.1 (iPad / Offline)
-   - Library in IndexedDB (books)
-   - Storage persistence request
-   - Help + Donate as popovers (X only)
-   - Export/Import library JSON
------------------------------- */
-console.log("APPJS VERSION ✅", new Date().toISOString());
-console.log("RSVP app.js loaded ✅", new Date().toISOString());
+/* =============================================================
+   RSVP Reader - Speed Reading Tool
+   (c) 2026 rundskp
+   
+   NON-COMMERCIAL USE ONLY
+   Dieses Tool ist für den privaten Gebrauch bestimmt. 
+   Kommerzielle Nutzung oder Weiterverkauf sind untersagt.
+   ============================================================= */
+
+console.log(
+`%c
+  _____  _______      _______  _____                _Z_
+ |  __ \\/ ____\\ \\    / /  __ \\|  __ \\              /   \\
+ | |__) | (___  \\ \\  / /| |__) | |__) |___  __ _  |  O  |
+ |  _  / \\___ \\  \\ \\/ / |  ___/|  _  // _ \\/ _' |  \\___/
+ | | \\ \\ ____) |  \\  /  | |    | | \\ \\  __/ (_| |   |_|
+ |_|  \\_\\_____/    \\/   |_|    |_|  \\_\\___|\\__,_|  /__/
+`, "color: #7ee787; font-weight: bold;");
+
+console.log("%c[System]%c RSVP Reader v2.2 - Non-Commercial Edition", "color: #7ee787", "color: inherit");
+console.log("%c[Legal]%c (c) 2026 rundskp. No derivatives allowed. Do not redistribute modified versions.", "color: #ff4d4d; font-weight: bold;", "color: inherit");
 
 /* -----------------------------
    Layout helpers
@@ -1147,10 +1159,15 @@ function buildHelpHtml() {
 /* -----------------------------
    Donate helpers
 ------------------------------ */
+/* !!! RECHTLICHER WARNHINWEIS !!!
+   Das Ändern dieser Adressen und die anschließende Verbreitung des Tools 
+   verstößt gegen die CC BY-NC-ND 4.0 Lizenz und ist streng untersagt. 
+   Support the original creator: rundskp */
 const DONATE = {
   paypal: "https://paypal.me/rophko",
   btc: "bc1qwr08y9ngmvplpr8tuk4w34rl4pkryur8u4cf5f"
 };
+
 
 function qrUrl(data) {
   return "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" + encodeURIComponent(data);
