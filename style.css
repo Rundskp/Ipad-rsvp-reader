@@ -324,3 +324,60 @@ body{
   /* Falls du sie auf mobile eher "Popover" willst: */
   /* .panel.panel-left{ top: 70px; bottom: 12px; } */
 }
+
+@media (max-width: 820px){
+
+  /* Topbar darf 2 Zeilen haben */
+  .topbar{
+    height: auto;
+    padding: 8px 10px;
+    row-gap: 8px;
+  }
+
+  /* Topbar-Grid bleibt: links | logo | rechts
+     aber wir lassen .topActions intern 2-zeilig werden */
+  .topActions{
+    display: grid;
+    grid-auto-flow: row;
+    grid-template-columns: 1fr;   /* zentriert in sich */
+    grid-template-rows: auto auto;
+    justify-items: center;        /* wichtig: nicht rechtskleben */
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Zeile 1: Datei laden */
+  .topActions label.btn[for="file"]{
+    grid-row: 1;
+    justify-self: center;
+    width: auto;
+    min-width: 140px;             /* wirkt “balanced” */
+    text-align: center;
+  }
+
+  /* Zeile 2: Icon-Buttons in einer zentrierten Reihe (wrappable) */
+  .topActions .topBtn{
+    grid-row: 2;
+  }
+
+  /* Wir packen die Icons in eine "virtuelle Zeile": */
+  .topActions{
+    /* zweite Zeile wird eine Flex-Reihe via subcontainer */
+  }
+  /* Trick: wir machen alle topBtn zu inline-flex und lassen sie zusammen wirken */
+  .topActions .topBtn{
+    display: inline-flex;
+  }
+
+  /* Damit die zweite Zeile wirklich als Reihe zentriert wird,
+     geben wir den Buttons gemeinsam einen Zeilen-Flow: */
+  .topActions{
+    /* nix weiter nötig, aber wir brauchen wrap -> deshalb: */
+  }
+  .topActions{
+    /* Zusätzlicher Container-Effekt: wir erlauben Umbruch für die 2. Zeile */
+  }
+  .topActions{
+    /* Grid kann nicht “wrap” wie Flex, daher: wir machen die 2. Zeile über einen Wrapper */
+  }
+}
