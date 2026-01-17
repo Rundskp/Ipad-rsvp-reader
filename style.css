@@ -819,3 +819,7 @@ body{
   border: 1px solid rgba(255,255,255,.06);
   pointer-events:none;
 }
+
+.panel.panel-left{
+  max-height: calc(100vh - 160px); /* deutlich kürzer */
+}
