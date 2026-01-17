@@ -1238,11 +1238,13 @@ function bindUI() {
   // tabs in sidebar
   el.tabToc?.addEventListener("click", () => setTab("toc"));
   el.tabMarks?.addEventListener("click", () => setTab("marks"));
-  // Schließen-Logik für das mobile Sidebar-X
-  el.btnSidebarCloseMobile = $("btnSidebarCloseMobile");
-  el.btnSidebarCloseMobile?.addEventListener("click", () => {
-    if (window.__dockClose) window.__dockClose("sidebar");
-  });
+// Schließen-Logik für das mobile Sidebar-X
+  const btnCloseMob = $("btnSidebarCloseMobile");
+  if(btnCloseMob) {
+    btnCloseMob.addEventListener("click", () => {
+      if (window.__dockClose) window.__dockClose("sidebar");
+    });
+  }
 
   // settings live updates
   el.wpm?.addEventListener("input", () => {
