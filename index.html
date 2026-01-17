@@ -68,7 +68,7 @@
   </div>
 
   <div class="topActions">
-    <label class="btn" for="file">Datei laden</label>
+    <label class="btn topBtn" id="btnFileLabel" for="file" title="Datei laden">Datei laden</label>
     <input id="file" type="file" accept=".epub,.txt" hidden />
 
     <button id="btnSidebar"  class="btn ghost topBtn" data-panel="sidebar"  title="Kapitel / Lesezeichen">☰</button>
@@ -78,16 +78,6 @@
     <button id="btnDonate"   class="btn ghost topBtn" data-panel="donate"   title="Spenden">☕️</button>
     <button id="btnShelf"    class="btn ghost topBtn" data-panel="shelf"    title="Bibliothek">📚</button>
   </div>
-<div class="topActionsRow2 mobileOnly">
-  <label class="btn" for="file">Datei laden</label>
-
-  <button id="m_btnSidebar"  class="btn ghost" data-panel="sidebar">☰</button>
-  <button id="m_btnHeader"   class="btn ghost" data-panel="header">🛈</button>
-  <button id="m_btnSettings" class="btn ghost" data-panel="settings">⚙︎</button>
-  <button id="m_btnHelp"     class="btn ghost" data-panel="help">?</button>
-  <button id="m_btnDonate"   class="btn ghost" data-panel="donate">☕️</button>
-  <button id="m_btnShelf"    class="btn ghost" data-panel="shelf">📚</button>
-</div>
 
   <div id="status" class="statusSr" aria-live="polite"></div>
 </header>
@@ -137,30 +127,28 @@
   </main>
 
   <!-- Sidebar -->
-  <aside id="sidebar" class="sidebar panel panel-left hidden" data-panel-id="sidebar">
+  <aside id="sidebar" class="panel panel-left sidebar hidden" data-panel-id="sidebar">
     <div class="sidebarHead">
       <div class="sidebarTitle">Kapitel & Lesezeichen</div>
     </div>
 
     <div class="tabs">
-      <button id="tabToc" class="tab active">Kapitel</button>
-      <button id="tabMarks" class="tab">Lesezeichen</button>
+      <button id="tabToc" class="tab active" type="button">Kapitel</button>
+      <button id="tabMarks" class="tab" type="button">Lesezeichen</button>
     </div>
 
-      <div class="sidebarBody">
-        <div class="sidebarScroll">
-          <div id="tocPane" class="pane">
-            <div id="tocList" class="list muted">Noch kein Buch geladen.</div>
-          </div>
+    <div class="sidebarBody">
+      <div class="sidebarScroll">
+        <div id="tocPane" class="pane">
+          <div id="tocList" class="list muted">Noch kein Buch geladen.</div>
+        </div>
 
-          <div id="marksPane" class="pane hidden">
-            <div id="marksList" class="list muted">Keine Lesezeichen.</div>
-          </div>
+        <div id="marksPane" class="pane hidden">
+          <div id="marksList" class="list muted">Keine Lesezeichen.</div>
+        </div>
+      </div>
+      <div class="sidebarGap" aria-hidden="true"></div>
     </div>
-
-    <div class="sidebarGap" aria-hidden="true"></div>
-  </div>
-
   </aside>
 
   <!-- Settings panel -->
@@ -311,15 +299,20 @@
     <div class="shelfHead">
       <div class="shelfTitle">Bibliothek</div>
 
-      <div class="row">
+        <div class="row">
+        <button id="btnSelectAll" class="btn ghost" type="button">Alle auswählen</button>
+  
         <button id="btnExportAll" class="btn" type="button">Export: Alles</button>
         <button id="btnExportSelected" class="btn ghost" type="button">Export: Auswahl</button>
+  ...
+          
+          <button id="btnDeleteSelected" class="btn ghost" type="button" style="color: #ff4d4d; border-color: rgba(255,77,77,0.2);">Auswahl löschen</button>
 
-        <label class="btn ghost" style="margin:0;">
-          Import
-          <input id="importFile" type="file" accept=".json,application/json" hidden />
-        </label>
-      </div>
+          <label class="btn ghost" style="margin:0;">
+            Import
+            <input id="importFile" type="file" accept=".json,application/json" hidden />
+          </label>
+        </div>
     </div>
 
     <div id="shelfList" class="shelfList muted">Noch keine Bücher gespeichert.</div>
@@ -341,7 +334,5 @@
   </script>
 </body>
 </html>
-
-
 
 

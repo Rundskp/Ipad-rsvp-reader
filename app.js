@@ -6,8 +6,24 @@
    - Export/Import library JSON
 ------------------------------ */
 console.log("APPJS VERSION ✅", new Date().toISOString());
-alert("APPJS VERSION ✅ " + new Date().toISOString());
 console.log("RSVP app.js loaded ✅", new Date().toISOString());
+
+/* -----------------------------
+   Layout helpers
+------------------------------ */
+function setTopbarHeightVar(){
+  const tb = document.querySelector('.topbar');
+  if(!tb) return;
+  const h = Math.max(0, tb.offsetHeight || 0);
+  document.documentElement.style.setProperty('--topbarH', h + 'px');
+}
+
+// tiny debounce for resize
+let _tbT = null;
+window.addEventListener('resize', ()=>{
+  clearTimeout(_tbT);
+  _tbT = setTimeout(setTopbarHeightVar, 80);
+});
 
 const $ = (id) => document.getElementById(id);
 
@@ -53,6 +69,8 @@ const el = {
   btnExportAll: $("btnExportAll"),
   btnExportSelected: $("btnExportSelected"),
   importFile: $("importFile"),
+  btnDeleteSelected: $("btnDeleteSelected"),
+  btnSelectAll: $("btnSelectAll"),
 
   // Sidebar (dock)
   sidebar: $("sidebar"),
@@ -170,6 +188,16 @@ function idbOpen() {
   });
 }
 
+async function idbDelete(id) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, "readwrite");
+    tx.objectStore(STORE).delete(id);
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
 async function idbPut(bookObj) {
   const db = await idbOpen();
   return new Promise((resolve, reject) => {
@@ -258,6 +286,48 @@ async function exportLibrary({ mode }) {
   const name = `rsvp_library_${mode}_${nowStamp()}.json`;
   downloadTextFile(name, JSON.stringify(payload));
   setStatus(`Export fertig ✅ (${books.length} Buch/Bücher)`);
+}
+
+function toggleSelectAllBooks() {
+  const checkboxes = document.querySelectorAll(".bookPick");
+  if (!checkboxes.length) return;
+
+  // Prüfen, ob bereits alle markiert sind
+  const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+  
+  // Wenn alle markiert sind -> alles abwählen. Sonst -> alles auswählen.
+  checkboxes.forEach(cb => cb.checked = !allChecked);
+  
+  // Button-Text dynamisch anpassen
+  if (el.btnSelectAll) {
+    el.btnSelectAll.textContent = allChecked ? "Alle auswählen" : "Auswahl aufheben";
+  }
+}
+
+async function deleteSelectedFromLibrary() {
+  const checkboxes = document.querySelectorAll(".bookPick:checked");
+  const ids = Array.from(checkboxes).map(cb => cb.getAttribute("data-id"));
+
+  if (ids.length === 0) {
+    setStatus("Keine Auswahl zum Löschen getroffen.");
+    return;
+  }
+
+  if (confirm(`${ids.length} Buch/Bücher wirklich dauerhaft löschen?`)) {
+    for (const id of ids) {
+      await idbDelete(id);
+      // Falls das gerade offene Buch gelöscht wird, Reader leeren
+      if (S.book.id === id) {
+        S.book.id = null;
+        S.words = [];
+        S.idx = 0;
+        showCurrent();
+        syncHeaderUI();
+      }
+    }
+    await renderShelf(); // Liste neu zeichnen
+    setStatus(`${ids.length} Buch/Bücher gelöscht.`);
+  }
 }
 
 function validateImportPayload(p) {
@@ -708,11 +778,10 @@ function renderToc() {
     const start = hrefToStart.get(t.href) ?? null;
     const div = document.createElement("div");
     div.className = "item";
-    div.innerHTML = `<div><b>${escapeHtml(t.label || t.href)}</b></div><div class="small">${start !== null ? `Springe zu Wort #${start}` : "Kapitel"}</div>`;
+    div.innerHTML = `<div><b>${escapeHtml(t.label || t.href)}</b></div><div class="small">${start !== null ? `Wort #${start}` : "Kapitel"}</div>`;
     div.addEventListener("click", () => {
       if (start !== null) jumpToIndex(start);
-      if (typeof window.__dockClose === "function") window.__dockClose("sidebar");
-      else hide(el.sidebar);
+      // window.__dockClose entfernt: Sidebar bleibt offen ✅
     });
     el.tocList.appendChild(div);
   }
@@ -746,6 +815,7 @@ async function saveBookToLibrary(bookObj) {
 }
 
 async function renderShelf() {
+  if (el.btnSelectAll) el.btnSelectAll.textContent = "Alle auswählen"; // Reset Button Text
   try {
     if (!el.shelfList) return;
 
@@ -1111,6 +1181,8 @@ function bindUI() {
     if (f) importLibraryFromJsonFile(f);
     ev.target.value = "";
   });
+  el.btnSelectAll?.addEventListener("click", toggleSelectAllBooks);
+  el.btnDeleteSelected?.addEventListener("click", deleteSelectedFromLibrary);
 
   // player
   el.btnPlay?.addEventListener("click", togglePlay);
@@ -1281,24 +1353,22 @@ function initDockPanels() {
   };
 
   // Popover positioning
-  const positionPopoverUnderButton = (p, btn) => {
+const positionPopoverUnderButton = (p, btn) => {
     const r = btn.getBoundingClientRect();
-    const gap = 8;
 
+    // Reset der Styles
     p.style.left = "0px";
-    p.style.top = "0px";
     p.style.right = "auto";
 
+    // 1. Horizontale Positionierung (bleibt am Button orientiert)
     let left = r.left;
     const maxLeft = window.innerWidth - p.offsetWidth - 12;
     left = Math.max(12, Math.min(left, maxLeft));
-
-    let top = r.bottom + gap;
-    const maxTop = window.innerHeight - p.offsetHeight - 12;
-    if (top > maxTop) top = Math.max(12, r.top - gap - p.offsetHeight);
-
     p.style.left = `${left}px`;
-    p.style.top  = `${top}px`;
+
+    // 2. Vertikale Positionierung (jetzt identisch mit der Sidebar)
+    // Wir nutzen den gleichen Wert wie in der style.css für .panel
+    p.style.top = "calc(var(--topbarH) + 14px)";
   };
 
   const openPopover = (p, btn, id) => {
@@ -1397,6 +1467,8 @@ function initDockPanels() {
    Boot
 ------------------------------ */
 (async function boot() {
+  // Panels positionieren sich relativ zur (mobil ggf. 2-zeiligen) Topbar
+  setTopbarHeightVar();
   // 1) UI IMMER zuerst – sonst sind Buttons tot, wenn Storage zickt
   try {
     bindUI();
@@ -1434,27 +1506,3 @@ function initDockPanels() {
   console.error(e);
   setStatus("Boot-Fehler (Fallback aktiv)");
 });
-
-(function wireMobileTopButtons(){
-  const map = [
-    ["m_btnSidebar",  "btnSidebar"],
-    ["m_btnHeader",   "btnHeader"],
-    ["m_btnSettings", "btnSettings"],
-    ["m_btnHelp",     "btnHelp"],
-    ["m_btnDonate",   "btnDonate"],
-    ["m_btnShelf",    "btnShelf"],
-  ];
-
-  for (const [mid, did] of map){
-    const m = document.getElementById(mid);
-    const d = document.getElementById(did);
-    if (!m || !d) continue;
-
-    m.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();              // <-- wichtig
-      d.click();
-    }, true);                           // <-- capturing hilft gegen globale Click-Close-Handler
-  }
-})();
-
