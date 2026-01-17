@@ -1434,3 +1434,26 @@ function initDockPanels() {
   console.error(e);
   setStatus("Boot-Fehler (Fallback aktiv)");
 });
+
+(function wireMobileTopButtons(){
+  const map = [
+    ["m_btnSidebar",  "btnSidebar"],
+    ["m_btnHeader",   "btnHeader"],
+    ["m_btnSettings", "btnSettings"],
+    ["m_btnHelp",     "btnHelp"],
+    ["m_btnDonate",   "btnDonate"],
+    ["m_btnShelf",    "btnShelf"],
+  ];
+
+  for (const [mid, did] of map){
+    const m = document.getElementById(mid);
+    const d = document.getElementById(did);
+    if (!m || !d) continue;
+
+    m.addEventListener("click", (e) => {
+      e.preventDefault();
+      d.click(); // nutzt deine bestehende Logik 1:1
+    });
+  }
+})();
+
