@@ -804,22 +804,33 @@ body{
   -webkit-backdrop-filter: blur(10px);
   overflow: hidden; /* damit die Bubble sauber bleibt */
 }
-.panel.panel-left .sidebar{
-  padding: 14px;
-  background: transparent; /* outer bubble macht das */
-  border: none;
-  box-shadow: none;
-}
-
-.panel.panel-left::before{
-  content:"";
-  position:absolute;
-  inset: 10px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,.06);
-  pointer-events:none;
-}
-
+/* 1) Linkes Panel bekommt definierte "Länge" über bottom */
 .panel.panel-left{
-  max-height: calc(100vh - 260px); /* deutlich kürzer */
+  top: 58px;
+  bottom: 220px;         /* <-- HIER spielst du mit der Länge */
+  height: auto;          /* wichtig, damit bottom wirkt */
+  max-height: none;      /* max-height ist dann egal */
+  overflow: hidden;      /* Panel selbst nicht scrollen */
+}
+
+/* 2) Inneres Layout: Header bleibt, Liste scrollt */
+.panel.panel-left .sidebar{
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* WICHTIG in Flex-Scroll-Layouts */
+}
+
+.panel.panel-left .sidebarBody{
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none; /* deine calc(...) blockiert sonst ggf. */
+}
+
+.panel.panel-left .sidebarScroll{
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;  /* wir steuern Höhe über panel-bottom */
+  overflow: auto;
+  padding-bottom: 18px;
 }
