@@ -791,3 +791,22 @@ body{
   padding: 9px 12px;
   line-height: 1;
 }
+
+/* Das linke Panel (Kapitel/Lesezeichen) als Bubble */
+.panel.panel-left{
+  background: rgba(18,19,26,.55);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 18px;
+  box-shadow:
+    0 18px 55px rgba(0,0,0,.45),
+    inset 0 1px 0 rgba(255,255,255,.06);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  overflow: hidden; /* damit die Bubble sauber bleibt */
+}
+.panel.panel-left .sidebar{
+  padding: 14px;
+  background: transparent; /* outer bubble macht das */
+  border: none;
+  box-shadow: none;
+}
