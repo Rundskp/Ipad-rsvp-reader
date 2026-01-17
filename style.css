@@ -291,93 +291,78 @@ body{
 ========================= */
 @media (max-width: 820px){
 
-  /* Topbar kompakter, Buttons mehr Platz */
-  .topbar{
-    padding: 8px 10px;
-    grid-template-columns: auto 1fr auto; /* links | platz | rechts */
-  }
-
-  .topLogo{ grid-column: 2; }
-  .topActions{ gap: 8px; }
-
-  .topActions .btn{
-    padding: 9px 10px;
-    border-radius: 12px;
-  }
-
-  /* Logo kleiner, damit nix überlappt */
-  .glassesWrap{ width: min(360px, 52vw); height: 34px; }
-  .glassesMark{ opacity: .95; }
-
-  /* Sidebar: mobile lieber als bottom-sheet statt links-floating */
-  .panel.panel-left{
-    left: 12px;
-    right: 12px;
-    top: auto;
-    bottom: 12px;
-    width: auto;
-    height: auto;
-    max-height: min(60vh, 520px);
-    border-radius: 16px;
-  }
-
-  /* Falls du sie auf mobile eher "Popover" willst: */
-  /* .panel.panel-left{ top: 70px; bottom: 12px; } */
-}
-
-@media (max-width: 820px){
-
-  /* Topbar darf 2 Zeilen haben */
   .topbar{
     height: auto;
     padding: 8px 10px;
     row-gap: 8px;
   }
 
-  /* Topbar-Grid bleibt: links | logo | rechts
-     aber wir lassen .topActions intern 2-zeilig werden */
+  /* TopActions bleibt rechts (Spalte 3), aber intern 2-zeilig */
   .topActions{
     display: grid;
-    grid-auto-flow: row;
-    grid-template-columns: 1fr;   /* zentriert in sich */
     grid-template-rows: auto auto;
-    justify-items: center;        /* wichtig: nicht rechtskleben */
-    align-items: center;
+    justify-items: end;         /* Datei laden bleibt rechts wie am Desktop */
     gap: 8px;
   }
 
-  /* Zeile 1: Datei laden */
+  /* Datei laden oben, rechts */
   .topActions label.btn[for="file"]{
     grid-row: 1;
-    justify-self: center;
-    width: auto;
-    min-width: 140px;             /* wirkt “balanced” */
+    justify-self: end;
+    min-width: 150px;
     text-align: center;
   }
 
-  /* Zeile 2: Icon-Buttons in einer zentrierten Reihe (wrappable) */
-  .topActions .topBtn{
+  /* Icon-Zeile: unter der Brille beginnen (Spalte 2) */
+  .topActions .iconRow{
     grid-row: 2;
+
+    /* WICHTIG: wir "ziehen" die IconRow in die Mitte-Spalte der Topbar */
+    position: relative;
+    right: calc(50vw - 50%);    /* grob: von rechts Richtung Mitte */
+    
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-start; /* NICHT zentriert */
   }
 
-  /* Wir packen die Icons in eine "virtuelle Zeile": */
-  .topActions{
-    /* zweite Zeile wird eine Flex-Reihe via subcontainer */
+  .topActions .iconRow .btn{
+    padding: 9px 10px;
+    line-height: 1;
   }
-  /* Trick: wir machen alle topBtn zu inline-flex und lassen sie zusammen wirken */
-  .topActions .topBtn{
-    display: inline-flex;
+}
+/* default: mobile row aus */
+.mobileOnly{ display:none; }
+
+@media (max-width: 820px){
+
+  /* Desktop-Buttons in .topActions ausblenden (aber Datei laden bleibt!) */
+  .topActions .topBtn{ display:none; }
+
+  /* zweite Reihe aktivieren und unter der Brille starten */
+  .mobileOnly{ display:flex; }
+
+  .topbar{
+    height:auto;
+    grid-template-rows: auto auto; /* 2 Zeilen */
+    row-gap: 8px;
   }
 
-  /* Damit die zweite Zeile wirklich als Reihe zentriert wird,
-     geben wir den Buttons gemeinsam einen Zeilen-Flow: */
-  .topActions{
-    /* nix weiter nötig, aber wir brauchen wrap -> deshalb: */
+  /* Reihe 2 sitzt in Spalte 2 (unter Logo) */
+  .topActionsRow2{
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: start;
+
+    display:flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content:flex-start;
   }
-  .topActions{
-    /* Zusätzlicher Container-Effekt: wir erlauben Umbruch für die 2. Zeile */
-  }
-  .topActions{
-    /* Grid kann nicht “wrap” wie Flex, daher: wir machen die 2. Zeile über einen Wrapper */
+
+  .topActionsRow2 .btn{
+    padding: 9px 10px;
+    line-height: 1;
   }
 }
