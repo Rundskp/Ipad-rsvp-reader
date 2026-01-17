@@ -1452,8 +1452,9 @@ function initDockPanels() {
 
     m.addEventListener("click", (e) => {
       e.preventDefault();
-      d.click(); // nutzt deine bestehende Logik 1:1
-    });
+      e.stopPropagation();              // <-- wichtig
+      d.click();
+    }, true);                           // <-- capturing hilft gegen globale Click-Close-Handler
   }
 })();
 
