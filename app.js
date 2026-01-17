@@ -11,20 +11,28 @@ console.log("RSVP app.js loaded ✅", new Date().toISOString());
 /* -----------------------------
    Layout helpers
 ------------------------------ */
-function setTopbarHeightVar(){
+function setTopbarHeightVar() {
   const tb = document.querySelector('.topbar');
-  if(!tb) return;
+  if (!tb) return;
+  // Misst die echte Höhe (wichtig für den 2-Zeilen-Modus am Handy)
   const h = Math.max(0, tb.offsetHeight || 0);
   document.documentElement.style.setProperty('--topbarH', h + 'px');
 }
 
-// tiny debounce for resize
+// 1. Beim Laden der Seite sofort messen
+window.addEventListener('load', setTopbarHeightVar);
+
+// 2. Bei Größenänderung (z.B. Handy drehen) verzögert messen (Debounce)
+// Das verhindert, dass die Funktion 60-mal pro Sekunde feuert.
 let _tbT = null;
-window.addEventListener('resize', ()=>{
+window.addEventListener('resize', () => {
   clearTimeout(_tbT);
-  _tbT = setTimeout(setTopbarHeightVar, 80);
+  _tbT = setTimeout(setTopbarHeightVar, 100); // 100ms Puffer reicht völlig
 });
 
+// Falls du Bilder/Cover im Header hast, die erst spät laden:
+// Erneut messen, wenn alles fertig gerendert ist
+window.addEventListener('DOMContentLoaded', setTopbarHeightVar);
 const $ = (id) => document.getElementById(id);
 
 function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
