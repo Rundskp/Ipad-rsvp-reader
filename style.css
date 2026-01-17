@@ -821,5 +821,5 @@ body{
 }
 
 .panel.panel-left{
-  max-height: calc(100vh - 160px); /* deutlich kürzer */
+  max-height: calc(100vh - 260px); /* deutlich kürzer */
 }
