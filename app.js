@@ -1354,11 +1354,12 @@ function initDockPanels() {
     }
 
 
-  const openDock = (p, btn) => {
-    showWithAnim(p);
-    btn?.classList.add("isActive");
-    if (p.dataset.panelId === "shelf") setShelfSafe(true);
-  };
+    const openDock = (p, btn) => {
+        setTopbarHeightVar(); // <--- Füge diese Zeile hier ein!
+        showWithAnim(p);
+        btn?.classList.add("isActive");
+        if (p.dataset.panelId === "shelf") setShelfSafe(true);
+      };
 
   const closeDock = (p, btn) => {
     hideWithAnim(p);

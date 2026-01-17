@@ -682,48 +682,81 @@ body{
    DER MOBILE MASTER-MODUS (Nur für Handys/Tablets)
    =================================================== */
 
+/* 1. Grundzustand für mobile Elemente (VOR dem Media-Query definieren!) */
+.mobile-only { display: none; }
+
+/* 2. DER MOBILE MASTER-MODUS */
 @media (max-width: 768px) {
+  /* X-Button in Sidebar jetzt sichtbar machen */
   .mobile-only { display: flex !important; }
 
-  /* Topbar Grid: Logo links, Knopf rechts */
+  /* Topbar Layout: 2 Reihen */
   .topbar {
     display: grid !important;
-    grid-template-columns: 1fr auto !important;
+    grid-template-columns: auto 1fr !important; /* Logo braucht festen Platz, Datei füllt Rest */
     grid-template-rows: auto auto !important;
-    gap: 10px !important;
+    gap: 10px 15px !important;
     height: auto !important;
-    padding: 10px 12px !important;
+    padding: 12px var(--pad) !important;
+    align-items: center;
   }
 
+  /* Logo Positionierung (Reihe 1, links) */
   .topLogo { 
     grid-area: 1 / 1 / 2 / 2; 
-    justify-self: start !important; 
     width: 130px !important; 
+    justify-self: start !important;
+    display: block !important;
   }
+  .glassesWrap { width: 130px !important; height: 32px !important; }
 
+  /* Datei laden Button Positionierung (Reihe 1, rechts daneben) */
   #btnFileLabel { 
     grid-area: 1 / 2 / 2 / 3; 
-    display: flex !important; 
-    margin: 0 !important; 
+    justify-self: start !important;
+    margin: 0 !important;
     padding: 8px 12px !important;
     font-size: 13px;
+    width: fit-content;
+    display: flex !important;
   }
 
-  /* Die 6 Buttons in die zweite Reihe */
+  /* Die 6 Buttons in die zweite Reihe, volle Breite */
   .topActions {
     grid-area: 2 / 1 / 3 / 3;
     display: flex !important;
     justify-content: space-between !important;
     width: 100% !important;
-    margin-top: 4px;
+    gap: 5px !important;
+    padding: 0 !important;
   }
 
-  .topActions .btn { flex: 1; padding: 10px 0 !important; font-size: 18px; }
-  
-  /* Restlicher Stack-Modus (Cover, Reader, Library) wie gehabt ... */
-  .headerInfoBar { position: static !important; width: 100% !important; margin: 0 !important; border-radius: 0 !important; }
-  .shelf.panel-bottom { position: static !important; width: 100% !important; border-radius: 18px 18px 0 0 !important; opacity: 1 !important; transform: none !important; pointer-events: auto !important; }
-}
+  .topActions .btn { 
+    flex: 1; 
+    padding: 12px 0 !important; 
+    font-size: 20px; 
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
 
-/* Standardmäßig verstecken */
-.mobile-only { display: none !important; }
+  /* Sidebar als Overlay am Handy mit Schließen-X */
+  .panel.sidebar {
+    position: fixed !important;
+    left: 12px !important;
+    right: 12px !important;
+    width: auto !important;
+    top: calc(var(--topbarH) + 10px) !important;
+    z-index: 2000;
+    max-height: 85vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    opacity: 1 !important;
+    transform: none !important;
+    pointer-events: auto !important;
+  }
+
+  /* Stapel-Modus für Cover & Bibliothek */
+  .headerInfoBar { position: static !important; width: 100% !important; margin: 0 !important; border-radius: 0 !important; }
+  .shelf.panel-bottom { position: static !important; width: 100% !important; border-radius: 20px 20px 0 0 !important; opacity: 1 !important; transform: none !important; pointer-events: auto !important; }
+}
