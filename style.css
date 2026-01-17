@@ -807,7 +807,7 @@ body{
 /* 1) Linkes Panel bekommt definierte "Länge" über bottom */
 .panel.panel-left{
   top: 58px;
-  bottom: 220px;         /* <-- HIER spielst du mit der Länge */
+  bottom: 320px;         /* <-- HIER spielst du mit der Länge */
   height: auto;          /* wichtig, damit bottom wirkt */
   max-height: none;      /* max-height ist dann egal */
   overflow: hidden;      /* Panel selbst nicht scrollen */
