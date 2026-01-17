@@ -683,110 +683,47 @@ body{
    =================================================== */
 
 @media (max-width: 768px) {
-  /* 1. SEITENSTRUKTUR: Stapeln statt Überlagern */
-  body {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    overflow: hidden; /* Verhindert doppeltes Scrollen */
-  }
+  .mobile-only { display: flex !important; }
 
-  /* Topbar: 2 Reihen */
+  /* Topbar Grid: Logo links, Knopf rechts */
   .topbar {
-    flex: 0 0 auto;
-    height: auto !important;
     display: grid !important;
     grid-template-columns: 1fr auto !important;
     grid-template-rows: auto auto !important;
-    gap: 8px !important;
+    gap: 10px !important;
+    height: auto !important;
     padding: 10px 12px !important;
   }
 
-  .topLogo { grid-area: 1 / 1 / 2 / 2; justify-self: start !important; width: 120px !important; }
-  #btnFileLabel { grid-area: 1 / 2 / 2 / 3; margin: 0 !important; }
-  
+  .topLogo { 
+    grid-area: 1 / 1 / 2 / 2; 
+    justify-self: start !important; 
+    width: 130px !important; 
+  }
+
+  #btnFileLabel { 
+    grid-area: 1 / 2 / 2 / 3; 
+    display: flex !important; 
+    margin: 0 !important; 
+    padding: 8px 12px !important;
+    font-size: 13px;
+  }
+
+  /* Die 6 Buttons in die zweite Reihe */
   .topActions {
     grid-area: 2 / 1 / 3 / 3;
     display: flex !important;
     justify-content: space-between !important;
     width: 100% !important;
+    margin-top: 4px;
   }
+
   .topActions .btn { flex: 1; padding: 10px 0 !important; font-size: 18px; }
-  .topActions #btnFileLabel { display: none !important; }
-
-  /* 2. COVER (Oben andocken, schiebt Inhalt) */
-  .headerInfoBar {
-    position: static !important; /* Teil des Stapels, kein Overlay */
-    flex: 0 0 auto;
-    width: 100% !important;
-    margin: 0 !important;
-    border-radius: 0 !important;
-    border-left: none !important;
-    border-right: none !important;
-    background: rgba(18,19,26,0.85) !important;
-  }
-
-  /* 3. LESEFENSTER (Mittig, füllt Restplatz) */
-  .wrap {
-    flex: 1 1 auto; /* Wächst und schrumpft je nach Platz */
-    overflow-y: auto;
-    padding: 12px var(--pad) !important;
-    display: flex;
-    align-items: center; /* Zentriert Player vertikal im Restplatz */
-  }
-  .card { width: 100%; margin: 0; }
-
-  /* 4. BIBLIOTHEK (Unten andocken, schiebt Inhalt) */
-  .shelf.panel-bottom {
-    position: static !important; /* Kein Overlay mehr */
-    flex: 0 0 auto;
-    width: 100% !important;
-    height: auto !important;
-    max-height: 45vh !important;
-    border-radius: 18px 18px 0 0 !important;
-    border-bottom: none !important;
-    opacity: 1 !important;
-    transform: none !important;
-    pointer-events: auto !important;
-    display: flex;
-    flex-direction: column;
-    padding: 14px !important;
-    background: #0b0c10 !important; /* Solid für bessere Trennung */
-  }
-  .shelf.hidden { display: none !important; } /* Wichtig: Hidden muss display:none sein */
-
-  /* Grid-Anpassung Bibliothek */
-  .shelfList {
-    display: grid !important;
-    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)) !important;
-    gap: 8px !important;
-    overflow-y: auto !important;
-    padding-bottom: 10px;
-  }
-  .bookCard { min-width: 0 !important; padding: 6px !important; }
-  .bookCard img { height: 100px !important; }
-
-  /* Buttons in Bibliothek ganz unten */
-  .shelfHead { order: 2; margin: 10px 0 0 0 !important; }
-  .shelfList { order: 1; }
-  .shelfHead .row {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px !important;
-  }
-
-  /* 5. OVERLAYS (Hilfe, Einstellungen, Kapitel, Spenden) */
-  .panel.sidebar,
-  .popoverPanel {
-    position: fixed !important;
-    left: 12px !important;
-    right: 12px !important;
-    width: auto !important;
-    /* Nutzt gemessene Topbar-Höhe + kleiner Puffer */
-    top: calc(var(--topbarH) + 10px) !important;
-    z-index: 2000;
-    max-height: 75vh !important;
-    background: rgba(18,19,26,0.98) !important;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.8);
-  }
+  
+  /* Restlicher Stack-Modus (Cover, Reader, Library) wie gehabt ... */
+  .headerInfoBar { position: static !important; width: 100% !important; margin: 0 !important; border-radius: 0 !important; }
+  .shelf.panel-bottom { position: static !important; width: 100% !important; border-radius: 18px 18px 0 0 !important; opacity: 1 !important; transform: none !important; pointer-events: auto !important; }
 }
+
+/* Standardmäßig verstecken */
+.mobile-only { display: none !important; }

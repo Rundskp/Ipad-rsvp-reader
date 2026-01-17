@@ -16,6 +16,14 @@
   <div class="topLeft"></div>
 
   <div class="topLogo" aria-hidden="true">
+    </div>
+
+  <label class="btn topBtn" id="btnFileLabel" for="file" title="Datei laden">Datei laden</label>
+  <input id="file" type="file" accept=".epub,.txt" hidden />
+
+  <div class="topActions">
+    <button id="btnSidebar"  class="btn ghost topBtn" data-panel="sidebar"  title="Kapitel / Lesezeichen">☰</button>
+    <button id="btnHeader"   class="btn ghost topBtn" data-panel="header"   title="Cover/Titel">🛈</button>
     <div class="glassesWrap">
       <svg class="glassesMark" xmlns="http://www.w3.org/2000/svg"
            viewBox="0 0 2499 391" preserveAspectRatio="xMidYMid meet">
@@ -130,6 +138,7 @@
   <aside id="sidebar" class="panel panel-left sidebar hidden" data-panel-id="sidebar">
     <div class="sidebarHead">
       <div class="sidebarTitle">Kapitel & Lesezeichen</div>
+      <button id="btnSidebarCloseMobile" class="btn ghost mobile-only" type="button" title="Schließen">✕</button>
     </div>
 
     <div class="tabs">
