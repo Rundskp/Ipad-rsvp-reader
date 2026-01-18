@@ -152,12 +152,13 @@ const el = {
   const missing = Object.entries(el).filter(([_,v]) => !v).map(([k]) => k);
   if (missing.length) console.warn("Missing DOM IDs:", missing);
 })();
-
+ 
 /* -----------------------------
-   Toast (above everything)
+   Toast & Status
 ------------------------------ */
 const toastEl = $("toast");
 let _toastT = null;
+let _statusT = null; // Neu: Timer für den Status-Text-Bereich
 
 function toast(msg, ms = 1400) {
   if (!toastEl) return;
@@ -167,10 +168,20 @@ function toast(msg, ms = 1400) {
   _toastT = setTimeout(() => toastEl.classList.add("hidden"), ms);
 }
 
-// Status links oben: nur sticky, sonst bleibt’s wie es ist (oder leer wenn du’s so willst)
+// Aktualisierte Funktion: Löscht den Text nach 3 Sekunden automatisch
 function setStatus(msg, { sticky = false, toastMs = 1400 } = {}) {
   toast(msg, toastMs);
-  if (el.status && sticky) el.status.textContent = msg;
+  if (el.status && sticky) {
+    el.status.textContent = msg;
+    
+    // Bestehenden Timer löschen, falls eine neue Meldung kommt
+    if (_statusT) clearTimeout(_statusT);
+    
+    // Nach 3 Sekunden den Text leeren, damit das Layout (besonders am Handy) wieder schrumpft
+    _statusT = setTimeout(() => {
+      if (el.status) el.status.textContent = "";
+    }, 3000);
+  }
 }
 
 /* -----------------------------
