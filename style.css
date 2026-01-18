@@ -28,22 +28,15 @@ body{
    TOPBAR
 ========================= */
 
-.topbar{
-  position: sticky;
-  top: 0;
-  z-index: 999;
-
-  height: 56px;
-  padding: 8px 12px;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr; /* left | logo | actions */
-  align-items: center;
-
-  background: rgba(10,12,16,.78);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(255,255,255,.06);
-}
+.topbar {
+    display: grid !important;
+    grid-template-columns: 1fr auto !important; /* Spalte 1 für Logo (zentriert), Spalte 2 für Button */
+    grid-template-rows: auto auto !important;
+    gap: 10px 0 !important; /* Weniger horizontaler Gap */
+    height: auto !important;
+    padding: 12px var(--pad) !important;
+    align-items: center;
+  }
 
 /* nix in pseudo-layers soll klicken blockieren */
 .topbar::before,
@@ -67,10 +60,13 @@ body{
   gap:10px;
 }
 
-.topLogo{
-  grid-column: 2;
-  justify-self: center;
-}
+.topLogo { 
+    grid-area: 1 / 1 / 2 / 2; 
+    width: 140px !important; 
+    justify-self: center !important; /* Mittig im 1fr Bereich links vom Button */
+    display: block !important;
+    margin-right: -15px; /* Kleiner optischer Ausgleich */
+  }
 
 .topActions{
   grid-column: 3;
@@ -776,48 +772,37 @@ body{
   /* ============================
      SHELF MOBILE LAYOUT (Note 1)
      ============================ */
+/* Bibliotheks-Kopf Desktop & Mobile */
   .shelfHead {
-    flex-direction: column; /* Alles untereinander */
+    display: flex;
+    flex-direction: column;
     gap: 12px;
-    align-items: stretch;
+    margin-bottom: 15px;
   }
 
-  /* Zeile 1: Titel + Alle auswählen */
   .shelfTopRow {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 15px;
   }
-  
-  /* Titel etwas kleiner am Handy */
-  .shelfTitle { font-size: 16px; }
 
-  /* Zeile 2: Label + Buttons */
   .shelfActions {
     display: flex;
     align-items: center;
-    gap: 8px; /* Abstand zwischen den Buttons */
+    gap: 8px;
     width: 100%;
   }
 
-  /* "Auswahl" Text Style */
-  .shelfLabel {
-    font-size: 13px; 
-    color: var(--muted);
-    font-weight: 600;
-    margin-right: 2px;
+  .shelfLabel { font-size: 13px; color: var(--muted); font-weight: bold; }
+  .danger { color: #ff4d4d !important; border-color: rgba(255,77,77,0.2) !important; }
+
+  /* Desktop-Positionierung der Buttons (außerhalb des Media-Queries am besten) */
+  @media (min-width: 769px) {
+    .shelfHead { flex-direction: row; justify-content: space-between; align-items: center; }
+    .shelfActions { width: auto; justify-content: flex-end; }
   }
 
-  /* Buttons am Handy kompakter machen */
-  .shelfActions .btn {
-    padding: 8px 10px;
-    font-size: 13px;
-    height: 36px;
-    white-space: nowrap;
+  /* Buttons am Handy etwas schmaler für 3er Reihe */
+  @media (max-width: 768px) {
+    .shelfActions .btn { flex: 1; font-size: 12px; padding: 8px 4px; text-align: center; }
   }
-
-  /* Import Button ganz nach rechts schieben */
-  .shelfActions #importFileLabel {
-    margin-left: auto; 
-  }
-}

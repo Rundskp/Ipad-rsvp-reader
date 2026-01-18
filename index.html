@@ -73,7 +73,9 @@
 
     <div class="actionButtons">
       <button id="btnSidebar"  class="btn ghost topBtn" data-panel="sidebar"  title="Kapitel / Lesezeichen">☰</button>
-      <button id="btnHeader"   class="btn ghost topBtn" data-panel="header"   title="Cover/Titel">🛈</button>
+      <button id="btnHeader" class="btn ghost topBtn" data-panel="header" title="Cover/Titel">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:block;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+      </button>
       <button id="btnSettings" class="btn ghost topBtn" data-panel="settings" title="Einstellungen">⚙︎</button>
       <button id="btnHelp"     class="btn ghost topBtn" data-panel="help"     title="Hilfe">?</button>
       <button id="btnDonate"   class="btn ghost topBtn" data-panel="donate"   title="Spenden">☕️</button>
@@ -297,28 +299,25 @@
   </div>
 
   <!-- Bottom shelf -->
-  <footer id="shelf" class="shelf panel panel-bottom hidden" data-panel-id="shelf">
-    <div class="shelfHead">
-      <div class="shelfTitle">Bibliothek</div>
-
-        <div class="row">
-        <button id="btnSelectAll" class="btn ghost" type="button">Alle auswählen</button>
-  
-        <button id="btnExportAll" class="btn" type="button">Export: Alles</button>
-        <button id="btnExportSelected" class="btn ghost" type="button">Export: Auswahl</button>
-  ...
-          
-          <button id="btnDeleteSelected" class="btn ghost" type="button" style="color: #ff4d4d; border-color: rgba(255,77,77,0.2);">Auswahl löschen</button>
-
-          <label class="btn ghost" style="margin:0;">
+    <footer id="shelf" class="shelf panel panel-bottom hidden" data-panel-id="shelf">
+      <div class="shelfHead">
+        <div class="shelfTopRow">
+          <div class="shelfTitle">Bibliothek</div>
+          <button id="btnSelectAll" class="btn ghost" type="button">Alle auswählen</button>
+        </div>
+        
+        <div class="shelfActions">
+          <span class="shelfLabel">Auswahl:</span>
+          <button id="btnDeleteSelected" class="btn ghost danger" type="button">Löschen</button>
+          <button id="btnExportAll" class="btn" type="button">Speichern</button>
+          <label id="importFileLabel" class="btn ghost" style="margin:0;">
             Import
             <input id="importFile" type="file" accept=".json,application/json" hidden />
           </label>
         </div>
-    </div>
-
-    <div id="shelfList" class="shelfList muted">Noch keine Bücher gespeichert.</div>
-  </footer>
+      </div>
+      <div id="shelfList" class="shelfList muted">Noch keine Bücher gespeichert.</div>
+    </footer>
 
   <div id="toast" class="toast hidden"></div>
 
