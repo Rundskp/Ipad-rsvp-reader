@@ -533,9 +533,82 @@ body{
 .danger { color: #ff4d4d !important; border-color: rgba(255,77,77,0.3) !important; }
 #btnDeleteSelected { margin-left: 15px; } /* Abstand am Desktop */
 
-.bookCard { min-width: 140px !important; max-width: 160px !important; }
-.bookCard img { height: 140px !important; width: 100% !important; object-fit: cover; }
-.shelfList { display: flex; gap: 12px; overflow: auto; padding-bottom: 6px; }
+/* =========================
+   SHELF CARD DESIGN (Fix)
+========================= */
+.shelfList { 
+  display: flex; 
+  gap: 16px; 
+  overflow-x: auto; 
+  padding: 10px 4px 20px 4px; 
+}
+
+.bookCard {
+  min-width: 140px;
+  max-width: 140px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 14px;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bookCard:hover { 
+  border-color: var(--accent); 
+  background: rgba(126,231,135,0.05);
+  transform: translateY(-3px);
+}
+
+/* Titel-Zeile: Strikt einzeilig */
+.bookCardTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  overflow: hidden; /* Wichtig für Scroll-Effekt */
+  height: 20px;
+}
+
+.bookCard .t {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+/* Scroll-Animation bei Hover */
+.bookCard:hover .t {
+  text-overflow: clip;
+  animation: titleScroll 5s linear infinite alternate;
+}
+
+@keyframes titleScroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-40%); }
+}
+
+.bookCard img {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.bookCard .a {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 @media (max-width: 768px) {
   .mobile-only { display: flex !important; }

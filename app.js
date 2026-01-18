@@ -890,6 +890,7 @@ async function renderShelf() {
       const t = document.createElement("div");
       t.className = "t";
       t.textContent = b.title || "—";
+      card.title = b.title || ""; // Zeigt den vollen Titel beim Drüberfahren (Tooltip)
 
       top.appendChild(pick);
       top.appendChild(t);
