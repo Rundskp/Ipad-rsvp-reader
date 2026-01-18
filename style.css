@@ -690,11 +690,19 @@ body{
 }
 
 /* Grundzustand für mobile Elemente (VOR dem Media-Query!) */
-.mobile-only { display: none; }
+.mobile-only { display: none !important; }
+.mobile-text { display: none; } /* Text für Handy verstecken */
 
 @media (max-width: 768px) {
-  /* X-Button sichtbar machen */
-  .mobile-only { display: flex !important; }
+  /* Hilfsklassen switchen */
+  .mobile-only { display: block !important; }
+  .desktop-only { display: none !important; }
+  
+  .desktop-text { display: none; }
+  .mobile-text { display: inline; }
+
+  /* X-Button sichtbar machen (Flex für Positionierung) */
+  #btnSidebarCloseMobile.mobile-only { display: flex !important; }
 
   /* Topbar Grid: 2 Reihen (Logo/Knopf oben, Icons unten) */
   .topbar {
@@ -715,13 +723,13 @@ body{
   }
   .glassesWrap { width: 140px !important; height: 32px !important; }
 
-  /* TRICK: topActions existiert layout-technisch nicht, damit wir die Kinder verteilen können */
+  /* TRICK: topActions existiert layout-technisch nicht */
   .topActions { display: contents !important; }
 
-  /* Knopf nach oben rechts */
+  /* KORREKTUR: Knopf nach oben RECHTS */
   #btnFileLabel { 
     grid-area: 1 / 2 / 2 / 3; 
-    justify-self: start !important;
+    justify-self: end !important; /* <--- Hier geändert auf END */
     margin: 0 !important;
     padding: 8px 12px !important;
     font-size: 13px;
@@ -762,5 +770,54 @@ body{
 
   /* Stack-Modus (Cover & Shelf) */
   .headerInfoBar { position: static !important; width: 100% !important; margin: 0 !important; border-radius: 0 !important; }
+  
   .shelf.panel-bottom { position: static !important; width: 100% !important; border-radius: 20px 20px 0 0 !important; opacity: 1 !important; transform: none !important; pointer-events: auto !important; }
+
+  /* ============================
+     SHELF MOBILE LAYOUT (Note 1)
+     ============================ */
+  .shelfHead {
+    flex-direction: column; /* Alles untereinander */
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  /* Zeile 1: Titel + Alle auswählen */
+  .shelfTopRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  /* Titel etwas kleiner am Handy */
+  .shelfTitle { font-size: 16px; }
+
+  /* Zeile 2: Label + Buttons */
+  .shelfActions {
+    display: flex;
+    align-items: center;
+    gap: 8px; /* Abstand zwischen den Buttons */
+    width: 100%;
+  }
+
+  /* "Auswahl" Text Style */
+  .shelfLabel {
+    font-size: 13px; 
+    color: var(--muted);
+    font-weight: 600;
+    margin-right: 2px;
+  }
+
+  /* Buttons am Handy kompakter machen */
+  .shelfActions .btn {
+    padding: 8px 10px;
+    font-size: 13px;
+    height: 36px;
+    white-space: nowrap;
+  }
+
+  /* Import Button ganz nach rechts schieben */
+  .shelfActions #importFileLabel {
+    margin-left: auto; 
+  }
 }
