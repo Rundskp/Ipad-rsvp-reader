@@ -157,8 +157,7 @@ const el = {
    Toast & Status
 ------------------------------ */
 const toastEl = $("toast");
-let _toastT = null;
-let _statusT = null; // Neu: Timer für den Status-Text-Bereich
+let _toastT = null, _statusT = null;
 
 function toast(msg, ms = 1400) {
   if (!toastEl) return;
@@ -168,19 +167,12 @@ function toast(msg, ms = 1400) {
   _toastT = setTimeout(() => toastEl.classList.add("hidden"), ms);
 }
 
-// Aktualisierte Funktion: Löscht den Text nach 3 Sekunden automatisch
 function setStatus(msg, { sticky = false, toastMs = 1400 } = {}) {
   toast(msg, toastMs);
   if (el.status && sticky) {
     el.status.textContent = msg;
-    
-    // Bestehenden Timer löschen, falls eine neue Meldung kommt
     if (_statusT) clearTimeout(_statusT);
-    
-    // Nach 3 Sekunden den Text leeren, damit das Layout (besonders am Handy) wieder schrumpft
-    _statusT = setTimeout(() => {
-      if (el.status) el.status.textContent = "";
-    }, 3000);
+    _statusT = setTimeout(() => { if (el.status) el.status.textContent = ""; }, 3000);
   }
 }
 
@@ -1326,41 +1318,48 @@ function bindUI() {
 let _dockPanelsInited = false;
 
 function initDockPanels() {
-  if (_dockPanelsInited) return;
-  _dockPanelsInited = true;
-
-  // Buttons finden + alte Listener killen (wichtig wenn du öfter reloadest / hot-swappst)
-  let buttons = [...document.querySelectorAll(".topBtn[data-panel]")];
-  buttons = buttons.map((btn) => {
-    const clone = btn.cloneNode(true);
-    btn.replaceWith(clone);
-    return clone;
-  });
-
-  // Panels finden
+  // Statt Klonen nutzen wir die bestehenden Elemente direkt
   const panels = [...document.querySelectorAll("[data-panel-id]")];
   const panelById = (id) => panels.find(p => p.dataset.panelId === id);
 
-  // Dock toggles
   const DOCK_TOGGLES = new Set(["sidebar", "shelf"]);
-  // Popovers
   const POPOVERS = new Set(["settings", "help", "donate"]);
 
   const isVisible = (p) => !p.classList.contains("hidden");
+  const showWithAnim = (p) => { p.classList.remove("hidden"); p.hidden = false; requestAnimationFrame(() => p.classList.add("isOpen")); };
+  const hideWithAnim = (p) => { p.classList.remove("isOpen"); setTimeout(() => { p.classList.add("hidden"); p.hidden = true; }, 160); };
 
-  const showWithAnim = (p) => {
-    p.classList.remove("hidden");
-    p.hidden = false;
-    requestAnimationFrame(() => p.classList.add("isOpen"));
+  // Globaler Close Helper
+  window.__dockClose = (id) => {
+    const p = panelById(id);
+    if (!p) return;
+    const b = document.querySelector(`.topBtn[data-panel="${id}"]`);
+    if (POPOVERS.has(id)) hideWithAnim(p); else hideWithAnim(p);
+    b?.classList.remove("isActive");
   };
 
-  const hideWithAnim = (p) => {
-    p.classList.remove("isOpen");
-    setTimeout(() => {
-      p.classList.add("hidden");
-      p.hidden = true;
-    }, 160);
-  };
+  // Click Listener für Top-Buttons hinzufügen (OHNE Klonen)
+  document.querySelectorAll(".topBtn[data-panel]").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      const id = btn.dataset.panel;
+      if (id === "header") {
+        el.headerInfo?.classList.toggle("hidden");
+        btn.classList.toggle("isActive");
+        return;
+      }
+      const p = panelById(id);
+      if (!p) return;
+      if (isVisible(p)) {
+        hideWithAnim(p);
+        btn.classList.remove("isActive");
+      } else {
+        setTopbarHeightVar();
+        showWithAnim(p);
+        btn.classList.add("isActive");
+      }
+    });
+  });
+}
 
   // Sidebar kuerzen wenn Shelf offen (damit Bottombar nicht überlagert)
   // --- Shelf safe area: misst echte Shelf-Höhe automatisch
