@@ -144,13 +144,6 @@ const el = {
   btcQrHint: $("btcQrHint"),
 };
 
-/* -----------------------------
-   DEBUG: missing IDs
------------------------------- */
-(() => {
-  const missing = Object.entries(el).filter(([_,v]) => !v).map(([k]) => k);
-  if (missing.length) console.warn("Missing DOM IDs:", missing);
-})();
 
 /* -----------------------------
    Toast (above everything)
@@ -173,9 +166,22 @@ function setStatus(msg, { sticky = false, toastMs = 1400 } = {}) {
   if (sticky) {
     el.status.textContent = msg;
     if (_statusT) clearTimeout(_statusT);
-    _statusT = setTimeout(() => { el.status.textContent = ""; }, 3000);
+    // Löscht den Text nach 3 Sekunden
+    _statusT = setTimeout(() => {
+      if (el.status) el.status.textContent = "";
+    }, 3000);
   }
 }
+
+/* -----------------------------
+   DEBUG: missing IDs (Fix für btnExportSelected)
+------------------------------ */
+(() => {
+  const missing = Object.entries(el)
+    .filter(([k, v]) => !v && k !== "btnExportSelected") // Ignoriere den alten Button
+    .map(([k]) => k);
+  if (missing.length) console.warn("Missing DOM IDs:", missing);
+})();
 
 /* -----------------------------
    Storage persistence (iOS)
