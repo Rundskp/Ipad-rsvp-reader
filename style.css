@@ -537,63 +537,65 @@ body{
    SHELF LIST (Bibliothek unten)
 ========================= */
 
-.shelfHead{ display:flex; gap:10px; align-items:center; justify-content:space-between; margin-bottom:10px; }
-.shelfTitle{ font-weight:900; }
-
-.shelfList{ display:flex; gap:12px; overflow:auto; padding-bottom: 6px; }
-
-.bookCard{
-  min-width: 140px;
-  max-width: 160px;
-  border:1px solid rgba(255,255,255,.10);
-  background: rgba(255,255,255,.03);
-  border-radius: 14px;
-  padding: 10px;
-  cursor:pointer;
+.shelf {
+  /* Fix gegen violette Kante: Ein solider Hintergrund überlagert den Body-Gradienten */
+  background: #0b0c10 !important; 
+  border-top: 1px solid rgba(255,255,255,0.1);
+  padding: 15px !important;
 }
 
-.bookCard img{
-  width: 100%;
-  height: 140px;
-  object-fit: cover;
-  border-radius: 10px;
-  border:1px solid rgba(255,255,255,.10);
-  background: rgba(255,255,255,.04);
+.shelfHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
 }
 
-.bookCard .t{ font-weight:900; font-size:12px; margin-top:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.bookCard .a{ color:var(--muted); font-size:11px; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-
-.bookCardTop{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
-.bookPick{ transform: scale(1.2); }
-
-/* =========================
-   TOAST
-========================= */
-
-.toast{
-  position: fixed;
-  left: 50%;
-  top: 14px;
-  transform: translateX(-50%);
-  z-index: 99999;
-
-  padding: 10px 14px;
-  border-radius: 12px;
-  background: rgba(20,22,28,0.92);
-  border: 1px solid rgba(255,255,255,0.10);
-  color: #fff;
-  font-size: 14px;
-  max-width: min(92vw, 520px);
-  box-shadow: 0 12px 30px rgba(0,0,0,0.35);
-  backdrop-filter: blur(10px);
+.shelfGroupLeft, .shelfGroupRight, .shelfActionEnd {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.toast.hidden{ display:none; }
-#toast { position: fixed; z-index: 99999; }
+.shelfTitle { font-weight: 900; margin-right: 5px; }
 
-.statusSr{ position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden; }
+/* Roter Löschen-Button */
+.danger { 
+  color: #ff4d4d !important; 
+  border-color: rgba(255,77,77,0.3) !important; 
+}
 
+/* Hilfsklassen für Gerätetrennung */
+.desktop-only-flex { display: flex; }
+.mobile-only-flex { display: none; }
+
+.shelfList { display: flex; gap: 12px; overflow: auto; padding-bottom: 6px; }
+
+/* Desktop-Sicherheitsabstand für Löschen */
+#btnDeleteSelected { margin-right: 15px; }
+
+/* MOBILE ANPASSUNGEN */
+@media (max-width: 768px) {
+  .desktop-only-flex { display: none !important; }
+  .mobile-only-flex { display: flex !important; }
+
+  .shelfHead {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+  }
+
+  .shelfGroupLeft { justify-content: flex-start; }
+  
+  .shelfGroupRight {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .shelfActionEnd { gap: 8px; }
+
+  .shelfActions .btn { font-size: 13px; padding: 8px 10px; }
+}
 /* =========================
    SCROLLBARS (WebKit)
 ========================= */
@@ -769,40 +771,35 @@ body{
   
   .shelf.panel-bottom { position: static !important; width: 100% !important; border-radius: 20px 20px 0 0 !important; opacity: 1 !important; transform: none !important; pointer-events: auto !important; }
 
-  /* ============================
-     SHELF MOBILE LAYOUT (Note 1)
-     ============================ */
-/* Bibliotheks-Kopf Desktop & Mobile */
+/* MOBILE LAYOUT BIBLIOTHEK */
   .shelfHead {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-bottom: 15px;
+    flex-direction: column; 
+    gap: 14px;
+    align-items: stretch;
   }
 
+  /* Reihe 1: Beides linksbündig */
   .shelfTopRow {
-    display: flex;
-    align-items: center;
-    gap: 15px;
+    justify-content: flex-start !important;
+    gap: 12px;
   }
+  
+  .shelfTitle { font-size: 16px; }
 
+  /* Reihe 2: Löschen links, Rest rechts */
   .shelfActions {
     display: flex;
-    align-items: center;
-    gap: 8px;
+    justify-content: space-between !important;
     width: 100%;
+    gap: 8px;
   }
 
-  .shelfLabel { font-size: 13px; color: var(--muted); font-weight: bold; }
-  .danger { color: #ff4d4d !important; border-color: rgba(255,77,77,0.2) !important; }
-
-  /* Desktop-Positionierung der Buttons (außerhalb des Media-Queries am besten) */
-  @media (min-width: 769px) {
-    .shelfHead { flex-direction: row; justify-content: space-between; align-items: center; }
-    .shelfActions { width: auto; justify-content: flex-end; }
-  }
-
-  /* Buttons am Handy etwas schmaler für 3er Reihe */
-  @media (max-width: 768px) {
-    .shelfActions .btn { flex: 1; font-size: 12px; padding: 8px 4px; text-align: center; }
+  /* Speichern & Import zusammen nach rechts schieben */
+  #btnExportAll { margin-left: auto; }
+  
+  /* Buttons am Handy für Touch optimieren */
+  .shelfActions .btn {
+    padding: 8px 12px;
+    font-size: 13px;
+    height: 38px;
   }

@@ -1201,6 +1201,8 @@ function bindUI() {
 
   // export/import
   el.btnExportAll?.addEventListener("click", () => exportLibrary({ mode: "all" }));
+  // Zweiter Speicher-Button für Mobile-Layout
+  document.getElementById("btnExportAllMobile")?.addEventListener("click", () => exportLibrary({ mode: "all" }));
   el.btnExportSelected?.addEventListener("click", () => exportLibrary({ mode: "selected" }));
   el.importFile?.addEventListener("change", (ev) => {
     const f = ev.target.files?.[0];
