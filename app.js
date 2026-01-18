@@ -87,7 +87,6 @@ const el = {
 
   // Export / Import (Shelf)
   btnExportAll: $("btnExportAll"),
-  btnExportSelected: $("btnExportSelected"),
   importFile: $("importFile"),
   btnDeleteSelected: $("btnDeleteSelected"),
   btnSelectAll: $("btnSelectAll"),
@@ -167,16 +166,14 @@ function toast(msg, ms = 1400) {
   _toastT = setTimeout(() => toastEl.classList.add("hidden"), ms);
 }
 
-let _statusT = null; // Timer-Variable oben oder direkt in der Funktion
+let _statusT = null;
 function setStatus(msg, { sticky = false, toastMs = 1400 } = {}) {
   toast(msg, toastMs);
-  if (el.status && sticky) {
+  if (!el.status) return;
+  if (sticky) {
     el.status.textContent = msg;
     if (_statusT) clearTimeout(_statusT);
-    // Löscht den Text nach 3 Sekunden
-    _statusT = setTimeout(() => {
-      if (el.status) el.status.textContent = "";
-    }, 3000);
+    _statusT = setTimeout(() => { el.status.textContent = ""; }, 3000);
   }
 }
 
