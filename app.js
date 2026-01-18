@@ -167,10 +167,17 @@ function toast(msg, ms = 1400) {
   _toastT = setTimeout(() => toastEl.classList.add("hidden"), ms);
 }
 
-// Status links oben: nur sticky, sonst bleibt’s wie es ist (oder leer wenn du’s so willst)
+let _statusT = null; // Timer-Variable oben oder direkt in der Funktion
 function setStatus(msg, { sticky = false, toastMs = 1400 } = {}) {
   toast(msg, toastMs);
-  if (el.status && sticky) el.status.textContent = msg;
+  if (el.status && sticky) {
+    el.status.textContent = msg;
+    if (_statusT) clearTimeout(_statusT);
+    // Löscht den Text nach 3 Sekunden
+    _statusT = setTimeout(() => {
+      if (el.status) el.status.textContent = "";
+    }, 3000);
+  }
 }
 
 /* -----------------------------

@@ -534,114 +534,128 @@ body{
 .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
 
 /* =========================
-   SHELF LIST (Bibliothek unten)
+   SHELF LIST & COVER SIZES
 ========================= */
 
 .shelf {
-  background: #0b0c10 !important; /* Fix gegen violette Kante */
+  background: #0b0c10 !important; /* Blockiert violettes Durchscheinen */
   border-top: 1px solid rgba(255,255,255,0.1);
   padding: 15px !important;
 }
 
 .shelfHead {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-}
-
-.shelfGroupLeft, .shelfGroupRight, .shelfActionEnd {
-  display: flex;
   align-items: center;
   gap: 12px;
+  margin-bottom: 15px;
 }
 
 .shelfTitle { font-weight: 900; margin-right: 5px; }
 
+/* Desktop-Anordnung: Löschen & Import nach rechts */
+.shelfActionRight { margin-left: auto; display: flex; gap: 12px; align-items: center; }
+
+/* Roter Löschen-Button mit Sicherheitsabstand */
 .danger { 
   color: #ff4d4d !important; 
   border-color: rgba(255,77,77,0.3) !important; 
+  margin-right: 15px; 
 }
-
-.desktop-only-flex { display: flex; }
-.mobile-only-flex { display: none; }
 
 .shelfList { display: flex; gap: 12px; overflow: auto; padding-bottom: 6px; }
 
-#btnDeleteSelected { margin-right: 15px; }
+/* Fix für Cover-Größen */
+.bookCard { min-width: 140px !important; max-width: 160px !important; }
+.bookCard img { height: 140px !important; width: 100% !important; object-fit: cover; }
 
 /* ===================================================
-   MOBILE MASTER-MODUS (Handy Optimierung)
+   MOBILE MASTER-MODUS
    =================================================== */
 
 .mobile-only { display: none !important; }
 
 @media (max-width: 768px) {
   .mobile-only { display: flex !important; }
-  .desktop-only-flex { display: none !important; }
-  .mobile-only-flex { display: flex !important; }
 
+  /* 1. TOPBAR HANDY */
   .topbar {
     display: grid !important;
-    grid-template-columns: 1fr auto !important; 
+    grid-template-columns: 1fr auto !important; /* Spalte 1: Logo-Bereich, Spalte 2: Button */
     grid-template-rows: auto auto !important;
-    gap: 10px 0 !important;
     height: auto !important;
     padding: 12px var(--pad) !important;
-    align-items: center;
+    gap: 10px 0 !important;
   }
 
-  /* Logo mittig zwischen linkem Rand und Datei laden */
+  /* Logo: Mittig im verbleibenden Platz links vom Datei-Button */
   .topLogo { 
-    grid-area: 1 / 1 / 2 / 2; 
-    width: 140px !important; 
-    justify-self: center !important;
+    grid-area: 1 / 1; 
+    justify-self: center !important; 
     display: block !important;
+    width: 140px !important;
     margin-left: 20px; /* Optischer Ausgleich */
   }
 
-  .glassesWrap { width: 140px !important; height: 32px !important; }
-
-  .topActions { display: contents !important; }
-
   #btnFileLabel { 
-    grid-area: 1 / 2 / 2 / 3; 
+    grid-area: 1 / 2; 
     justify-self: end !important;
-    margin: 0 !important;
     font-size: 13px;
+    padding: 8px 12px !important;
     display: flex !important;
   }
 
+  .topActions { display: contents !important; }
   .actionButtons {
     grid-area: 2 / 1 / 3 / 3;
     display: flex !important;
     justify-content: space-between !important;
     width: 100% !important;
-    gap: 5px !important;
   }
+  .actionButtons .btn { flex: 1; padding: 12px 0 !important; font-size: 20px; }
 
-  .actionButtons .btn { flex: 1; padding: 12px 0 !important; font-size: 20px; display: flex; justify-content: center; }
-
-  /* Bibliothek Mobile Layout */
+  /* 2. BIBLIOTHEK HANDY */
   .shelfHead {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
   }
 
-  .shelfGroupLeft { justify-content: flex-start; }
+  /* Zeile 1: Nur Titel */
+  .shelfTitle { width: 100%; margin-bottom: 5px; }
+
+  /* Zeile 2: Button-Anordnung per Flex-Order */
+  .shelfHead .btn, .shelfActionRight { display: flex; align-items: center; }
   
-  .shelfGroupRight {
-    justify-content: space-between;
-    width: 100%;
+  #btnDeleteSelected { order: 1; margin-right: auto; } /* Ganz links */
+  #btnSelectAll { order: 2; margin: 0 auto; } /* Mitte */
+  
+  .shelfActionRight { 
+    order: 3; 
+    margin-left: auto; 
+    width: auto; 
+    justify-content: flex-end; 
+    gap: 8px;
   }
+  
+  .shelfHead .btn { font-size: 12px; padding: 8px 10px; height: 38px; }
 
-  .shelfActionEnd { gap: 8px; }
-
-  .shelf.panel-bottom { position: static !important; width: 100% !important; border-radius: 20px 20px 0 0 !important; opacity: 1 !important; transform: none !important; pointer-events: auto !important; }
-
+  /* Stack-Modus & Overlays */
+  .headerInfoBar { position: static !important; width: 100% !important; margin: 0 !important; border-radius: 0 !important; }
+  .shelf.panel-bottom { position: static !important; width: 100% !important; border-radius: 18px 18px 0 0 !important; opacity: 1 !important; transform: none !important; pointer-events: auto !important; }
   .panel.sidebar, .popoverPanel {
     position: fixed !important; left: 12px !important; right: 12px !important; width: auto !important;
-    top: calc(var(--topbarH) + 10px) !important; z-index: 2000;
+    top: calc(var(--topbarH) + 10px) !important;
+  }
+}
+
+/* DESKTOP TOPBAR STABILISIERUNG */
+@media (min-width: 769px) {
+  .topbar {
+    grid-template-columns: 1fr auto 1fr !important;
+    height: 56px !important;
+    grid-template-rows: 1fr !important;
+  }
+  .topActions {
+    flex-wrap: nowrap !important;
   }
 }
