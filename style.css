@@ -122,7 +122,15 @@ body{
   background: transparent;
   border-color: rgba(255,255,255,.10);
 }
+/* Kurzes Aufleuchten bei Klick */
+.btn-feedback {
+  animation: btnGlow 0.4s ease-out;
+}
 
+@keyframes btnGlow {
+  0% { background-color: var(--accent); box-shadow: 0 0 20px var(--accent); transform: scale(0.95); }
+  100% { background-color: transparent; box-shadow: 0 0 0px transparent; transform: scale(1); }
+}
 .topBtn.isActive{
   outline: 2px solid rgba(120,180,255,.55);
   outline-offset: 2px;

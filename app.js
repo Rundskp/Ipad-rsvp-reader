@@ -71,7 +71,6 @@ const el = {
   btnPlay: $("btnPlay"),
   btnBack: $("btnBack"),
   btnFwd: $("btnFwd"),
-  btnReset: $("btnReset"),
   btnBookmark: $("btnBookmark"),
   seek: $("seek"),
   pos: $("pos"),
@@ -610,7 +609,6 @@ function updateProgressUI() {
   if (el.btnPlay) el.btnPlay.disabled = total === 0;
   if (el.btnBack) el.btnBack.disabled = total === 0;
   if (el.btnFwd) el.btnFwd.disabled = total === 0;
-  if (el.btnReset) el.btnReset.disabled = total === 0;
   if (el.btnBookmark) el.btnBookmark.disabled = total === 0;
 }
 
@@ -1203,6 +1201,14 @@ async function copyToClipboard(text) {
    Bind UI (NO panel toggling here!)
 ------------------------------ */
 function bindUI() {
+  // Feedback-Helper für Knöpfe
+  const addFeedback = (btn) => {
+    if (!btn) return;
+    btn.classList.remove("btn-feedback");
+    void btn.offsetWidth; // Zwingt den Browser zum Neustart der Animation
+    btn.classList.add("btn-feedback");
+  };
+  
   // file
   el.file?.addEventListener("change", (ev) => {
     const f = ev.target.files?.[0];
@@ -1223,12 +1229,11 @@ function bindUI() {
   el.btnSelectAll?.addEventListener("click", toggleSelectAllBooks);
   el.btnDeleteSelected?.addEventListener("click", deleteSelectedFromLibrary);
 
-  // player
-  el.btnPlay?.addEventListener("click", togglePlay);
-  el.btnBack?.addEventListener("click", () => step(-1));
-  el.btnFwd?.addEventListener("click", () => step(+1));
-  el.btnReset?.addEventListener("click", resetPosition);
-  el.btnBookmark?.addEventListener("click", addBookmarkAtCurrent);
+// player buttons mit Feedback
+  el.btnPlay?.addEventListener("click", () => { togglePlay(); addFeedback(el.btnPlay); });
+  el.btnBack?.addEventListener("click", () => { step(-1); addFeedback(el.btnBack); });
+  el.btnFwd?.addEventListener("click", () => { step(+1); addFeedback(el.btnFwd); });
+  el.btnBookmark?.addEventListener("click", () => { addBookmarkAtCurrent(); addFeedback(el.btnBookmark); });
 
   // seek
   el.seek?.addEventListener("input", () => {
