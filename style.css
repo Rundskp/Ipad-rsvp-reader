@@ -538,8 +538,7 @@ body{
 ========================= */
 
 .shelf {
-  /* Fix gegen violette Kante: Ein solider Hintergrund überlagert den Body-Gradienten */
-  background: #0b0c10 !important; 
+  background: #0b0c10 !important; /* Fix gegen violette Kante */
   border-top: 1px solid rgba(255,255,255,0.1);
   padding: 15px !important;
 }
@@ -559,26 +558,71 @@ body{
 
 .shelfTitle { font-weight: 900; margin-right: 5px; }
 
-/* Roter Löschen-Button */
 .danger { 
   color: #ff4d4d !important; 
   border-color: rgba(255,77,77,0.3) !important; 
 }
 
-/* Hilfsklassen für Gerätetrennung */
 .desktop-only-flex { display: flex; }
 .mobile-only-flex { display: none; }
 
 .shelfList { display: flex; gap: 12px; overflow: auto; padding-bottom: 6px; }
 
-/* Desktop-Sicherheitsabstand für Löschen */
 #btnDeleteSelected { margin-right: 15px; }
 
-/* MOBILE ANPASSUNGEN */
+/* ===================================================
+   MOBILE MASTER-MODUS (Handy Optimierung)
+   =================================================== */
+
+.mobile-only { display: none !important; }
+
 @media (max-width: 768px) {
+  .mobile-only { display: flex !important; }
   .desktop-only-flex { display: none !important; }
   .mobile-only-flex { display: flex !important; }
 
+  .topbar {
+    display: grid !important;
+    grid-template-columns: 1fr auto !important; 
+    grid-template-rows: auto auto !important;
+    gap: 10px 0 !important;
+    height: auto !important;
+    padding: 12px var(--pad) !important;
+    align-items: center;
+  }
+
+  /* Logo mittig zwischen linkem Rand und Datei laden */
+  .topLogo { 
+    grid-area: 1 / 1 / 2 / 2; 
+    width: 140px !important; 
+    justify-self: center !important;
+    display: block !important;
+    margin-left: 20px; /* Optischer Ausgleich */
+  }
+
+  .glassesWrap { width: 140px !important; height: 32px !important; }
+
+  .topActions { display: contents !important; }
+
+  #btnFileLabel { 
+    grid-area: 1 / 2 / 2 / 3; 
+    justify-self: end !important;
+    margin: 0 !important;
+    font-size: 13px;
+    display: flex !important;
+  }
+
+  .actionButtons {
+    grid-area: 2 / 1 / 3 / 3;
+    display: flex !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    gap: 5px !important;
+  }
+
+  .actionButtons .btn { flex: 1; padding: 12px 0 !important; font-size: 20px; display: flex; justify-content: center; }
+
+  /* Bibliothek Mobile Layout */
   .shelfHead {
     flex-direction: column;
     align-items: stretch;
@@ -594,212 +638,10 @@ body{
 
   .shelfActionEnd { gap: 8px; }
 
-  .shelfActions .btn { font-size: 13px; padding: 8px 10px; }
-}
-/* =========================
-   SCROLLBARS (WebKit)
-========================= */
-
-*::-webkit-scrollbar{ width: 10px; height: 10px; }
-
-*::-webkit-scrollbar-track{
-  background: rgba(255,255,255,.04);
-  border-radius: 999px;
-}
-
-*::-webkit-scrollbar-thumb{
-  background: rgba(255,255,255,.14);
-  border-radius: 999px;
-  border: 2px solid rgba(0,0,0,.35);
-}
-
-*::-webkit-scrollbar-thumb:hover{ background: rgba(255,255,255,.22); }
-
-/* =========================
-   MOBILE LAYOUT (nur CSS, Desktop bleibt wie er ist)
-========================= */
-
-@supports(padding: max(0px)){
-  .topbar{
-    padding-left: max(12px, env(safe-area-inset-left));
-    padding-right: max(12px, env(safe-area-inset-right));
-  }
-}
-
-@media (max-width: 720px){
-  /* 2-zeilige Topbar: oben Brille, darunter alle Buttons (inkl. Datei laden) */
-  .topbar{
-    height: auto;
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto;
-    row-gap: 8px;
-    padding-top: 10px;
-    padding-bottom: 10px;
-  }
-
-  .topLeft{ display:none; }
-
-  .topLogo{
-    grid-column: 1;
-    grid-row: 1;
-    justify-self: center;
-  }
-
-  .topActions{
-    grid-column: 1;
-    grid-row: 2;
-    justify-self: stretch;
-
-    width: 100%;
-    max-width: min(560px, 92vw); /* gleiche Breite wie Brille */
-    margin: 0 auto;             /* links/rechts gleich viel Rand */
-
-    display:flex;
-    flex-wrap:wrap;
-    gap:10px;
-    justify-content:flex-start; /* beginnt unter der Brille (nicht zentriert unter Datei laden) */
-  }
-
-  .topActions .btn{ padding: 9px 12px; line-height: 1; }
-
-  /* Sidebar am Handy wie Popover (nicht links angedockt) */
-  .panel.panel-left.sidebar{
-    left: 12px;
-    right: 12px;
-    width: auto;
-    max-width: none;
-
-    top: calc(var(--topbarH) + 14px);
-    bottom: auto;
-    height: auto;
-    max-height: min(70vh, 560px);
-  }
-}
-
-/* ===================================================
-   HELPER & MOBILE MASTER-MODUS
-   =================================================== */
-
-/* Desktop-Wrapper für die Icons: sorgt dafür, dass sie nebeneinander stehen */
-.actionButtons {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
-/* Grundzustand für mobile Elemente (VOR dem Media-Query!) */
-.mobile-only { display: none !important; }
-.mobile-text { display: none; } /* Text für Handy verstecken */
-
-@media (max-width: 768px) {
-  /* Hilfsklassen switchen */
-  .mobile-only { display: block !important; }
-  .desktop-only { display: none !important; }
-  
-  .desktop-text { display: none; }
-  .mobile-text { display: inline; }
-
-  /* X-Button sichtbar machen (Flex für Positionierung) */
-  #btnSidebarCloseMobile.mobile-only { display: flex !important; }
-
-  /* Topbar Grid: 2 Reihen (Logo/Knopf oben, Icons unten) */
-  .topbar {
-    display: grid !important;
-    grid-template-columns: auto 1fr !important; 
-    grid-template-rows: auto auto !important;
-    gap: 10px 15px !important;
-    height: auto !important;
-    padding: 12px var(--pad) !important;
-    align-items: center;
-  }
-
-  .topLogo { 
-    grid-area: 1 / 1 / 2 / 2; 
-    width: 140px !important; 
-    justify-self: start !important;
-    display: block !important;
-  }
-  .glassesWrap { width: 140px !important; height: 32px !important; }
-
-  /* TRICK: topActions existiert layout-technisch nicht */
-  .topActions { display: contents !important; }
-
-  /* KORREKTUR: Knopf nach oben RECHTS */
-  #btnFileLabel { 
-    grid-area: 1 / 2 / 2 / 3; 
-    justify-self: end !important; /* <--- Hier geändert auf END */
-    margin: 0 !important;
-    padding: 8px 12px !important;
-    font-size: 13px;
-    width: fit-content;
-    display: flex !important;
-  }
-
-  /* Icons in die zweite Reihe (volle Breite) */
-  .actionButtons {
-    grid-area: 2 / 1 / 3 / 3;
-    display: flex !important;
-    justify-content: space-between !important;
-    width: 100% !important;
-    gap: 5px !important;
-  }
-
-  /* Große Touch-Flächen für Icons */
-  .actionButtons .btn { 
-    flex: 1; 
-    padding: 12px 0 !important; 
-    font-size: 20px; 
-    display: flex; 
-    justify-content: center; 
-  }
-
-  /* Sidebar Fix für Mobile */
-  .panel.sidebar {
-    position: fixed !important;
-    left: 12px !important;
-    right: 12px !important;
-    width: auto !important;
-    top: calc(var(--topbarH) + 10px) !important;
-    z-index: 2000;
-    max-height: 85vh !important;
-    display: flex !important;
-    flex-direction: column !important;
-  }
-
-  /* Stack-Modus (Cover & Shelf) */
-  .headerInfoBar { position: static !important; width: 100% !important; margin: 0 !important; border-radius: 0 !important; }
-  
   .shelf.panel-bottom { position: static !important; width: 100% !important; border-radius: 20px 20px 0 0 !important; opacity: 1 !important; transform: none !important; pointer-events: auto !important; }
 
-/* MOBILE LAYOUT BIBLIOTHEK */
-  .shelfHead {
-    flex-direction: column; 
-    gap: 14px;
-    align-items: stretch;
+  .panel.sidebar, .popoverPanel {
+    position: fixed !important; left: 12px !important; right: 12px !important; width: auto !important;
+    top: calc(var(--topbarH) + 10px) !important; z-index: 2000;
   }
-
-  /* Reihe 1: Beides linksbündig */
-  .shelfTopRow {
-    justify-content: flex-start !important;
-    gap: 12px;
-  }
-  
-  .shelfTitle { font-size: 16px; }
-
-  /* Reihe 2: Löschen links, Rest rechts */
-  .shelfActions {
-    display: flex;
-    justify-content: space-between !important;
-    width: 100%;
-    gap: 8px;
-  }
-
-  /* Speichern & Import zusammen nach rechts schieben */
-  #btnExportAll { margin-left: auto; }
-  
-  /* Buttons am Handy für Touch optimieren */
-  .shelfActions .btn {
-    padding: 8px 12px;
-    font-size: 13px;
-    height: 38px;
-  }
+}

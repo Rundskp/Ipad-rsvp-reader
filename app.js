@@ -1305,6 +1305,8 @@ function bindUI() {
     el.btcQrWrap.style.display = "block";
     if (el.btcQrHint) el.btcQrHint.textContent = "";
   });
+  // Zweiter Speicher-Button für Mobile-Layout
+  document.getElementById("btnExportAllMobile")?.addEventListener("click", () => exportLibrary({ mode: "all" }));
 }
 
 /* =====================================================
