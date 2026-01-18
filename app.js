@@ -1069,9 +1069,6 @@ async function loadTxtFromFile(file) {
 /* -----------------------------
    File handling
 ------------------------------ */
-/* -----------------------------
-   File handling (Fix für Symbole)
------------------------------- */
 async function handleFile(file) {
   try {
     stopPlayback();
@@ -1083,7 +1080,6 @@ async function handleFile(file) {
 
     const ext = (file.name.split(".").pop() || "").toLowerCase();
     let parsed;
-    // Wichtig: Hier wird unterschieden ob EPUB oder TXT
     if (ext === "epub") parsed = await loadEpubFromFile(file);
     else if (ext === "txt") parsed = await loadTxtFromFile(file);
     else throw new Error("Bitte .epub oder .txt laden.");
@@ -1318,21 +1314,29 @@ function bindUI() {
 
 let _dockPanelsInited = false;
 
-/* =====================================================
-   Dock + Popover Panels (Fix ohne Klonen)
-===================================================== */
-let _dockPanelsInited = false;
-
 function initDockPanels() {
   if (_dockPanelsInited) return;
   _dockPanelsInited = true;
 
-  const panelById = (id) => document.querySelector(`[data-panel-id="${id}"]`);
+  // Buttons finden + alte Listener killen (wichtig wenn du öfter reloadest / hot-swappst)
+  let buttons = [...document.querySelectorAll(".topBtn[data-panel]")];
+  buttons = buttons.map((btn) => {
+    const clone = btn.cloneNode(true);
+    btn.replaceWith(clone);
+    return clone;
+  });
+
+  // Panels finden
+  const panels = [...document.querySelectorAll("[data-panel-id]")];
+  const panelById = (id) => panels.find(p => p.dataset.panelId === id);
+
+  // Dock toggles
   const DOCK_TOGGLES = new Set(["sidebar", "shelf"]);
+  // Popovers
   const POPOVERS = new Set(["settings", "help", "donate"]);
 
   const isVisible = (p) => !p.classList.contains("hidden");
-  
+
   const showWithAnim = (p) => {
     p.classList.remove("hidden");
     p.hidden = false;
@@ -1341,27 +1345,40 @@ function initDockPanels() {
 
   const hideWithAnim = (p) => {
     p.classList.remove("isOpen");
-    setTimeout(() => { p.classList.add("hidden"); p.hidden = true; }, 160);
+    setTimeout(() => {
+      p.classList.add("hidden");
+      p.hidden = true;
+    }, 160);
   };
 
-  function setShelfSafe(on) {
-    const shelfEl = panelById("shelf");
-    if (!on || !shelfEl) {
-      document.documentElement.style.setProperty("--shelfSafe", "0px");
-      return;
+  // Sidebar kuerzen wenn Shelf offen (damit Bottombar nicht überlagert)
+  // --- Shelf safe area: misst echte Shelf-Höhe automatisch
+    function setShelfSafe(on) {
+      const shelfEl =
+        document.querySelector('[data-panel-id="shelf"]') ||
+        document.getElementById("shelf");
+
+      if (!on || !shelfEl) {
+        document.documentElement.style.setProperty("--shelfSafe", "0px");
+        return;
+      }
+
+      // Falls Shelf noch animiert/öffnet: nach dem Render messen
+      requestAnimationFrame(() => {
+        const r = shelfEl.getBoundingClientRect();
+        const h = Math.max(0, Math.round(r.height));
+        // +12px Luft, damit nix “küsst”
+        document.documentElement.style.setProperty("--shelfSafe", `${h + 12}px`);
+      });
     }
-    requestAnimationFrame(() => {
-      const h = shelfEl.getBoundingClientRect().height;
-      document.documentElement.style.setProperty("--shelfSafe", `${h + 12}px`);
-    });
-  }
 
-  const openDock = (p, btn) => {
-    setTopbarHeightVar();
-    showWithAnim(p);
-    btn?.classList.add("isActive");
-    if (p.dataset.panelId === "shelf") setShelfSafe(true);
-  };
+
+    const openDock = (p, btn) => {
+        setTopbarHeightVar(); // <--- Füge diese Zeile hier ein!
+        showWithAnim(p);
+        btn?.classList.add("isActive");
+        if (p.dataset.panelId === "shelf") setShelfSafe(true);
+      };
 
   const closeDock = (p, btn) => {
     hideWithAnim(p);
@@ -1369,13 +1386,22 @@ function initDockPanels() {
     if (p.dataset.panelId === "shelf") setShelfSafe(false);
   };
 
-  const positionPopoverUnderButton = (p, btn) => {
+  // Popover positioning
+const positionPopoverUnderButton = (p, btn) => {
     const r = btn.getBoundingClientRect();
-    p.style.left = "0px"; p.style.right = "auto";
+
+    // Reset der Styles
+    p.style.left = "0px";
+    p.style.right = "auto";
+
+    // 1. Horizontale Positionierung (bleibt am Button orientiert)
     let left = r.left;
     const maxLeft = window.innerWidth - p.offsetWidth - 12;
     left = Math.max(12, Math.min(left, maxLeft));
     p.style.left = `${left}px`;
+
+    // 2. Vertikale Positionierung (jetzt identisch mit der Sidebar)
+    // Wir nutzen den gleichen Wert wie in der style.css für .panel
     p.style.top = "calc(var(--topbarH) + 14px)";
   };
 
@@ -1385,7 +1411,10 @@ function initDockPanels() {
       if (el.btcAddr) el.btcAddr.textContent = DONATE.btc;
       if (el.paypalQrWrap) el.paypalQrWrap.style.display = "none";
       if (el.btcQrWrap) el.btcQrWrap.style.display = "none";
+      if (el.paypalQrHint) el.paypalQrHint.textContent = "";
+      if (el.btcQrHint) el.btcQrHint.textContent = "";
     }
+
     showWithAnim(p);
     requestAnimationFrame(() => positionPopoverUnderButton(p, btn));
     btn?.classList.add("isActive");
@@ -1396,58 +1425,75 @@ function initDockPanels() {
     btn?.classList.remove("isActive");
   };
 
+  // expose close helper (used by TOC)
   window.__dockClose = (id) => {
     const p = panelById(id);
     const b = document.querySelector(`.topBtn[data-panel="${id}"]`);
     if (!p) return;
-    if (POPOVERS.has(id)) closePopover(p, b); else closeDock(p, b);
+    if (POPOVERS.has(id)) closePopover(p, b);
+    else closeDock(p, b);
   };
 
-  // Buttons direkt ansprechen ohne Klonen
-  document.querySelectorAll(".topBtn[data-panel]").forEach(btn => {
-    // Alten Listener entfernen falls vorhanden (safety)
-    const newBtn = btn.cloneNode(true);
-    btn.parentNode.replaceChild(newBtn, btn);
-    
-    newBtn.addEventListener("click", (e) => {
+  // X buttons only (no outside click)
+  const hookClose = (closeEl, panelId, btnId) => {
+    if (!closeEl) return;
+    closeEl.addEventListener("click", (e) => {
       e.preventDefault();
-      const id = newBtn.dataset.panel;
+      const p = panelById(panelId);
+      const b = document.getElementById(btnId);
+      if (!p) return;
+      closePopover(p, b);
+    });
+  };
+
+  hookClose(el.btnSettingsClose, "settings", "btnSettings");
+  hookClose(el.btnHelpClose, "help", "btnHelp");
+  hookClose(el.btnDonateClose, "donate", "btnDonate");
+
+  // Top buttons
+  buttons.forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+
+      const id = btn.dataset.panel;
+
+      // Header toggle: only toggles headerInfo
       if (id === "header") {
-        if (el.headerInfo) {
-          const willShow = el.headerInfo.classList.contains("hidden");
-          willShow ? show(el.headerInfo) : hide(el.headerInfo);
-          newBtn.classList.toggle("isActive", willShow);
-        }
+        if (!el.headerInfo) return;
+        const willShow = el.headerInfo.classList.contains("hidden");
+        willShow ? show(el.headerInfo) : hide(el.headerInfo);
+        btn.classList.toggle("isActive", willShow);
         return;
       }
+
       const p = panelById(id);
       if (!p) return;
-      if (DOCK_TOGGLES.has(id)) isVisible(p) ? closeDock(p, newBtn) : openDock(p, newBtn);
-      else if (POPOVERS.has(id)) isVisible(p) ? closePopover(p, newBtn) : openPopover(p, newBtn, id);
-    });
-  });
 
-  // Close X Buttons
-  [el.btnSettingsClose, el.btnHelpClose, el.btnDonateClose, el.btnSidebarCloseMobile].forEach(b => {
-    if(b) b.addEventListener("click", (e) => {
-      e.preventDefault();
-      const p = b.closest('[data-panel-id]');
-      if(p) window.__dockClose(p.dataset.panelId);
-    });
-  });
+      if (DOCK_TOGGLES.has(id)) {
+        isVisible(p) ? closeDock(p, btn) : openDock(p, btn);
+        return;
+      }
 
-  // Reposition logic
-  const reposition = () => {
-    POPOVERS.forEach(id => {
-      const p = panelById(id);
-      if(p && isVisible(p)) {
-        const btn = document.querySelector(`.topBtn[data-panel="${id}"]`);
-        if(btn) positionPopoverUnderButton(p, btn);
+      if (POPOVERS.has(id)) {
+        isVisible(p) ? closePopover(p, btn) : openPopover(p, btn, id);
+        return;
       }
     });
+  });
+
+  // reposition open popovers on resize/scroll
+  const repositionOpenPopovers = () => {
+    for (const id of POPOVERS) {
+      const p = panelById(id);
+      if (!p || !isVisible(p)) continue;
+      const btn = document.querySelector(`.topBtn[data-panel="${id}"]`);
+      if (btn) positionPopoverUnderButton(p, btn);
+    }
   };
-  window.addEventListener("resize", reposition);
-  window.addEventListener("scroll", reposition);
+  window.addEventListener("resize", repositionOpenPopovers, { passive: true });
+  window.addEventListener("scroll", repositionOpenPopovers, { passive: true });
+
+  // safety start state
   setShelfSafe(false);
 }
 
