@@ -42,8 +42,8 @@ body{
 .topLeft { display: none; } /* Entfernt den alten Abstandshalter */
 
 .topLogo {
-  grid-column: 1;
-  justify-self: center; /* Zentriert das Logo im Bereich LINKS von den Buttons */
+  grid-column: 1;       /* Erste Spalte (der Restraum links der Buttons) */
+  justify-self: center; /* Zentriert das Logo GENAU in der Mitte dieser Spalte */
   display: flex;
   align-items: center;
   margin: 0 !important;
@@ -77,10 +77,11 @@ body{
 
 .glassesWrap {
   position: relative;
-  height: 40px;
-  /* PC: 560px. iPad/Tablet: schrumpft fließend mit der Breite, aber nie unter 280px */
-  width: clamp(280px, 50vw, 560px); 
+  height: 40px;          /* Die gewünschte Höhe in der Topbar */
+  width: auto;           /* Die Breite ergibt sich nun aus der Höhe + Seitenverhältnis */
+  aspect-ratio: 2499 / 391; /* Das mathematische Verhältnis deiner Brille */
   display: block;
+  max-width: 100%;       /* Sicherheit für ganz kleine Bildschirme */
   filter:
     drop-shadow(0 2px 6px rgba(0,0,0,.85))
     drop-shadow(0 10px 26px rgba(0,0,0,.75));
