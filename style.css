@@ -31,24 +31,26 @@ body{
   position: sticky; top: 0; z-index: 999;
   height: 56px; padding: 0 16px;
   display: grid;
-  /* Spalte 1 (1fr) füllt den restlichen Raum, Spalte 2 (auto) passt sich den Buttons an */
+  /* Spalte 1 (1fr) ist der gesamte Freiraum, Spalte 2 (auto) sind die Buttons */
   grid-template-columns: 1fr auto; 
-  align-items: center; /* Vertikale Zentrierung */
+  align-items: center; /* Vertikale Zentrierung auf einer Linie */
   background: rgba(10,12,16,.78);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid rgba(255,255,255,.06);
 }
 
+.topLeft { display: none; } /* Entfernt den alten Abstandshalter */
+
 .topLogo {
-  grid-column: 1; /* Logo liegt nun in der großen ersten Spalte */
-  justify-self: center; /* Zentriert das Logo innerhalb dieser Spalte */
+  grid-column: 1;
+  justify-self: center; /* Zentriert das Logo im Bereich LINKS von den Buttons */
   display: flex;
   align-items: center;
   margin: 0 !important;
 }
 
 .topActions {
-  grid-column: 2; /* Buttons liegen ganz rechts */
+  grid-column: 2;
   justify-self: end;
   display: flex;
   align-items: center;
@@ -60,14 +62,23 @@ body{
   align-items: center;
   gap: 8px;
 }
+
+/* Fix für "Datei laden" Button: einzeilig und gleiche Höhe */
+#btnFileLabel {
+  white-space: nowrap !important; /* Verhindert Zeilenumbruch */
+  display: inline-flex;
+  align-items: center;
+  height: 38px; /* Passt die Höhe an die Icons an */
+}
+
 /* ============================
    GLASSES – Premium Finish (safe)
 ============================ */
 
-.glassesWrap{
+.glassesWrap {
   position: relative;
   height: 40px;
-  /* PC: max. 560px. Tablet: schrumpft fließend (50% der Breite), aber nie unter 280px */
+  /* PC: 560px. iPad/Tablet: schrumpft fließend mit der Breite, aber nie unter 280px */
   width: clamp(280px, 50vw, 560px); 
   display: block;
   filter:
