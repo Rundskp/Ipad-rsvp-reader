@@ -160,14 +160,18 @@ function toast(msg, ms = 1400) {
 
 let _statusT = null;
 function setStatus(msg, { sticky = false, toastMs = 1400 } = {}) {
-  toast(msg, toastMs);
+  // Wenn sticky (z.B. Laden), dann NUR im Status-Feld anzeigen, kein Toast.
+  if (!sticky) {
+    toast(msg, toastMs);
+  }
+  
   if (!el.status) return;
   if (sticky) {
     el.status.textContent = msg;
     if (_statusT) clearTimeout(_statusT);
     // Löscht den Text nach 3 Sekunden
-    _statusT = setTimeout(() => {
-      if (el.status) el.status.textContent = "";
+    _statusT = setTimeout(() => { 
+      if (el.status) el.status.textContent = ""; 
     }, 3000);
   }
 }
