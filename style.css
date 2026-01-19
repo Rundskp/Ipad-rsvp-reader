@@ -31,9 +31,9 @@ body{
   position: sticky; top: 0; z-index: 999;
   height: 56px; padding: 0 16px;
   display: grid;
-  /* Spalte 1 (1fr) ist der gesamte Freiraum, Spalte 2 (auto) sind die Buttons */
+  /* Spalte 1 (1fr) füllt den Raum links der Buttons, Spalte 2 (auto) für die Buttons */
   grid-template-columns: 1fr auto; 
-  align-items: center; /* Vertikale Zentrierung auf einer Linie */
+  align-items: center;
   background: rgba(10,12,16,.78);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid rgba(255,255,255,.06);
