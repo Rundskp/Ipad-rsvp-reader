@@ -201,6 +201,27 @@ async function ensurePersistentStorage() {
   }
 }
 
+async function importSharedPage() {
+  const url = localStorage.getItem("import_url");
+  if (!url) return;
+
+  localStorage.removeItem("import_url");
+
+  const res = await fetch(
+    "https://r.jina.ai/" + url
+  );
+  const rawText = await res.text();
+
+  loadTextIntoReader(cleanText(rawText));
+}
+
+function cleanText(t) {
+  return t
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 /* -----------------------------
    IndexedDB
 ------------------------------ */
