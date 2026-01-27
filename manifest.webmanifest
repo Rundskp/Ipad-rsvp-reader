@@ -1,9 +1,15 @@
 {
   "name": "RSVP Reader",
   "short_name": "RSVP",
-  "start_url": "./index.html",
+  "start_url": "/index.html",
   "display": "standalone",
-  "background_color": "#0b0c10",
-  "theme_color": "#0b0c10",
-  "icons": []
+  "share_target": {
+    "action": "/share.html",
+    "method": "GET",
+    "params": {
+      "url": "url",
+      "text": "text",
+      "title": "title"
+    }
+  }
 }
