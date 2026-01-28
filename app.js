@@ -160,16 +160,19 @@ function toast(msg, ms = 1400) {
 
 let _statusT = null;
 function setStatus(msg, { sticky = false, toastMs = 1400, persist = false } = {}) {
-  // Sicherheit: Wenn gerade ein Import-Knopf da ist, ignorieren wir "normale" Status-Updates
+  if (!el.status) return;
+
+  // BLOCKADE: Wenn gerade ein Import-Button aktiv ist, ignorieren wir "Warte auf Datei" etc.
   if (el.status.classList.contains("import-active") && !persist) return;
 
   if (!sticky) toast(msg, toastMs);
-  if (!el.status) return;
-
   el.status.textContent = msg;
+  
+  // Schaltet das blinkende Design ein/aus
   el.status.classList.toggle("import-active", !!persist); 
   
   if (_statusT) clearTimeout(_statusT);
+  
   if (sticky && !persist) {
     _statusT = setTimeout(() => { 
       if (el.status) {
@@ -1773,11 +1776,14 @@ async function checkURLParams() {
   showCurrent();
 
   try { await renderShelf(); } catch(e){ console.warn("renderShelf failed:", e); }
-       await checkURLParams();
-try { await importFromShareParam(); } catch(e){ console.warn("share import failed:", e); }
-
-setStatus("Warte auf Datei…");
-})().catch((e) => {
+      await checkURLParams();
+        try { await importFromShareParam(); } catch(e){ }
+      
+        // NUR wenn kein Import den Status belegt hat, Standard-Text zeigen
+        if (!el.status.classList.contains("import-active") && !el.status.textContent.includes("geladen")) {
+          setStatus("Warte auf Datei…");
+        }
+      })().catch((e) => {
   // Dieser Catch sollte jetzt kaum mehr feuern – aber wir lassen ihn drin
   console.error(e);
   setStatus("Boot-Fehler (Fallback aktiv)");
