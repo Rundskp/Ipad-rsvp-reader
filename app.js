@@ -1685,6 +1685,38 @@ const positionPopoverUnderButton = (p, btn) => {
   setShelfSafe(false);
 }
 
+async function checkURLParams() {
+  const params = new URLSearchParams(window.location.search);
+  const text = params.get('import_text');
+  const title = params.get('import_title') || 'Web Import';
+
+  if (text) {
+    // Die URL in der Adresszeile säubern (entfernt den langen Text-String)
+    window.history.replaceState({}, document.title, window.location.pathname);
+    
+    setStatus("Importiere Web-Inhalt...", { sticky: true });
+    
+    const words = wordsFromText(text);
+    const bookObj = {
+      id: 'web_' + Date.now(),
+      title: title,
+      author: 'Web-Artikel',
+      coverDataUrl: '', // Web-Importe haben erstmal kein Cover
+      words: words,
+      chapters: [],
+      toc: [],
+      idx: 0,
+      bookmarks: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+
+    // Speichern und direkt laden
+    await saveBookToLibrary(bookObj);
+    await loadBookFromLibrary(bookObj.id);
+  }
+}
+
 /* -----------------------------
    Boot
 ------------------------------ */
@@ -1721,7 +1753,7 @@ const positionPopoverUnderButton = (p, btn) => {
   showCurrent();
 
   try { await renderShelf(); } catch(e){ console.warn("renderShelf failed:", e); }
-
+       await checkURLParams();
 try { await importFromShareParam(); } catch(e){ console.warn("share import failed:", e); }
 
 setStatus("Warte auf Datei…");
