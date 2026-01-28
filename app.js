@@ -160,19 +160,13 @@ function toast(msg, ms = 1400) {
 
 let _statusT = null;
 function setStatus(msg, { sticky = false, toastMs = 1400 } = {}) {
-  // Wenn sticky (z.B. Laden), dann NUR im Status-Feld anzeigen, kein Toast.
-  if (!sticky) {
-    toast(msg, toastMs);
-  }
+  if (!sticky) toast(msg, toastMs); // Normale Toasts nur, wenn nicht sticky
   
   if (!el.status) return;
   if (sticky) {
     el.status.textContent = msg;
     if (_statusT) clearTimeout(_statusT);
-    // Löscht den Text nach 3 Sekunden
-    _statusT = setTimeout(() => { 
-      if (el.status) el.status.textContent = ""; 
-    }, 3000);
+    _statusT = setTimeout(() => { if (el.status) el.status.textContent = ""; }, 3000);
   }
 }
 
@@ -1688,44 +1682,36 @@ const positionPopoverUnderButton = (p, btn) => {
 async function checkURLParams() {
   const params = new URLSearchParams(window.location.search);
   const mode = params.get('import');
-  const title = params.get('title') || 'Zwischenablage Import';
+  const title = params.get('title') || 'Web Import';
 
   if (mode === 'clipboard') {
-    // URL säubern
+    // URL sofort säubern
     window.history.replaceState({}, document.title, window.location.pathname);
 
-    setStatus("👉 Tippen zum Importieren von: " + title, { sticky: true });
+    // Deutliche Aufforderung im Statusfeld
+    setStatus("📥 Hier tippen zum Importieren", { sticky: true });
     
-    // Wir brauchen einen Klick-Event für die Erlaubnis, das Clipboard zu lesen
     const triggerImport = async () => {
       try {
-        const text = await navigator.clipboard.readText();
-        if (!text) {
-          setStatus("Zwischenablage ist leer!");
-          return;
-        }
+        const text = await navigator.clipboard.readText(); // Holt den Text vom Shortcut
+        if (!text) return setStatus("Zwischenablage leer!");
 
-        setStatus("Importiere...");
         const words = wordsFromText(text);
         const bookObj = {
-          id: 'clip_' + Date.now(),
+          id: 'web_' + Date.now(),
           title: title,
-          author: 'Web-Import',
+          author: 'Web-Artikel',
           words: words,
-          chapters: [],
-          toc: [],
-          idx: 0,
-          bookmarks: [],
-          createdAt: Date.now(),
-          updatedAt: Date.now()
+          chapters: [], toc: [], idx: 0, bookmarks: [],
+          createdAt: Date.now(), updatedAt: Date.now()
         };
 
-        await saveBookToLibrary(bookObj);
-        await loadBookFromLibrary(bookObj.id);
+        await saveBookToLibrary(bookObj); // In IndexedDB speichern
+        await loadBookFromLibrary(bookObj.id); // Sofort öffnen
+        
         el.status.removeEventListener("click", triggerImport);
       } catch (err) {
-        setStatus("Fehler beim Zugriff auf Clipboard.");
-        console.error(err);
+        setStatus("Fehler: Klick zum Clipboard-Zugriff nötig");
       }
     };
 
