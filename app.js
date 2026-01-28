@@ -1100,6 +1100,149 @@ async function loadTxtFromFile(file) {
   };
 }
 
+async function importUrlIntoReader(url) {
+  stopPlayback();
+
+  setStatus("Importiere Webseite…", { sticky: true });
+
+  // Text-Extraktion über r.jina.ai (liefert lesbaren Text statt HTML)
+  const res = await fetch("https://r.jina.ai/http://" + url.replace(/^https?:\/\//, ""));
+  if (!res.ok) throw new Error("Webseite konnte nicht geladen werden.");
+  const txt = await res.text();
+
+  const words = wordsFromText(txt);
+  if (!words.length) throw new Error("Kein Text gefunden.");
+
+  // Als “Buch” laden (ohne Cover/TOC)
+  S.book.id = `web_${Date.now()}`;
+  S.book.title = url;
+  S.book.author = "";
+  S.book.coverDataUrl = "";
+  S.book.chapters = [];
+  S.book.toc = [];
+
+  S.words = words;
+  S.idx = 0;
+  S.bookmarks = [];
+
+  syncHeaderUI();
+  renderToc();
+  renderBookmarks();
+  updateProgressUI();
+  showCurrent();
+
+  setStatus("Webseite geladen ✅");
+}
+// --- Web-Import helpers -----------------------------------------
+
+function simpleHash(str) {
+  // kleine, stabile ID aus der URL (kein Crypto, aber reicht)
+  str = String(str || "");
+  let h = 2166136261; // FNV-1a basis
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  // unsigned + kurz
+  return (h >>> 0).toString(16);
+}
+
+function niceHostFromUrl(url) {
+  try { return new URL(url).host.replace(/^www\./, ""); }
+  catch { return ""; }
+}
+
+function extractTitleFromReaderText(readerText, fallbackUrl) {
+  // Jina Reader liefert oft Markdown; wir nehmen die erste "Titel-zeile"
+  const lines = String(readerText || "")
+    .split("\n")
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  // 1) erste Headline "# ..."
+  const h1 = lines.find(l => l.startsWith("# "));
+  if (h1) return h1.replace(/^#\s+/, "").trim();
+
+  // 2) sonst erste brauchbare Zeile
+  if (lines[0] && lines[0].length >= 8) return lines[0].slice(0, 120);
+
+  // 3) fallback: hostname
+  return niceHostFromUrl(fallbackUrl) || "Webseite";
+}
+
+async function importUrlIntoReader(url) {
+  stopPlayback();
+  setStatus("Importiere Webseite…", { sticky: true });
+
+  const cleanUrl = String(url || "").trim();
+  if (!/^https?:\/\//i.test(cleanUrl)) throw new Error("Ungültige URL (muss mit http/https beginnen).");
+
+  // Jina Reader: macht aus URL sauberen Text (statt HTML/Ads/Nav)  [oai_citation:0‡Jina AI](https://jina.ai/reader/?utm_source=chatgpt.com)
+  // Wichtig: wir hängen die echte URL einfach hinten dran.
+  const readerUrl = "https://r.jina.ai/" + cleanUrl;
+
+  const res = await fetch(readerUrl);
+  if (!res.ok) throw new Error("Webseite konnte nicht geladen werden.");
+  const txt = await res.text();
+
+  const title = extractTitleFromReaderText(txt, cleanUrl);
+  const host = niceHostFromUrl(cleanUrl);
+
+  const words = wordsFromText(txt);
+  if (!words.length) throw new Error("Kein Text gefunden.");
+
+  // stabile ID pro URL (damit dieselbe Seite nicht 20x als neues Buch endet)
+  const id = `web_${simpleHash(cleanUrl)}`;
+
+  // als “Buch” setzen
+  S.book.id = id;
+  S.book.title = title || cleanUrl;
+  S.book.author = host || "";
+  S.book.coverDataUrl = "";
+  S.book.chapters = [];
+  S.book.toc = [];
+
+  S.words = words;
+  S.idx = 0;
+  S.bookmarks = [];
+
+  syncHeaderUI();
+  renderToc();
+  renderBookmarks();
+  updateProgressUI();
+  showCurrent();
+
+  // ✅ in Library speichern (inkl. Quelle in extra Feld)
+  await saveBookToLibrary({
+    id,
+    title: S.book.title,
+    author: S.book.author,
+    coverDataUrl: "",
+    words: S.words,
+    chapters: [],
+    toc: [],
+    idx: 0,
+    bookmarks: [],
+    sourceUrl: cleanUrl,          // extra, stört nix
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  });
+
+  setStatus("Webseite gespeichert ✅", { toastMs: 1200 });
+}
+
+async function importFromShareParam() {
+  const u = new URL(location.href);
+  const sharedUrl = u.searchParams.get("import_url");
+  if (!sharedUrl) return false;
+
+  // URL sauber machen, damit Refresh nicht neu importiert
+  u.searchParams.delete("import_url");
+  history.replaceState({}, "", u.toString());
+
+  await importUrlIntoReader(sharedUrl);
+  return true;
+}
 /* -----------------------------
    File handling
 ------------------------------ */
@@ -1579,7 +1722,9 @@ const positionPopoverUnderButton = (p, btn) => {
 
   try { await renderShelf(); } catch(e){ console.warn("renderShelf failed:", e); }
 
-  setStatus("Warte auf Datei…");
+try { await importFromShareParam(); } catch(e){ console.warn("share import failed:", e); }
+
+setStatus("Warte auf Datei…");
 })().catch((e) => {
   // Dieser Catch sollte jetzt kaum mehr feuern – aber wir lassen ihn drin
   console.error(e);
