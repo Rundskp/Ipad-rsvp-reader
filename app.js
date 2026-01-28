@@ -1687,36 +1687,52 @@ const positionPopoverUnderButton = (p, btn) => {
 
 async function checkURLParams() {
   const params = new URLSearchParams(window.location.search);
-  const text = params.get('import_text');
-  const title = params.get('import_title') || 'Web Import';
+  const mode = params.get('import');
+  const title = params.get('title') || 'Zwischenablage Import';
 
-  if (text) {
-    // Die URL in der Adresszeile säubern (entfernt den langen Text-String)
+  if (mode === 'clipboard') {
+    // URL säubern
     window.history.replaceState({}, document.title, window.location.pathname);
+
+    setStatus("👉 Tippen zum Importieren von: " + title, { sticky: true });
     
-    setStatus("Importiere Web-Inhalt...", { sticky: true });
-    
-    const words = wordsFromText(text);
-    const bookObj = {
-      id: 'web_' + Date.now(),
-      title: title,
-      author: 'Web-Artikel',
-      coverDataUrl: '', // Web-Importe haben erstmal kein Cover
-      words: words,
-      chapters: [],
-      toc: [],
-      idx: 0,
-      bookmarks: [],
-      createdAt: Date.now(),
-      updatedAt: Date.now()
+    // Wir brauchen einen Klick-Event für die Erlaubnis, das Clipboard zu lesen
+    const triggerImport = async () => {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (!text) {
+          setStatus("Zwischenablage ist leer!");
+          return;
+        }
+
+        setStatus("Importiere...");
+        const words = wordsFromText(text);
+        const bookObj = {
+          id: 'clip_' + Date.now(),
+          title: title,
+          author: 'Web-Import',
+          words: words,
+          chapters: [],
+          toc: [],
+          idx: 0,
+          bookmarks: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        };
+
+        await saveBookToLibrary(bookObj);
+        await loadBookFromLibrary(bookObj.id);
+        el.status.removeEventListener("click", triggerImport);
+      } catch (err) {
+        setStatus("Fehler beim Zugriff auf Clipboard.");
+        console.error(err);
+      }
     };
 
-    // Speichern und direkt laden
-    await saveBookToLibrary(bookObj);
-    await loadBookFromLibrary(bookObj.id);
+    el.status.style.cursor = "pointer";
+    el.status.addEventListener("click", triggerImport);
   }
 }
-
 /* -----------------------------
    Boot
 ------------------------------ */
