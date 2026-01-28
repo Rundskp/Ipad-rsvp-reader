@@ -160,18 +160,22 @@ function toast(msg, ms = 1400) {
 
 let _statusT = null;
 function setStatus(msg, { sticky = false, toastMs = 1400, persist = false } = {}) {
-  if (!sticky) toast(msg, toastMs); // Normale Meldungen ploppen nur kurz auf
+  if (!sticky) toast(msg, toastMs);
   
   if (!el.status) return;
   el.status.textContent = msg;
   
+  // NEU: Diese Zeile schaltet das Button-Design an oder aus
+  el.status.classList.toggle("import-active", !!persist); 
+  
   if (_statusT) clearTimeout(_statusT);
   
-  // NEU: Wenn 'persist' wahr ist, löschen wir den Text NICHT automatisch.
-  // Das ist wichtig, damit du Zeit zum Klicken hast.
   if (sticky && !persist) {
     _statusT = setTimeout(() => { 
-      if (el.status) el.status.textContent = ""; 
+      if (el.status) {
+        el.status.textContent = ""; 
+        el.status.classList.remove("import-active"); // Klasse wieder entfernen
+      }
     }, 4000);
   }
 }
@@ -1712,10 +1716,11 @@ async function checkURLParams() {
         };
 
         await saveBookToLibrary(bookObj);
+        await renderShelf(); // NEU: Damit das Buch sofort in der Liste steht!
         await loadBookFromLibrary(bookObj.id);
         
-        // Nach Erfolg Meldung löschen
         setStatus("Import erfolgreich ✅");
+        el.status.classList.remove("import-active"); // Button-Design entfernen
         el.status.removeEventListener("click", triggerImport);
       } catch (err) {
         setStatus("Fehler: Clipboard-Zugriff verweigert.");
