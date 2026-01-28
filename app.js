@@ -1107,39 +1107,6 @@ async function loadTxtFromFile(file) {
   };
 }
 
-async function importUrlIntoReader(url) {
-  stopPlayback();
-
-  setStatus("Importiere Webseite…", { sticky: true });
-
-  // Text-Extraktion über r.jina.ai (liefert lesbaren Text statt HTML)
-  const res = await fetch("https://r.jina.ai/http://" + url.replace(/^https?:\/\//, ""));
-  if (!res.ok) throw new Error("Webseite konnte nicht geladen werden.");
-  const txt = await res.text();
-
-  const words = wordsFromText(txt);
-  if (!words.length) throw new Error("Kein Text gefunden.");
-
-  // Als “Buch” laden (ohne Cover/TOC)
-  S.book.id = `web_${Date.now()}`;
-  S.book.title = url;
-  S.book.author = "";
-  S.book.coverDataUrl = "";
-  S.book.chapters = [];
-  S.book.toc = [];
-
-  S.words = words;
-  S.idx = 0;
-  S.bookmarks = [];
-
-  syncHeaderUI();
-  renderToc();
-  renderBookmarks();
-  updateProgressUI();
-  showCurrent();
-
-  setStatus("Webseite geladen ✅");
-}
 // --- Web-Import helpers -----------------------------------------
 
 function simpleHash(str) {
@@ -1752,39 +1719,17 @@ async function checkURLParams() {
 
   try { await renderShelf(); } catch(e){ }
 
-  // 1. Prüfen auf Clipboard-Import
+  // 1. Prüfen auf Clipboard-Import (wichtig!)
   await checkURLParams(); 
   
   // 2. Prüfen auf URL-Share
   const shared = await importFromShareParam(); 
 
-  // 3. NUR wenn kein Import den Status belegt hat, Standard-Text zeigen
-  if (!el.status.textContent.includes("Importieren") && !shared) {
+  // 3. Nur wenn kein Import aktiv ist, Standard-Text zeigen
+  if (!el.status.classList.contains("import-active") && !shared) {
     setStatus("Warte auf Datei…");
   }
 })().catch((e) => {
   console.error(e);
   setStatus("Boot-Fehler");
-});
-
-  // 3) Rest wie gehabt – auch hier defensiv
-  try { loadSettingsFromLS(); } catch(e){ console.warn("loadSettingsFromLS failed:", e); }
-  try { applySettingsToUI(); } catch(e){ console.warn("applySettingsToUI failed:", e); }
-
-  setTab("toc");
-  updateProgressUI();
-  showCurrent();
-
-  try { await renderShelf(); } catch(e){ console.warn("renderShelf failed:", e); }
-      await checkURLParams();
-        try { await importFromShareParam(); } catch(e){ }
-      
-        // NUR wenn kein Import den Status belegt hat, Standard-Text zeigen
-        if (!el.status.classList.contains("import-active") && !el.status.textContent.includes("geladen")) {
-          setStatus("Warte auf Datei…");
-        }
-      })().catch((e) => {
-  // Dieser Catch sollte jetzt kaum mehr feuern – aber wir lassen ihn drin
-  console.error(e);
-  setStatus("Boot-Fehler (Fallback aktiv)");
 });
