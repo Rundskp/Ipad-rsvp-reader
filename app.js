@@ -160,21 +160,21 @@ function toast(msg, ms = 1400) {
 
 let _statusT = null;
 function setStatus(msg, { sticky = false, toastMs = 1400, persist = false } = {}) {
+  // Sicherheit: Wenn gerade ein Import-Knopf da ist, ignorieren wir "normale" Status-Updates
+  if (el.status.classList.contains("import-active") && !persist) return;
+
   if (!sticky) toast(msg, toastMs);
-  
   if (!el.status) return;
+
   el.status.textContent = msg;
-  
-  // NEU: Diese Zeile schaltet das Button-Design an oder aus
   el.status.classList.toggle("import-active", !!persist); 
   
   if (_statusT) clearTimeout(_statusT);
-  
   if (sticky && !persist) {
     _statusT = setTimeout(() => { 
       if (el.status) {
         el.status.textContent = ""; 
-        el.status.classList.remove("import-active"); // Klasse wieder entfernen
+        el.status.classList.remove("import-active");
       }
     }, 4000);
   }
@@ -1735,28 +1735,34 @@ async function checkURLParams() {
    Boot
 ------------------------------ */
 (async function boot() {
-  // Panels positionieren sich relativ zur (mobil ggf. 2-zeiligen) Topbar
   setTopbarHeightVar();
-  // 1) UI IMMER zuerst – sonst sind Buttons tot, wenn Storage zickt
-  try {
-    bindUI();
-  } catch (e) {
-    console.error("bindUI failed:", e);
-  }
-
+  try { bindUI(); } catch (e) { console.error("bindUI failed:", e); }
   initDockPanels();
 
-  // 2) Storage: best effort, darf niemals Boot killen
-  try {
-    const p = await ensurePersistentStorage();
-    if (p?.ok && p.persisted === false) {
-      console.log("Storage not persisted (browser may evict data).");
-    }
-  } catch (e) {
-    console.warn("Storage init failed (fallback mode):", e);
-    // Optional: Flag setzen, falls du wo anders unterscheiden willst
-    window.__storageDegraded = true;
+  try { await ensurePersistentStorage(); } catch (e) { console.warn("Storage failed:", e); }
+  try { loadSettingsFromLS(); } catch(e){ }
+  try { applySettingsToUI(); } catch(e){ }
+
+  setTab("toc");
+  updateProgressUI();
+  showCurrent();
+
+  try { await renderShelf(); } catch(e){ }
+
+  // 1. Prüfen auf Clipboard-Import
+  await checkURLParams(); 
+  
+  // 2. Prüfen auf URL-Share
+  const shared = await importFromShareParam(); 
+
+  // 3. NUR wenn kein Import den Status belegt hat, Standard-Text zeigen
+  if (!el.status.textContent.includes("Importieren") && !shared) {
+    setStatus("Warte auf Datei…");
   }
+})().catch((e) => {
+  console.error(e);
+  setStatus("Boot-Fehler");
+});
 
   // 3) Rest wie gehabt – auch hier defensiv
   try { loadSettingsFromLS(); } catch(e){ console.warn("loadSettingsFromLS failed:", e); }
