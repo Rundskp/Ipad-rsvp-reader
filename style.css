@@ -714,3 +714,32 @@ body{
 }
   #btnDeleteSelected { margin-left: auto !important; } /* Abstand zu den anderen */
 }
+
+#status {
+  text-align: center;
+  font-size: 14px;
+  color: var(--muted);
+  min-height: 20px;
+  margin-top: 8px;
+  transition: all 0.3s ease;
+}
+
+#status.import-active {
+  display: block !important;
+  background: #7ee787 !important; /* Dein Giftgrün */
+  color: #0d1117 !important;
+  margin: 12px auto;
+  padding: 18px;
+  border-radius: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  max-width: 85%;
+  box-shadow: 0 0 25px rgba(126, 231, 135, 0.5);
+  animation: pulseImport 1.2s infinite;
+}
+
+@keyframes pulseImport {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(126,231,135,0.7); }
+  70% { transform: scale(1.04); box-shadow: 0 0 0 15px rgba(126,231,135,0); }
+  100% { transform: scale(1); }
+}
