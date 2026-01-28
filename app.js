@@ -159,14 +159,20 @@ function toast(msg, ms = 1400) {
 }
 
 let _statusT = null;
-function setStatus(msg, { sticky = false, toastMs = 1400 } = {}) {
-  if (!sticky) toast(msg, toastMs); // Normale Toasts nur, wenn nicht sticky
+function setStatus(msg, { sticky = false, toastMs = 1400, persist = false } = {}) {
+  if (!sticky) toast(msg, toastMs); // Normale Meldungen ploppen nur kurz auf
   
   if (!el.status) return;
-  if (sticky) {
-    el.status.textContent = msg;
-    if (_statusT) clearTimeout(_statusT);
-    _statusT = setTimeout(() => { if (el.status) el.status.textContent = ""; }, 3000);
+  el.status.textContent = msg;
+  
+  if (_statusT) clearTimeout(_statusT);
+  
+  // NEU: Wenn 'persist' wahr ist, löschen wir den Text NICHT automatisch.
+  // Das ist wichtig, damit du Zeit zum Klicken hast.
+  if (sticky && !persist) {
+    _statusT = setTimeout(() => { 
+      if (el.status) el.status.textContent = ""; 
+    }, 4000);
   }
 }
 
@@ -1685,39 +1691,40 @@ async function checkURLParams() {
   const title = params.get('title') || 'Web Import';
 
   if (mode === 'clipboard') {
-    // URL sofort säubern
     window.history.replaceState({}, document.title, window.location.pathname);
 
-    // Deutliche Aufforderung im Statusfeld
-    setStatus("📥 Hier tippen zum Importieren", { sticky: true });
+    // Wir fügen 'persist: true' hinzu, damit der Text stehen bleibt!
+    setStatus("📥 Hier tippen zum Importieren", { sticky: true, persist: true });
     
     const triggerImport = async () => {
       try {
-        const text = await navigator.clipboard.readText(); // Holt den Text vom Shortcut
+        const text = await navigator.clipboard.readText(); 
         if (!text) return setStatus("Zwischenablage leer!");
 
         const words = wordsFromText(text);
         const bookObj = {
           id: 'web_' + Date.now(),
           title: title,
-          author: 'Web-Artikel',
+          author: 'Web-Import',
           words: words,
           chapters: [], toc: [], idx: 0, bookmarks: [],
           createdAt: Date.now(), updatedAt: Date.now()
         };
 
-        await saveBookToLibrary(bookObj); // In IndexedDB speichern
-        await loadBookFromLibrary(bookObj.id); // Sofort öffnen
+        await saveBookToLibrary(bookObj);
+        await loadBookFromLibrary(bookObj.id);
         
+        // Nach Erfolg Meldung löschen
+        setStatus("Import erfolgreich ✅");
         el.status.removeEventListener("click", triggerImport);
       } catch (err) {
-        setStatus("Fehler: Klick zum Clipboard-Zugriff nötig");
+        setStatus("Fehler: Clipboard-Zugriff verweigert.");
       }
     };
 
     el.status.style.cursor = "pointer";
     el.status.addEventListener("click", triggerImport);
-  }
+}
 }
 /* -----------------------------
    Boot
