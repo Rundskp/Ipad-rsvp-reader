@@ -1522,39 +1522,33 @@ const positionPopoverUnderButton = (p, btn) => {
 }
 
 /* -----------------------------
-   Share Target / URL Handler
+   Share Target / Shortcut Handler
 ------------------------------ */
-async function handleSharedContent() {
-  // Prüfen, ob Parameter in der URL sind (?text=... oder ?title=...)
-  const params = new URLSearchParams(window.location.search);
-  const sharedText = params.get("text");
-  const sharedTitle = params.get("title");
 
-  // Wenn kein Text da ist, nichts tun
-  if (!sharedText) return;
-
-  // URL sofort bereinigen, damit beim Reload nicht nochmal importiert wird
-  window.history.replaceState({}, document.title, window.location.pathname);
-
+// 1. Der eigentliche Import-Logik für Clipboard-Inhalt
+async function performClipboardImport(titleOverride) {
   try {
-    setStatus("Verarbeite geteilten Text…", { sticky: true });
+    const text = await navigator.clipboard.readText();
     
-    // Sicherstellen, dass DB bereit ist
-    await ensurePersistentStorage();
-
-    const words = wordsFromText(sharedText);
-    if (!words.length) {
-      setStatus("Geteilter Text war leer.");
+    if (!text || !text.trim()) {
+      setStatus("Zwischenablage ist leer.");
       return;
     }
 
-    // Ein neues Buch-Objekt erzeugen
+    const words = wordsFromText(text);
+    if (!words.length) {
+      setStatus("Kein lesbarer Text gefunden.");
+      return;
+    }
+
     const newId = `share_${Date.now()}`;
-    const newBook = {
+    const bookTitle = titleOverride || "Geteilter Artikel";
+
+    await saveBookToLibrary({
       id: newId,
-      title: sharedTitle || "Geteilter Text",
-      author: "Import", // Oder leer lassen
-      coverDataUrl: "", // Kein Cover für Text-Schnipsel
+      title: bookTitle,
+      author: "Import",
+      coverDataUrl: "", // Optional: Man könnte hier ein Platzhalter-Icon setzen
       words: words,
       chapters: [],
       toc: [],
@@ -1562,24 +1556,104 @@ async function handleSharedContent() {
       bookmarks: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
-    };
+    });
 
-    // Speichern und sofort öffnen
-    await saveBookToLibrary(newBook);
     await loadBookFromLibrary(newId);
     
-    // Panel schließen falls offen (z.B. Shelf)
-    // Optional, aber gut für UX
-    const shelfBtn = document.querySelector('.topBtn[data-panel="shelf"]');
-    const shelfPanel = document.getElementById("shelf");
-    if(shelfPanel && !shelfPanel.classList.contains("hidden")) {
-       shelfPanel.classList.add("hidden");
-       shelfBtn?.classList.remove("isActive");
-    }
+    // UI aufräumen
+    const overlay = document.getElementById("importOverlay");
+    if (overlay) overlay.remove();
+    
+    // Panels schließen
+    document.querySelectorAll(".isActive").forEach(b => b.classList.remove("isActive"));
+    document.querySelectorAll(".panel, .popoverPanel").forEach(p => {
+       p.classList.remove("isOpen"); 
+       p.classList.add("hidden");
+    });
 
   } catch (e) {
     console.error(e);
-    setStatus("Import fehlgeschlagen: " + e.message);
+    setStatus("Konnte Zwischenablage nicht lesen: " + e.message);
+  }
+}
+
+// 2. Erstellt einen unsichtbaren Overlay-Button, um die Browser-Sicherheit zu erfüllen
+function showImportOverlay(title) {
+  // Existierendes Overlay entfernen
+  const old = document.getElementById("importOverlay");
+  if (old) old.remove();
+
+  const overlay = document.createElement("div");
+  overlay.id = "importOverlay";
+  // Styling direkt hier, um CSS-Datei nicht ändern zu müssen
+  Object.assign(overlay.style, {
+    position: "fixed", inset: "0", zIndex: "9999",
+    background: "rgba(11, 12, 16, 0.95)",
+    display: "flex", flexDirection: "column",
+    alignItems: "center", justifyContent: "center",
+    cursor: "pointer", textAlign: "center", padding: "20px"
+  });
+
+  overlay.innerHTML = `
+    <div style="font-size:48px; margin-bottom:20px;">📋</div>
+    <div style="font-size:24px; font-weight:bold; color:#e9eaee; margin-bottom:10px;">Import bereit</div>
+    <div style="color:#9aa0a6;">"${escapeHtml(title || 'Artikel')}"</div>
+    <div style="margin-top:30px; padding:12px 24px; background:#7ee787; color:#0b0c10; border-radius:12px; font-weight:bold;">
+      Tippen zum Öffnen
+    </div>
+  `;
+
+  overlay.addEventListener("click", () => performClipboardImport(title));
+  document.body.appendChild(overlay);
+}
+
+// 3. Hauptfunktion: Prüft URL Parameter
+async function handleSharedContent() {
+  const params = new URLSearchParams(window.location.search);
+  const importMode = params.get("import"); // Ihr Shortcut setzt ?import=clipboard
+  const sharedTitle = params.get("title");
+  
+  // Alter Weg (direkter Text in URL), falls noch genutzt
+  const directText = params.get("text");
+
+  // URL bereinigen, damit Reloads den Import nicht neu triggern
+  if (importMode || directText) {
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+
+  // Fall A: Shortcut Methode (Clipboard)
+  if (importMode === "clipboard") {
+    // Wir versuchen es sofort (klappt selten wegen Browser-Security)
+    // Wenn es fehlschlägt, zeigen wir das Overlay
+    try {
+      await performClipboardImport(sharedTitle);
+    } catch {
+      showImportOverlay(sharedTitle);
+    }
+    return;
+  }
+
+  // Fall B: Direkter Text (Legacy / kleine Texte)
+  if (directText) {
+    // Hier simulieren wir das Clipboard-Verhalten mit dem URL-Text
+    const words = wordsFromText(directText);
+    if (!words.length) return;
+    
+    const newId = `url_${Date.now()}`;
+    await saveBookToLibrary({
+      id: newId,
+      title: sharedTitle || "Geteilter Text",
+      author: "URL Import",
+      coverDataUrl: "",
+      words: words,
+      chapters: [],
+      toc: [],
+      idx: 0,
+      bookmarks: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    await loadBookFromLibrary(newId);
   }
 }
 
