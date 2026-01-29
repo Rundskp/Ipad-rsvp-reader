@@ -13,6 +13,8 @@ const ASSETS = [
   "./manifest.webmanifest",
   "./lib/jszip.min.js",
   "./lib/epub.min.js",
+  "./icon.svg",
+  "./icon.png"
 ];
 
 self.addEventListener("install", (event) => {
