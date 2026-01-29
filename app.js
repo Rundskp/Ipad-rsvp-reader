@@ -26,27 +26,19 @@ console.log("%c[Legal]%c (c) 2026 rundskp. No derivatives allowed. Do not redist
 function setTopbarHeightVar() {
   const tb = document.querySelector('.topbar');
   if (!tb) return;
-  // Misst die echte Höhe (wichtig für den 2-Zeilen-Modus am Handy)
   const h = Math.max(0, tb.offsetHeight || 0);
   document.documentElement.style.setProperty('--topbarH', h + 'px');
 }
 
-// 1. Beim Laden der Seite sofort messen
 window.addEventListener('load', setTopbarHeightVar);
-
-// 2. Bei Größenänderung (z.B. Handy drehen) verzögert messen (Debounce)
-// Das verhindert, dass die Funktion 60-mal pro Sekunde feuert.
 let _tbT = null;
 window.addEventListener('resize', () => {
   clearTimeout(_tbT);
-  _tbT = setTimeout(setTopbarHeightVar, 100); // 100ms Puffer reicht völlig
+  _tbT = setTimeout(setTopbarHeightVar, 100);
 });
-
-// Falls du Bilder/Cover im Header hast, die erst spät laden:
-// Erneut messen, wenn alles fertig gerendert ist
 window.addEventListener('DOMContentLoaded', setTopbarHeightVar);
-const $ = (id) => document.getElementById(id);
 
+const $ = (id) => document.getElementById(id);
 function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
 function show(x) { if (!x) return; x.classList.remove("hidden"); x.hidden = false; }
 function hide(x) { if (!x) return; x.classList.add("hidden"); x.hidden = true; }
@@ -55,8 +47,6 @@ function hide(x) { if (!x) return; x.classList.add("hidden"); x.hidden = true; }
 const el = {
   file: $("file"),
   status: $("status"),
-
-  // Header info (toggle via btnHeader)
   headerInfo: $("headerInfo"),
   coverImg: $("coverImg"),
   bookTitle: $("bookTitle"),
@@ -64,8 +54,6 @@ const el = {
   prog: $("prog"),
   wpmVal: $("wpmVal"),
   chapVal: $("chapVal"),
-
-  // Reader
   display: $("display"),
   word: $("word"),
   btnPlay: $("btnPlay"),
@@ -75,22 +63,16 @@ const el = {
   seek: $("seek"),
   pos: $("pos"),
   total: $("total"),
-
-  // Top buttons
   btnSidebar: $("btnSidebar"),
   btnHeader: $("btnHeader"),
   btnSettings: $("btnSettings"),
   btnShelf: $("btnShelf"),
   btnHelp: $("btnHelp"),
   btnDonate: $("btnDonate"),
-
-  // Export / Import (Shelf)
   btnExportAll: $("btnExportAll"),
   importFile: $("importFile"),
   btnDeleteSelected: $("btnDeleteSelected"),
   btnSelectAll: $("btnSelectAll"),
-
-  // Sidebar (dock)
   sidebar: $("sidebar"),
   tabToc: $("tabToc"),
   tabMarks: $("tabMarks"),
@@ -99,8 +81,6 @@ const el = {
   tocList: $("tocList"),
   marksList: $("marksList"),
   btnSidebarCloseMobile: $("btnSidebarCloseMobile"),
-
-  // Settings (popover)
   settingsModal: $("settingsModal"),
   wpm: $("wpm"),
   wpmSettingVal: $("wpmSettingVal"),
@@ -118,17 +98,11 @@ const el = {
   btnSaveSettings: $("btnSaveSettings"),
   btnLoadSettings: $("btnLoadSettings"),
   btnSettingsClose: $("btnSettingsClose"),
-
-  // Shelf (dock)
   shelf: $("shelf"),
   shelfList: $("shelfList"),
-
-  // Help (popover)
   helpBackdrop: $("helpBackdrop"),
   helpBody: $("helpBody"),
   btnHelpClose: $("btnHelpClose"),
-
-  // Donate (popover)
   donateBackdrop: $("donateBackdrop"),
   btnDonateClose: $("btnDonateClose"),
   btnPaypalQR: $("btnPaypalQR"),
@@ -143,13 +117,11 @@ const el = {
   btcQrHint: $("btcQrHint"),
 };
 
-
 /* -----------------------------
    Toast (above everything)
 ------------------------------ */
 const toastEl = $("toast");
 let _toastT = null;
-
 function toast(msg, ms = 1400) {
   if (!toastEl) return;
   toastEl.textContent = msg;
@@ -157,34 +129,20 @@ function toast(msg, ms = 1400) {
   if (_toastT) clearTimeout(_toastT);
   _toastT = setTimeout(() => toastEl.classList.add("hidden"), ms);
 }
-
 let _statusT = null;
 function setStatus(msg, { sticky = false, toastMs = 1400 } = {}) {
-  // Wenn sticky (z.B. Laden), dann NUR im Status-Feld anzeigen, kein Toast.
   if (!sticky) {
     toast(msg, toastMs);
   }
-  
   if (!el.status) return;
   if (sticky) {
     el.status.textContent = msg;
     if (_statusT) clearTimeout(_statusT);
-    // Löscht den Text nach 3 Sekunden
     _statusT = setTimeout(() => { 
       if (el.status) el.status.textContent = ""; 
     }, 3000);
   }
 }
-
-/* -----------------------------
-   DEBUG: missing IDs (Fix für btnExportSelected)
------------------------------- */
-(() => {
-  const missing = Object.entries(el)
-    .filter(([k, v]) => !v && k !== "btnExportSelected") // Ignoriere den alten Button
-    .map(([k]) => k);
-  if (missing.length) console.warn("Missing DOM IDs:", missing);
-})();
 
 /* -----------------------------
    Storage persistence (iOS)
@@ -221,7 +179,6 @@ function idbOpen() {
     req.onerror = () => reject(req.error);
   });
 }
-
 async function idbDelete(id) {
   const db = await idbOpen();
   return new Promise((resolve, reject) => {
@@ -231,7 +188,6 @@ async function idbDelete(id) {
     tx.onerror = () => reject(tx.error);
   });
 }
-
 async function idbPut(bookObj) {
   const db = await idbOpen();
   return new Promise((resolve, reject) => {
@@ -241,7 +197,6 @@ async function idbPut(bookObj) {
     tx.onerror = () => reject(tx.error);
   });
 }
-
 async function idbGet(id) {
   const db = await idbOpen();
   return new Promise((resolve, reject) => {
@@ -251,7 +206,6 @@ async function idbGet(id) {
     req.onerror = () => reject(req.error);
   });
 }
-
 async function idbGetAll() {
   const db = await idbOpen();
   return new Promise((resolve, reject) => {
@@ -276,19 +230,15 @@ function downloadTextFile(filename, text) {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 2500);
 }
-
 function nowStamp() {
   const d = new Date();
   const pad = (n) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
 }
-
 async function exportLibrary({ mode }) {
   const all = await idbGetAll();
   if (!all.length) { setStatus("Nix zu exportieren (Bibliothek leer)."); return; }
-
   let books = all;
-
   if (mode === "selected") {
     const picked = [...document.querySelectorAll(".bookPick")]
       .filter(cb => cb.checked)
@@ -296,7 +246,6 @@ async function exportLibrary({ mode }) {
     books = all.filter(b => picked.includes(b.id));
     if (!books.length) { setStatus("Keine Auswahl getroffen."); return; }
   }
-
   const payload = {
     format: "rsvp-library",
     version: 1,
@@ -316,41 +265,29 @@ async function exportLibrary({ mode }) {
       updatedAt: b.updatedAt || Date.now(),
     })),
   };
-
   const name = `rsvp_library_${mode}_${nowStamp()}.json`;
   downloadTextFile(name, JSON.stringify(payload));
   setStatus(`Export fertig ✅ (${books.length} Buch/Bücher)`);
 }
-
 function toggleSelectAllBooks() {
   const checkboxes = document.querySelectorAll(".bookPick");
   if (!checkboxes.length) return;
-
-  // Prüfen, ob bereits alle markiert sind
   const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-  
-  // Wenn alle markiert sind -> alles abwählen. Sonst -> alles auswählen.
   checkboxes.forEach(cb => cb.checked = !allChecked);
-  
-  // Button-Text dynamisch anpassen
   if (el.btnSelectAll) {
     el.btnSelectAll.textContent = allChecked ? "Alle auswählen" : "Auswahl aufheben";
   }
 }
-
 async function deleteSelectedFromLibrary() {
   const checkboxes = document.querySelectorAll(".bookPick:checked");
   const ids = Array.from(checkboxes).map(cb => cb.getAttribute("data-id"));
-
   if (ids.length === 0) {
     setStatus("Keine Auswahl zum Löschen getroffen.");
     return;
   }
-
   if (confirm(`${ids.length} Buch/Bücher wirklich dauerhaft löschen?`)) {
     for (const id of ids) {
       await idbDelete(id);
-      // Falls das gerade offene Buch gelöscht wird, Reader leeren
       if (S.book.id === id) {
         S.book.id = null;
         S.words = [];
@@ -359,35 +296,30 @@ async function deleteSelectedFromLibrary() {
         syncHeaderUI();
       }
     }
-    await renderShelf(); // Liste neu zeichnen
+    await renderShelf();
     setStatus(`${ids.length} Buch/Bücher gelöscht.`);
   }
 }
-
 function validateImportPayload(p) {
   if (!p || typeof p !== "object") return "Keine gültige JSON-Struktur.";
   if (p.format !== "rsvp-library") return "Falsches Format (nicht rsvp-library).";
   if (!Array.isArray(p.books)) return "Import: 'books' fehlt oder ist kein Array.";
   return null;
 }
-
 async function importLibraryFromJsonFile(file) {
   try {
     const txt = await file.text();
     const p = JSON.parse(txt);
     const err = validateImportPayload(p);
     if (err) throw new Error(err);
-
     if (p.settings && typeof p.settings === "object") {
       S.settings = { ...S.settings, ...p.settings };
       saveSettingsToLS();
       applySettingsToUI();
     }
-
     let count = 0;
     for (const b of p.books) {
       if (!b?.id || !Array.isArray(b?.words)) continue;
-
       await idbPut({
         id: b.id,
         title: b.title || "",
@@ -403,7 +335,6 @@ async function importLibraryFromJsonFile(file) {
       });
       count++;
     }
-
     await renderShelf();
     setStatus(`Import fertig ✅ (${count} Buch/Bücher)`);
   } catch (e) {
@@ -416,13 +347,11 @@ async function importLibraryFromJsonFile(file) {
    State / Settings
 ------------------------------ */
 const LS_KEY = "rsvp_reader_v2_settings";
-
 const S = {
   words: [],
   idx: 0,
   playing: false,
   timer: null,
-
   book: {
     id: null,
     title: "—",
@@ -431,20 +360,16 @@ const S = {
     chapters: [],
     toc: [],
   },
-
   bookmarks: [],
-
   playStartedAt: 0,
   wordsAtPlayStart: 0,
   pendingStop: false,
-
   settings: {
     wpm: 360,
     chunk: 1,
     orp: true,
     punct: true,
     punctMs: 200,
-
     stopChapter: false,
     stopWordsOn: false,
     stopWords: 2000,
@@ -464,7 +389,6 @@ function escapeHtml(s) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
-
 function wordsFromText(txt) {
   const cleaned = String(txt || "")
     .replace(/\u00AD/g, "")
@@ -473,15 +397,12 @@ function wordsFromText(txt) {
   if (!cleaned) return [];
   return cleaned.split(" ").filter(Boolean);
 }
-
 function isSentenceEnd(token) { return /[.!?…。！？]/.test(token); }
 function isPunctHeavy(token) { return /[.!?…。！？;:]/.test(token) || /[,，]/.test(token); }
-
 function msPerToken(baseWpm, chunkSize) {
   const msPerWord = 60000 / baseWpm;
   return msPerWord * chunkSize;
 }
-
 function computeOrpIndex(word) {
   const w = word.replace(/[^A-Za-zÄÖÜäöüß0-9]/g, "");
   const len = w.length;
@@ -490,7 +411,6 @@ function computeOrpIndex(word) {
   if (len <= 9) return 2;
   return 3;
 }
-
 function renderToken(token) {
   if (!S.settings.orp) {
     el.word.innerHTML = escapeHtml(token);
@@ -504,13 +424,11 @@ function renderToken(token) {
   const seg = m[0];
   const segStart = token.indexOf(seg);
   const orpIdx = computeOrpIndex(seg);
-
   const before = escapeHtml(token.slice(0, segStart));
   const segBefore = escapeHtml(seg.slice(0, orpIdx));
   const segOrp = escapeHtml(seg.slice(orpIdx, orpIdx + 1));
   const segAfter = escapeHtml(seg.slice(orpIdx + 1));
   const after = escapeHtml(token.slice(segStart + seg.length));
-
   el.word.innerHTML = `${before}${segBefore}<span class="orp">${segOrp}</span>${segAfter}${after}`;
 }
 
@@ -520,7 +438,6 @@ function renderToken(token) {
 function saveSettingsToLS() {
   localStorage.setItem(LS_KEY, JSON.stringify(S.settings));
 }
-
 function loadSettingsFromLS() {
   try {
     const raw = localStorage.getItem(LS_KEY);
@@ -529,39 +446,30 @@ function loadSettingsFromLS() {
     if (p && typeof p === "object") S.settings = { ...S.settings, ...p };
   } catch {}
 }
-
 function applySettingsToUI() {
   if (!el.wpm) return;
-
   el.wpm.value = String(S.settings.wpm);
   el.wpmVal.textContent = String(S.settings.wpm);
   if (el.wpmSettingVal) el.wpmSettingVal.textContent = String(S.settings.wpm);
-
   el.chunk.value = String(S.settings.chunk);
   el.chunkVal.textContent = String(S.settings.chunk);
-
   el.orp.checked = !!S.settings.orp;
   el.punct.checked = !!S.settings.punct;
-
   el.punctMs.value = String(S.settings.punctMs);
   el.punctVal.textContent = String(S.settings.punctMs);
-
   el.stopChapter.checked = !!S.settings.stopChapter;
   el.stopWordsOn.checked = !!S.settings.stopWordsOn;
   el.stopWords.value = String(S.settings.stopWords);
   el.stopMinsOn.checked = !!S.settings.stopMinsOn;
   el.stopMins.value = String(S.settings.stopMins);
-
   syncHeaderUI();
 }
-
 function readSettingsFromUI() {
   S.settings.wpm = Number(el.wpm.value);
   S.settings.chunk = Number(el.chunk.value);
   S.settings.orp = el.orp.checked;
   S.settings.punct = el.punct.checked;
   S.settings.punctMs = Number(el.punctMs.value);
-
   S.settings.stopChapter = el.stopChapter.checked;
   S.settings.stopWordsOn = el.stopWordsOn.checked;
   S.settings.stopWords = Number(el.stopWords.value || 0);
@@ -584,38 +492,31 @@ function syncHeaderUI() {
     }
   }
 }
-
 function getChapterByWordIndex(idx) {
   for (const ch of (S.book.chapters || [])) {
     if (idx >= ch.start && idx < ch.end) return ch;
   }
   return null;
 }
-
 function updateProgressUI() {
   const total = S.words.length;
   const idx = clamp(S.idx, 0, Math.max(0, total - 1));
   const pct = total ? Math.round((idx / total) * 100) : 0;
-
   if (el.prog) el.prog.textContent = `${pct}%`;
   if (el.pos) el.pos.textContent = String(idx);
   if (el.total) el.total.textContent = String(total);
-
   if (el.seek) {
     el.seek.max = String(Math.max(0, total - 1));
     el.seek.value = String(idx);
     el.seek.disabled = total === 0;
   }
-
   const ch = getChapterByWordIndex(idx);
   if (el.chapVal) el.chapVal.textContent = ch?.label || "—";
-
   if (el.btnPlay) el.btnPlay.disabled = total === 0;
   if (el.btnBack) el.btnBack.disabled = total === 0;
   if (el.btnFwd) el.btnFwd.disabled = total === 0;
   if (el.btnBookmark) el.btnBookmark.disabled = total === 0;
 }
-
 function showCurrent() {
   if (!S.words.length) {
     if (el.word) el.word.textContent = "—";
@@ -642,16 +543,13 @@ function stopPlayback(reason = "") {
   if (reason) setStatus(reason);
   persistCurrentBookState().catch(()=>{});
 }
-
 function checkAutoStop(currentToken, nextIdxAfterAdvance) {
   if (S.pendingStop) return isSentenceEnd(currentToken);
-
   if (S.settings.stopMinsOn && S.playStartedAt) {
     const elapsedMs = Date.now() - S.playStartedAt;
     const limitMs = S.settings.stopMins * 60 * 1000;
     if (limitMs > 0 && elapsedMs >= limitMs) S.pendingStop = true;
   }
-
   if (S.settings.stopWordsOn) {
     const limit = S.settings.stopWords;
     if (limit > 0) {
@@ -659,52 +557,39 @@ function checkAutoStop(currentToken, nextIdxAfterAdvance) {
       if (readWords >= limit) S.pendingStop = true;
     }
   }
-
   if (S.settings.stopChapter) {
     const ch = getChapterByWordIndex(nextIdxAfterAdvance);
     const prevCh = getChapterByWordIndex(nextIdxAfterAdvance - 1);
     if (prevCh && ch && prevCh.href !== ch.href) S.pendingStop = true;
   }
-
   return (S.pendingStop && isSentenceEnd(currentToken));
 }
-
 function scheduleNext() {
   if (!S.playing) return;
-
   const total = S.words.length;
   if (!total) { stopPlayback(); return; }
-
   const chunk = S.settings.chunk;
   const start = S.idx;
   const end = clamp(start + chunk, start, total);
-
   const token = S.words.slice(start, end).join(" ");
   renderToken(token);
   updateProgressUI();
-
   S.idx = end;
-
   if (checkAutoStop(token, S.idx)) {
     stopPlayback("Auto-Stop ✅");
     return;
   }
-
   let delay = msPerToken(S.settings.wpm, chunk);
   if (S.settings.punct && isPunctHeavy(token)) delay += S.settings.punctMs;
-
   if (end >= total) {
     stopPlayback("Ende ✅");
     return;
   }
   S.timer = setTimeout(scheduleNext, delay);
 }
-
 function togglePlay() {
   if (!S.words.length) return;
-
   if (S.playing) { stopPlayback(); return; }
-
   S.playing = true;
   S.pendingStop = false;
   if (el.btnPlay) el.btnPlay.textContent = "Pause";
@@ -712,7 +597,6 @@ function togglePlay() {
   S.wordsAtPlayStart = S.idx;
   scheduleNext();
 }
-
 function step(deltaChunks) {
   if (!S.words.length) return;
   stopPlayback();
@@ -721,7 +605,6 @@ function step(deltaChunks) {
   showCurrent();
   persistCurrentBookState().catch(()=>{});
 }
-
 function resetPosition() {
   stopPlayback();
   S.idx = 0;
@@ -737,7 +620,6 @@ function makeBookmarkLabel() {
   const chName = ch?.label ? ` – ${ch.label}` : "";
   return `#${S.idx}${chName}`;
 }
-
 function addBookmarkAtCurrent() {
   const id = `m_${Date.now()}`;
   const bm = { id, label: makeBookmarkLabel(), idx: S.idx, createdAt: Date.now() };
@@ -746,17 +628,14 @@ function addBookmarkAtCurrent() {
   persistCurrentBookState().catch(()=>{});
   setStatus("Lesezeichen gesetzt 🔖");
 }
-
 function jumpToIndex(idx) {
   stopPlayback();
   S.idx = clamp(idx, 0, Math.max(0, S.words.length - 1));
   showCurrent();
   persistCurrentBookState().catch(()=>{});
 }
-
 function renderBookmarks() {
   if (!el.marksList) return;
-
   if (!S.bookmarks.length) {
     el.marksList.classList.add("muted");
     el.marksList.textContent = "Keine Lesezeichen.";
@@ -778,7 +657,6 @@ function renderBookmarks() {
 ------------------------------ */
 function setTab(which) {
   if (!el.tabToc || !el.tabMarks || !el.tocPane || !el.marksPane) return;
-
   if (which === "toc") {
     el.tabToc.classList.add("active");
     el.tabMarks.classList.remove("active");
@@ -791,10 +669,8 @@ function setTab(which) {
     show(el.marksPane);
   }
 }
-
 function renderToc() {
   if (!el.tocList) return;
-
   const toc = S.book.toc || [];
   if (!toc.length) {
     el.tocList.classList.add("muted");
@@ -803,10 +679,8 @@ function renderToc() {
   }
   el.tocList.classList.remove("muted");
   el.tocList.innerHTML = "";
-
   const hrefToStart = new Map();
   for (const ch of (S.book.chapters || [])) hrefToStart.set(ch.href, ch.start);
-
   for (const t of toc) {
     const start = hrefToStart.get(t.href) ?? null;
     const div = document.createElement("div");
@@ -814,7 +688,6 @@ function renderToc() {
     div.innerHTML = `<div><b>${escapeHtml(t.label || t.href)}</b></div><div class="small">${start !== null ? `Wort #${start}` : "Kapitel"}</div>`;
     div.addEventListener("click", () => {
       if (start !== null) jumpToIndex(start);
-      // window.__dockClose entfernt: Sidebar bleibt offen ✅
     });
     el.tocList.appendChild(div);
   }
@@ -826,7 +699,6 @@ function renderToc() {
 function stableBookId(file) {
   return `b_${file.name}_${file.size}_${file.type || "bin"}`;
 }
-
 async function persistCurrentBookState() {
   if (!S.book.id) return;
   try {
@@ -840,23 +712,18 @@ async function persistCurrentBookState() {
     console.error("persistCurrentBookState failed", e);
   }
 }
-
 async function saveBookToLibrary(bookObj) {
   await ensurePersistentStorage();
   await idbPut(bookObj);
   await renderShelf();
 }
-
 async function renderShelf() {
-  if (el.btnSelectAll) el.btnSelectAll.textContent = "Alle auswählen"; // Reset Button Text
+  if (el.btnSelectAll) el.btnSelectAll.textContent = "Alle auswählen";
   try {
     if (!el.shelfList) return;
-
     el.shelfList.textContent = "";
     el.shelfList.classList.remove("muted");
-
     const all = await idbGetAll();
-
     const byId = new Map();
     for (const b of all) {
       if (!b?.id) continue;
@@ -865,57 +732,43 @@ async function renderShelf() {
       const curT  = (b.updatedAt || b.createdAt || 0);
       if (!prev || curT >= prevT) byId.set(b.id, b);
     }
-
     const books = [...byId.values()]
       .sort((a,b) => (b.updatedAt||b.createdAt||0) - (a.updatedAt||a.createdAt||0));
-
     if (!books.length) {
       el.shelfList.classList.add("muted");
       el.shelfList.textContent = "Noch keine Bücher gespeichert.";
       return;
     }
-
     const frag = document.createDocumentFragment();
-
     for (const b of books) {
       const card = document.createElement("div");
       card.className = "bookCard";
-
       const top = document.createElement("div");
       top.className = "bookCardTop";
-
       const pick = document.createElement("input");
       pick.type = "checkbox";
       pick.className = "bookPick";
       pick.setAttribute("data-id", b.id);
-
       const t = document.createElement("div");
       t.className = "t";
       t.textContent = b.title || "—";
-      card.title = b.title || ""; // Zeigt den vollen Titel beim Drüberfahren (Tooltip)
-
+      card.title = b.title || "";
       top.appendChild(pick);
       top.appendChild(t);
-
       const img = document.createElement("img");
       img.alt = "Cover";
       img.src = b.coverDataUrl || "";
       img.style.display = b.coverDataUrl ? "block" : "none";
-
       const a = document.createElement("div");
       a.className = "a";
       a.textContent = b.author || "";
-
       card.appendChild(top);
       card.appendChild(img);
       card.appendChild(a);
-
       pick.addEventListener("click", (ev) => ev.stopPropagation());
       card.addEventListener("click", async () => { await loadBookFromLibrary(b.id); });
-
       frag.appendChild(card);
     }
-
     el.shelfList.appendChild(frag);
   } catch (e) {
     console.error("renderShelf failed", e);
@@ -925,11 +778,9 @@ async function renderShelf() {
     el.shelfList.textContent = "Bibliothek kann nicht geladen werden (IndexedDB blockiert?).";
   }
 }
-
 async function loadBookFromLibrary(id) {
   const b = await idbGet(id);
   if (!b) { setStatus("Buch nicht gefunden."); return; }
-
   stopPlayback();
   S.book.id = b.id;
   S.book.title = b.title || "—";
@@ -937,17 +788,14 @@ async function loadBookFromLibrary(id) {
   S.book.coverDataUrl = b.coverDataUrl || "";
   S.book.chapters = b.chapters || [];
   S.book.toc = b.toc || [];
-
   S.words = b.words || [];
   S.idx = clamp(b.idx || 0, 0, Math.max(0, S.words.length - 1));
   S.bookmarks = b.bookmarks || [];
-
   syncHeaderUI();
   renderToc();
   renderBookmarks();
   updateProgressUI();
   showCurrent();
-
   setStatus(`Geladen: ${S.book.title} (${S.words.length} Wörter)`, { sticky: true, toastMs: 900 });
 }
 
@@ -990,16 +838,12 @@ async function extractCoverDataUrl(book) {
     return "";
   }
 }
-
 async function loadEpubFromFile(file) {
   if (typeof window.ePub !== "function") throw new Error("EPUB Engine (epub.js) nicht geladen.");
-
   setStatus("Lade EPUB…");
   const buf = await file.arrayBuffer();
-
   const book = ePub(buf);
   await book.ready;
-
   let title = file.name;
   let author = "";
   try {
@@ -1007,63 +851,49 @@ async function loadEpubFromFile(file) {
     title = md?.title || title;
     author = md?.creator || md?.author || "";
   } catch {}
-
   const coverDataUrl = await extractCoverDataUrl(book);
-
   let toc = [];
   try {
     const nav = await book.loaded.navigation;
     toc = (nav?.toc || []).map(x => ({ label: x.label, href: (x.href || "").split("#")[0] }));
   } catch {}
-
   const spine = book.spine?.spineItems || [];
   if (!spine.length) throw new Error("EPUB: Keine Spine-Items gefunden.");
-
   const chapters = [];
   const allParts = [];
   let wordCursor = 0;
   let kept = 0;
-
   for (let i = 0; i < spine.length; i++) {
     const item = spine[i];
     if (item?.linear === "no") continue;
     if (isNavItem(item)) continue;
     if (!looksLikeHtmlItem(item)) continue;
-
     setStatus(`Extrahiere Kapitel ${i+1}/${spine.length}… (${kept} gesammelt)`);
-
     await item.load(book.load.bind(book));
     const rawText = cleanDocText(item.document);
     item.unload();
-
     if (rawText.length < 400) continue;
     const w = wordsFromText(rawText);
     if (w.length < 80) continue;
-
     const labelGuess =
       (toc.find(t => t.href === item.href)?.label) ||
       `Kapitel ${chapters.length + 1}`;
-
     const start = wordCursor;
     wordCursor += w.length;
     const end = wordCursor;
-
     chapters.push({ label: labelGuess, href: item.href, start, end });
     allParts.push(rawText);
     kept++;
   }
-
   const combined = allParts.join("\n\n");
   const words = wordsFromText(combined);
   if (!words.length) throw new Error("Kein Text gefunden (EPUB evtl. Scan/Bild oder ungewöhnlich).");
-
   return {
     id: stableBookId(file),
     title, author, coverDataUrl,
     words, chapters, toc,
   };
 }
-
 async function loadTxtFromFile(file) {
   setStatus("Lade TXT…");
   const txt = await file.text();
@@ -1088,36 +918,29 @@ async function handleFile(file) {
     S.words = [];
     S.idx = 0;
     S.bookmarks = [];
-
     await ensurePersistentStorage();
-
     const ext = (file.name.split(".").pop() || "").toLowerCase();
     let parsed;
     if (ext === "epub") parsed = await loadEpubFromFile(file);
     else if (ext === "txt") parsed = await loadTxtFromFile(file);
     else throw new Error("Bitte .epub oder .txt laden.");
-
     const existing = await idbGet(parsed.id);
     const idx = existing?.idx ?? 0;
     const marks = existing?.bookmarks ?? [];
-
     S.book.id = parsed.id;
     S.book.title = parsed.title || "—";
     S.book.author = parsed.author || "—";
     S.book.coverDataUrl = parsed.coverDataUrl || "";
     S.book.chapters = parsed.chapters || [];
     S.book.toc = parsed.toc || [];
-
     S.words = parsed.words || [];
     S.idx = clamp(idx, 0, Math.max(0, S.words.length - 1));
     S.bookmarks = marks;
-
     syncHeaderUI();
     renderToc();
     renderBookmarks();
     updateProgressUI();
     showCurrent();
-
     await saveBookToLibrary({
       id: parsed.id,
       title: S.book.title,
@@ -1131,7 +954,6 @@ async function handleFile(file) {
       createdAt: existing?.createdAt || Date.now(),
       updatedAt: Date.now(),
     });
-
     setStatus(`Geladen: ${S.book.title} (${S.words.length} Wörter)`, { sticky: true, toastMs: 900 });
   } catch (e) {
     setStatus(`Fehler: ${e?.message || e}`);
@@ -1172,20 +994,13 @@ function buildHelpHtml() {
 /* -----------------------------
    Donate helpers
 ------------------------------ */
-/* !!! RECHTLICHER WARNHINWEIS !!!
-   Das Ändern dieser Adressen und die anschließende Verbreitung des Tools 
-   verstößt gegen die CC BY-NC-ND 4.0 Lizenz und ist streng untersagt. 
-   Support the original creator: rundskp */
 const DONATE = {
   paypal: "https://paypal.me/rophko",
   btc: "bc1qwr08y9ngmvplpr8tuk4w34rl4pkryur8u4cf5f"
 };
-
-
 function qrUrl(data) {
   return "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" + encodeURIComponent(data);
 }
-
 async function copyToClipboard(text) {
   try {
     await navigator.clipboard.writeText(text);
@@ -1205,24 +1020,18 @@ async function copyToClipboard(text) {
    Bind UI (NO panel toggling here!)
 ------------------------------ */
 function bindUI() {
-  // Feedback-Helper für Knöpfe
   const addFeedback = (btn) => {
     if (!btn) return;
     btn.classList.remove("btn-feedback");
-    void btn.offsetWidth; // Zwingt den Browser zum Neustart der Animation
+    void btn.offsetWidth;
     btn.classList.add("btn-feedback");
   };
-  
-  // file
   el.file?.addEventListener("change", (ev) => {
     const f = ev.target.files?.[0];
     if (f) handleFile(f);
     ev.target.value = "";
   });
-
-  // export/import
   el.btnExportAll?.addEventListener("click", () => exportLibrary({ mode: "all" }));
-  // Zweiter Speicher-Button für Mobile-Layout
   document.getElementById("btnExportAllMobile")?.addEventListener("click", () => exportLibrary({ mode: "all" }));
   el.btnExportSelected?.addEventListener("click", () => exportLibrary({ mode: "selected" }));
   el.importFile?.addEventListener("change", (ev) => {
@@ -1232,22 +1041,16 @@ function bindUI() {
   });
   el.btnSelectAll?.addEventListener("click", toggleSelectAllBooks);
   el.btnDeleteSelected?.addEventListener("click", deleteSelectedFromLibrary);
-
-// player buttons mit Feedback
   el.btnPlay?.addEventListener("click", () => { togglePlay(); addFeedback(el.btnPlay); });
   el.btnBack?.addEventListener("click", () => { step(-1); addFeedback(el.btnBack); });
   el.btnFwd?.addEventListener("click", () => { step(+1); addFeedback(el.btnFwd); });
   el.btnBookmark?.addEventListener("click", () => { addBookmarkAtCurrent(); addFeedback(el.btnBookmark); });
-
-  // seek
   el.seek?.addEventListener("input", () => {
     stopPlayback();
     S.idx = Number(el.seek.value);
     showCurrent();
     persistCurrentBookState().catch(()=>{});
   });
-
-  // tap zones
   el.display?.addEventListener("click", (ev) => {
     const r = el.display.getBoundingClientRect();
     const x = ev.clientX - r.left;
@@ -1256,41 +1059,31 @@ function bindUI() {
     else if (x > 2 * third) step(+1);
     else togglePlay();
   });
-
-  // tabs in sidebar
   el.tabToc?.addEventListener("click", () => setTab("toc"));
   el.tabMarks?.addEventListener("click", () => setTab("marks"));
-// Schließen-Logik für das mobile Sidebar-X
   const btnCloseMob = $("btnSidebarCloseMobile");
   if(btnCloseMob) {
     btnCloseMob.addEventListener("click", () => {
       if (window.__dockClose) window.__dockClose("sidebar");
     });
   }
-
-  // settings live updates
   el.wpm?.addEventListener("input", () => {
     S.settings.wpm = Number(el.wpm.value);
     if (el.wpmVal) el.wpmVal.textContent = String(S.settings.wpm);
     if (el.wpmSettingVal) el.wpmSettingVal.textContent = String(S.settings.wpm);
   });
-
   el.chunk?.addEventListener("input", () => {
     S.settings.chunk = Number(el.chunk.value);
     if (el.chunkVal) el.chunkVal.textContent = String(S.settings.chunk);
   });
-
   el.orp?.addEventListener("change", () => { S.settings.orp = el.orp.checked; showCurrent(); });
   el.punct?.addEventListener("change", () => { S.settings.punct = el.punct.checked; });
   el.punctMs?.addEventListener("input", () => { S.settings.punctMs = Number(el.punctMs.value); if (el.punctVal) el.punctVal.textContent = String(S.settings.punctMs); });
-
   el.stopChapter?.addEventListener("change", () => { S.settings.stopChapter = el.stopChapter.checked; });
   el.stopWordsOn?.addEventListener("change", () => { S.settings.stopWordsOn = el.stopWordsOn.checked; });
   el.stopWords?.addEventListener("input", () => { S.settings.stopWords = Number(el.stopWords.value || 0); });
   el.stopMinsOn?.addEventListener("change", () => { S.settings.stopMinsOn = el.stopMinsOn.checked; });
   el.stopMins?.addEventListener("input", () => { S.settings.stopMins = Number(el.stopMins.value || 0); });
-
-  // save/load buttons
   el.btnSaveSettings?.addEventListener("click", () => {
     readSettingsFromUI();
     saveSettingsToLS();
@@ -1302,71 +1095,49 @@ function bindUI() {
     applySettingsToUI();
     setStatus("Einstellungen geladen ✅", { toastMs: 1100 });
   });
-
-  // Donate QR + copy
   el.btnPaypalQR?.addEventListener("click", () => {
     const u = DONATE.paypal;
     if (!el.paypalQrImg || !el.paypalQrWrap) return;
-
     el.paypalQrImg.onerror = () => { if (el.paypalQrHint) el.paypalQrHint.textContent = "QR konnte nicht geladen werden (Netz/Blocker)."; };
     el.paypalQrImg.src = qrUrl(u);
     el.paypalQrWrap.style.display = "block";
     if (el.paypalQrHint) el.paypalQrHint.textContent = "";
   });
-
   el.btnCopyBtc?.addEventListener("click", () => copyToClipboard(DONATE.btc));
-
   el.btnBtcQR?.addEventListener("click", () => {
     const uri = "bitcoin:" + DONATE.btc;
     if (!el.btcQrImg || !el.btcQrWrap) return;
-
     el.btcQrImg.onerror = () => { if (el.btcQrHint) el.btcQrHint.textContent = "QR konnte nicht geladen werden (Netz/Blocker)."; };
     el.btcQrImg.src = qrUrl(uri);
     el.btcQrWrap.style.display = "block";
     if (el.btcQrHint) el.btcQrHint.textContent = "";
   });
-  // Zweiter Speicher-Button für Mobile-Layout
   document.getElementById("btnExportAllMobile")?.addEventListener("click", () => exportLibrary({ mode: "all" }));
 }
 
 /* =====================================================
    Dock + Popover Panels (ONE source of truth)
-   - Dock: sidebar / shelf => toggle
-   - Header: toggles #headerInfo (not a panel)
-   - Popover: settings / help / donate => open under button, close only via X
 ===================================================== */
-
 let _dockPanelsInited = false;
-
 function initDockPanels() {
   if (_dockPanelsInited) return;
   _dockPanelsInited = true;
-
-  // Buttons finden + alte Listener killen (wichtig wenn du öfter reloadest / hot-swappst)
   let buttons = [...document.querySelectorAll(".topBtn[data-panel]")];
   buttons = buttons.map((btn) => {
     const clone = btn.cloneNode(true);
     btn.replaceWith(clone);
     return clone;
   });
-
-  // Panels finden
   const panels = [...document.querySelectorAll("[data-panel-id]")];
   const panelById = (id) => panels.find(p => p.dataset.panelId === id);
-
-  // Dock toggles
   const DOCK_TOGGLES = new Set(["sidebar", "shelf"]);
-  // Popovers
   const POPOVERS = new Set(["settings", "help", "donate"]);
-
   const isVisible = (p) => !p.classList.contains("hidden");
-
   const showWithAnim = (p) => {
     p.classList.remove("hidden");
     p.hidden = false;
     requestAnimationFrame(() => p.classList.add("isOpen"));
   };
-
   const hideWithAnim = (p) => {
     p.classList.remove("isOpen");
     setTimeout(() => {
@@ -1374,61 +1145,41 @@ function initDockPanels() {
       p.hidden = true;
     }, 160);
   };
-
-  // Sidebar kuerzen wenn Shelf offen (damit Bottombar nicht überlagert)
-  // --- Shelf safe area: misst echte Shelf-Höhe automatisch
     function setShelfSafe(on) {
       const shelfEl =
         document.querySelector('[data-panel-id="shelf"]') ||
         document.getElementById("shelf");
-
       if (!on || !shelfEl) {
         document.documentElement.style.setProperty("--shelfSafe", "0px");
         return;
       }
-
-      // Falls Shelf noch animiert/öffnet: nach dem Render messen
       requestAnimationFrame(() => {
         const r = shelfEl.getBoundingClientRect();
         const h = Math.max(0, Math.round(r.height));
-        // +12px Luft, damit nix “küsst”
         document.documentElement.style.setProperty("--shelfSafe", `${h + 12}px`);
       });
     }
-
-
     const openDock = (p, btn) => {
-        setTopbarHeightVar(); // <--- Füge diese Zeile hier ein!
+        setTopbarHeightVar(); 
         showWithAnim(p);
         btn?.classList.add("isActive");
         if (p.dataset.panelId === "shelf") setShelfSafe(true);
       };
-
   const closeDock = (p, btn) => {
     hideWithAnim(p);
     btn?.classList.remove("isActive");
     if (p.dataset.panelId === "shelf") setShelfSafe(false);
   };
-
-  // Popover positioning
 const positionPopoverUnderButton = (p, btn) => {
     const r = btn.getBoundingClientRect();
-
-    // Reset der Styles
     p.style.left = "0px";
     p.style.right = "auto";
-
-    // 1. Horizontale Positionierung (bleibt am Button orientiert)
     let left = r.left;
     const maxLeft = window.innerWidth - p.offsetWidth - 12;
     left = Math.max(12, Math.min(left, maxLeft));
     p.style.left = `${left}px`;
-
-    // 2. Vertikale Positionierung (jetzt identisch mit der Sidebar)
-    // Wir nutzen den gleichen Wert wie in der style.css für .panel
     p.style.top = "calc(var(--topbarH) + 14px)";
   };
-
   const openPopover = (p, btn, id) => {
     if (id === "help" && el.helpBody) el.helpBody.innerHTML = buildHelpHtml();
     if (id === "donate") {
@@ -1438,18 +1189,14 @@ const positionPopoverUnderButton = (p, btn) => {
       if (el.paypalQrHint) el.paypalQrHint.textContent = "";
       if (el.btcQrHint) el.btcQrHint.textContent = "";
     }
-
     showWithAnim(p);
     requestAnimationFrame(() => positionPopoverUnderButton(p, btn));
     btn?.classList.add("isActive");
   };
-
   const closePopover = (p, btn) => {
     hideWithAnim(p);
     btn?.classList.remove("isActive");
   };
-
-  // expose close helper (used by TOC)
   window.__dockClose = (id) => {
     const p = panelById(id);
     const b = document.querySelector(`.topBtn[data-panel="${id}"]`);
@@ -1457,8 +1204,6 @@ const positionPopoverUnderButton = (p, btn) => {
     if (POPOVERS.has(id)) closePopover(p, b);
     else closeDock(p, b);
   };
-
-  // X buttons only (no outside click)
   const hookClose = (closeEl, panelId, btnId) => {
     if (!closeEl) return;
     closeEl.addEventListener("click", (e) => {
@@ -1469,19 +1214,13 @@ const positionPopoverUnderButton = (p, btn) => {
       closePopover(p, b);
     });
   };
-
   hookClose(el.btnSettingsClose, "settings", "btnSettings");
   hookClose(el.btnHelpClose, "help", "btnHelp");
   hookClose(el.btnDonateClose, "donate", "btnDonate");
-
-  // Top buttons
   buttons.forEach(btn => {
     btn.addEventListener("click", (e) => {
       e.preventDefault();
-
       const id = btn.dataset.panel;
-
-      // Header toggle: only toggles headerInfo
       if (id === "header") {
         if (!el.headerInfo) return;
         const willShow = el.headerInfo.classList.contains("hidden");
@@ -1489,23 +1228,18 @@ const positionPopoverUnderButton = (p, btn) => {
         btn.classList.toggle("isActive", willShow);
         return;
       }
-
       const p = panelById(id);
       if (!p) return;
-
       if (DOCK_TOGGLES.has(id)) {
         isVisible(p) ? closeDock(p, btn) : openDock(p, btn);
         return;
       }
-
       if (POPOVERS.has(id)) {
         isVisible(p) ? closePopover(p, btn) : openPopover(p, btn, id);
         return;
       }
     });
   });
-
-  // reposition open popovers on resize/scroll
   const repositionOpenPopovers = () => {
     for (const id of POPOVERS) {
       const p = panelById(id);
@@ -1516,149 +1250,51 @@ const positionPopoverUnderButton = (p, btn) => {
   };
   window.addEventListener("resize", repositionOpenPopovers, { passive: true });
   window.addEventListener("scroll", repositionOpenPopovers, { passive: true });
-
-  // safety start state
   setShelfSafe(false);
 }
 
 /* -----------------------------
-   Share Target / Shortcut Handler
-   (FINAL & ROBUST: Overlay verschwindet IMMER)
+   Share Target / URL Handler
 ------------------------------ */
-
-// 1. Der Import
-async function performClipboardImport(titleOverride) {
-  const overlay = document.getElementById("importOverlay");
-  
-  try {
-    const text = await navigator.clipboard.readText();
-    
-    // Check: Ist überhaupt Text da?
-    if (!text || !text.trim()) {
-      setStatus("Zwischenablage ist leer!");
-      return;
-    }
-
-    const words = wordsFromText(text);
-    if (!words.length) {
-      setStatus("Kein lesbarer Text gefunden.");
-      return;
-    }
-
-    // Duplikat-Check: Haben wir das Buch schon?
-    let bookIdToLoad;
-    try {
-      const allBooks = await idbGetAll();
-      const existing = allBooks.find(b => 
-        (b.title === titleOverride || b.title === "Geteilter Artikel") && 
-        b.words.length === words.length
-      );
-      if (existing) bookIdToLoad = existing.id;
-    } catch(e) {}
-
-    // Wenn neu, dann speichern
-    if (!bookIdToLoad) {
-      const newId = `share_${Date.now()}`;
-      bookIdToLoad = newId;
-      await saveBookToLibrary({
-        id: newId,
-        title: titleOverride || "Geteilter Artikel",
-        author: "Import",
-        coverDataUrl: "", 
-        words: words,
-        chapters: [],
-        toc: [],
-        idx: 0,
-        bookmarks: [],
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      });
-    }
-
-    await loadBookFromLibrary(bookIdToLoad);
-    
-    // Alles schließen
-    document.querySelectorAll(".isActive").forEach(b => b.classList.remove("isActive"));
-    document.querySelectorAll(".panel, .popoverPanel").forEach(p => {
-       p.classList.remove("isOpen"); p.classList.add("hidden");
-    });
-
-  } catch (e) {
-    console.error(e);
-    alert("Import-Fehler: " + e.message);
-  } finally {
-    // WICHTIG: Das Overlay MUSS weg, egal was passiert
-    if (overlay) overlay.remove();
-  }
-}
-
-// 2. Das Overlay (Grüner Knopf)
-function showImportOverlay(title) {
-  const old = document.getElementById("importOverlay");
-  if (old) old.remove();
-
-  const overlay = document.createElement("div");
-  overlay.id = "importOverlay";
-  Object.assign(overlay.style, {
-    position: "fixed", inset: "0", zIndex: "10000",
-    background: "rgba(11, 12, 16, 0.98)",
-    display: "flex", flexDirection: "column",
-    alignItems: "center", justifyContent: "center",
-    cursor: "pointer", textAlign: "center", padding: "20px"
-  });
-
-  overlay.innerHTML = `
-    <div style="font-size:60px; margin-bottom:20px;">📋</div>
-    <div style="font-size:24px; font-weight:bold; color:#fff; margin-bottom:10px;">
-      Import bereit
-    </div>
-    <div style="color:#aaa; margin-bottom:40px; max-width:80%;">
-      "${escapeHtml(title || 'Artikel')}"
-    </div>
-    <div style="padding:16px 32px; background:#7ee787; color:#000; border-radius:12px; font-weight:bold; font-size:18px;">
-      HIER TIPPEN
-    </div>
-  `;
-
-  overlay.addEventListener("click", () => {
-    // Feedback, dass geklickt wurde
-    overlay.style.opacity = "0.5";
-    setStatus("Lese Zwischenablage...", { sticky: true });
-    // Minimaler Timeout, damit UI rendert
-    setTimeout(() => performClipboardImport(title), 50);
-  });
-  
-  document.body.appendChild(overlay);
-}
-
-// 3. URL Handler
 async function handleSharedContent() {
   const params = new URLSearchParams(window.location.search);
-  const importMode = params.get("import"); 
+  const sharedText = params.get("text");
   const sharedTitle = params.get("title");
-  const directText = params.get("text");
-
-  if (importMode || directText) {
-    window.history.replaceState({}, document.title, window.location.pathname);
-  }
-
-  // Fall A: Shortcut (via Clipboard)
-  if (importMode === "clipboard") {
-    showImportOverlay(sharedTitle);
-    return;
-  }
-
-  // Fall B: Legacy
-  if (directText) {
-    const words = wordsFromText(directText);
-    if (!words.length) return;
-    const newId = `url_${Date.now()}`;
-    await saveBookToLibrary({
-      id: newId, title: sharedTitle || "URL Text", author: "Import",
-      coverDataUrl: "", words: words, chapters: [], toc: [], idx: 0, bookmarks: [],
-      createdAt: Date.now(), updatedAt: Date.now(),
-    });
+  if (!sharedText) return;
+  window.history.replaceState({}, document.title, window.location.pathname);
+  try {
+    setStatus("Verarbeite geteilten Text…", { sticky: true });
+    await ensurePersistentStorage();
+    const words = wordsFromText(sharedText);
+    if (!words.length) {
+      setStatus("Geteilter Text war leer.");
+      return;
+    }
+    const newId = `share_${Date.now()}`;
+    const newBook = {
+      id: newId,
+      title: sharedTitle || "Geteilter Text",
+      author: "Import", 
+      coverDataUrl: "", 
+      words: words,
+      chapters: [],
+      toc: [],
+      idx: 0,
+      bookmarks: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    await saveBookToLibrary(newBook);
     await loadBookFromLibrary(newId);
+    const shelfBtn = document.querySelector('.topBtn[data-panel="shelf"]');
+    const shelfPanel = document.getElementById("shelf");
+    if(shelfPanel && !shelfPanel.classList.contains("hidden")) {
+       shelfPanel.classList.add("hidden");
+       shelfBtn?.classList.remove("isActive");
+    }
+  } catch (e) {
+    console.error(e);
+    setStatus("Import fehlgeschlagen: " + e.message);
   }
 }
 
@@ -1667,25 +1303,28 @@ async function handleSharedContent() {
 ------------------------------ */
 (async function boot() {
   setTopbarHeightVar();
-  try { bindUI(); } catch (e) {}
+  try { bindUI(); } catch (e) { console.error("bindUI failed:", e); }
   initDockPanels();
-  try { await ensurePersistentStorage(); } catch (e) {}
-  try { loadSettingsFromLS(); } catch(e){}
-  try { applySettingsToUI(); } catch(e){}
-
+  try {
+    const p = await ensurePersistentStorage();
+    if (p?.ok && p.persisted === false) {
+      console.log("Storage not persisted (browser may evict data).");
+    }
+  } catch (e) {
+    console.warn("Storage init failed (fallback mode):", e);
+    window.__storageDegraded = true;
+  }
+  try { loadSettingsFromLS(); } catch(e){ console.warn("loadSettingsFromLS failed:", e); }
+  try { applySettingsToUI(); } catch(e){ console.warn("applySettingsToUI failed:", e); }
   setTab("toc");
   updateProgressUI();
   showCurrent();
-
-  try { await renderShelf(); } catch(e){}
-
-  // Check auf Import
+  try { await renderShelf(); } catch(e){ console.warn("renderShelf failed:", e); }
+  
   await handleSharedContent();
 
-  if (!S.book.id) {
-    setStatus("Warte auf Datei…");
-  }
+  if (!S.book.id) setStatus("Warte auf Datei…");
 })().catch((e) => {
   console.error(e);
-  setStatus("Boot-Fehler");
+  setStatus("Boot-Fehler (Fallback aktiv)");
 });
