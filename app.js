@@ -1523,9 +1523,10 @@ const positionPopoverUnderButton = (p, btn) => {
 
 /* -----------------------------
    Share Target / Shortcut Handler
+   (Stellt sicher, dass Importe via URL/Shortcut klappen)
 ------------------------------ */
 
-// 1. Der eigentliche Import-Logik für Clipboard-Inhalt
+// 1. Der eigentliche Import
 async function performClipboardImport(titleOverride) {
   try {
     const text = await navigator.clipboard.readText();
@@ -1548,7 +1549,7 @@ async function performClipboardImport(titleOverride) {
       id: newId,
       title: bookTitle,
       author: "Import",
-      coverDataUrl: "", // Optional: Man könnte hier ein Platzhalter-Icon setzen
+      coverDataUrl: "", 
       words: words,
       chapters: [],
       toc: [],
@@ -1560,7 +1561,7 @@ async function performClipboardImport(titleOverride) {
 
     await loadBookFromLibrary(newId);
     
-    // UI aufräumen
+    // Overlay entfernen falls vorhanden
     const overlay = document.getElementById("importOverlay");
     if (overlay) overlay.remove();
     
@@ -1573,72 +1574,77 @@ async function performClipboardImport(titleOverride) {
 
   } catch (e) {
     console.error(e);
-    setStatus("Konnte Zwischenablage nicht lesen: " + e.message);
+    setStatus("Clipboard-Fehler: " + e.message);
+    // Falls es beim ersten Mal schief ging (ohne User-Interaktion),
+    // zeigen wir das Overlay erneut oder lassen den User manuell klicken.
   }
 }
 
-// 2. Erstellt einen unsichtbaren Overlay-Button, um die Browser-Sicherheit zu erfüllen
+// 2. Das Overlay für iOS (benötigt Klick für Rechte)
 function showImportOverlay(title) {
-  // Existierendes Overlay entfernen
+  // Altes Overlay weg
   const old = document.getElementById("importOverlay");
   if (old) old.remove();
 
   const overlay = document.createElement("div");
   overlay.id = "importOverlay";
-  // Styling direkt hier, um CSS-Datei nicht ändern zu müssen
+  
+  // Styling: Schwarz, Fullscreen, über allem
   Object.assign(overlay.style, {
-    position: "fixed", inset: "0", zIndex: "9999",
-    background: "rgba(11, 12, 16, 0.95)",
+    position: "fixed", inset: "0", zIndex: "10000",
+    background: "rgba(11, 12, 16, 0.96)",
     display: "flex", flexDirection: "column",
     alignItems: "center", justifyContent: "center",
     cursor: "pointer", textAlign: "center", padding: "20px"
   });
 
   overlay.innerHTML = `
-    <div style="font-size:48px; margin-bottom:20px;">📋</div>
-    <div style="font-size:24px; font-weight:bold; color:#e9eaee; margin-bottom:10px;">Import bereit</div>
-    <div style="color:#9aa0a6;">"${escapeHtml(title || 'Artikel')}"</div>
-    <div style="margin-top:30px; padding:12px 24px; background:#7ee787; color:#0b0c10; border-radius:12px; font-weight:bold;">
-      Tippen zum Öffnen
+    <div style="font-size:50px; margin-bottom:20px;">📋</div>
+    <div style="font-size:22px; font-weight:bold; color:#e9eaee; margin-bottom:10px;">
+      Import bereit
+    </div>
+    <div style="color:#9aa0a6; margin-bottom:30px; max-width:300px;">
+      "${escapeHtml(title || 'Artikel')}"
+    </div>
+    <div style="padding:14px 28px; background:#7ee787; color:#0b0c10; border-radius:12px; font-weight:bold; font-size:16px;">
+      Hier tippen zum Öffnen
     </div>
   `;
 
-  overlay.addEventListener("click", () => performClipboardImport(title));
+  // Beim Klick Import starten
+  overlay.addEventListener("click", () => {
+    setStatus("Lese Zwischenablage...", { sticky: true });
+    performClipboardImport(title);
+  });
+  
   document.body.appendChild(overlay);
 }
 
-// 3. Hauptfunktion: Prüft URL Parameter
+// 3. Checkt die URL beim Start
 async function handleSharedContent() {
   const params = new URLSearchParams(window.location.search);
-  const importMode = params.get("import"); // Ihr Shortcut setzt ?import=clipboard
+  const importMode = params.get("import"); 
   const sharedTitle = params.get("title");
-  
-  // Alter Weg (direkter Text in URL), falls noch genutzt
   const directText = params.get("text");
 
-  // URL bereinigen, damit Reloads den Import nicht neu triggern
-  if (importMode || directText) {
-    window.history.replaceState({}, document.title, window.location.pathname);
-  }
+  // Wenn nix in der URL ist -> Abbruch
+  if (!importMode && !directText) return;
 
-  // Fall A: Shortcut Methode (Clipboard)
+  // URL säubern
+  window.history.replaceState({}, document.title, window.location.pathname);
+
+  // Fall A: Shortcut (Clipboard)
   if (importMode === "clipboard") {
-    // Wir versuchen es sofort (klappt selten wegen Browser-Security)
-    // Wenn es fehlschlägt, zeigen wir das Overlay
-    try {
-      await performClipboardImport(sharedTitle);
-    } catch {
-      showImportOverlay(sharedTitle);
-    }
+    // Auf iOS blockt der Browser den direkten Zugriff beim Laden.
+    // Wir zeigen IMMER das Overlay, das ist am sichersten.
+    showImportOverlay(sharedTitle);
     return;
   }
 
-  // Fall B: Direkter Text (Legacy / kleine Texte)
+  // Fall B: Direkter Text (Legacy)
   if (directText) {
-    // Hier simulieren wir das Clipboard-Verhalten mit dem URL-Text
     const words = wordsFromText(directText);
     if (!words.length) return;
-    
     const newId = `url_${Date.now()}`;
     await saveBookToLibrary({
       id: newId,
@@ -1658,7 +1664,7 @@ async function handleSharedContent() {
 }
 
 /* -----------------------------
-   Boot
+   Boot (Startvorgang)
 ------------------------------ */
 (async function boot() {
   setTopbarHeightVar();
@@ -1684,7 +1690,7 @@ async function handleSharedContent() {
 
   try { await renderShelf(); } catch(e){}
 
-  // NEU: Hier prüfen wir auf geteilte Inhalte
+  // WICHTIG: Hier wird geprüft, ob wir per Shortcut geöffnet wurden
   await handleSharedContent();
 
   if (!S.book.id) {
