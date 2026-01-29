@@ -1523,16 +1523,19 @@ const positionPopoverUnderButton = (p, btn) => {
 
 /* -----------------------------
    Share Target / Shortcut Handler
-   (Stellt sicher, dass Importe via URL/Shortcut klappen)
+   (Robustere Version: Duplikat-Schutz & Overlay-Fix)
 ------------------------------ */
 
 // 1. Der eigentliche Import
 async function performClipboardImport(titleOverride) {
+  // Wir holen uns das Overlay sofort, um es später sicher zu entfernen
+  const overlay = document.getElementById("importOverlay");
+  
   try {
     const text = await navigator.clipboard.readText();
     
     if (!text || !text.trim()) {
-      setStatus("Zwischenablage ist leer.");
+      setStatus("Zwischenablage leer oder Zugriff verweigert.");
       return;
     }
 
@@ -1542,30 +1545,49 @@ async function performClipboardImport(titleOverride) {
       return;
     }
 
-    const newId = `share_${Date.now()}`;
-    const bookTitle = titleOverride || "Geteilter Artikel";
+    // DUPLIKAT-CHECK: Prüfen, ob wir das Buch schon haben
+    // (Verhindert doppelte Einträge beim Mehrfach-Klicken oder Reloads)
+    let bookIdToLoad;
+    try {
+      const allBooks = await idbGetAll();
+      // Einfacher Vergleich: Titel identisch UND Wortanzahl identisch?
+      const existing = allBooks.find(b => 
+        (b.title === titleOverride || b.title === "Geteilter Artikel") && 
+        b.words.length === words.length
+      );
+      
+      if (existing) {
+        console.log("Buch existiert bereits, öffne vorhandenes...");
+        bookIdToLoad = existing.id;
+        setStatus("Bereits importiert – öffne...");
+      }
+    } catch(e) { /* Ignore DB check errors */ }
 
-    await saveBookToLibrary({
-      id: newId,
-      title: bookTitle,
-      author: "Import",
-      coverDataUrl: "", 
-      words: words,
-      chapters: [],
-      toc: [],
-      idx: 0,
-      bookmarks: [],
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
+    // Wenn nicht vorhanden, neu anlegen
+    if (!bookIdToLoad) {
+      const newId = `share_${Date.now()}`;
+      bookIdToLoad = newId;
+      const bookTitle = titleOverride || "Geteilter Artikel";
 
-    await loadBookFromLibrary(newId);
+      await saveBookToLibrary({
+        id: newId,
+        title: bookTitle,
+        author: "Import",
+        coverDataUrl: "", 
+        words: words,
+        chapters: [],
+        toc: [],
+        idx: 0,
+        bookmarks: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    }
+
+    // Buch laden und UI aktualisieren
+    await loadBookFromLibrary(bookIdToLoad);
     
-    // Overlay entfernen falls vorhanden
-    const overlay = document.getElementById("importOverlay");
-    if (overlay) overlay.remove();
-    
-    // Panels schließen
+    // Panels schließen (falls Settings/Shelf offen waren)
     document.querySelectorAll(".isActive").forEach(b => b.classList.remove("isActive"));
     document.querySelectorAll(".panel, .popoverPanel").forEach(p => {
        p.classList.remove("isOpen"); 
@@ -1573,29 +1595,30 @@ async function performClipboardImport(titleOverride) {
     });
 
   } catch (e) {
-    console.error(e);
-    setStatus("Clipboard-Fehler: " + e.message);
-    // Falls es beim ersten Mal schief ging (ohne User-Interaktion),
-    // zeigen wir das Overlay erneut oder lassen den User manuell klicken.
+    console.error("Clipboard Import Error:", e);
+    setStatus("Fehler: " + (e.message || "Import fehlgeschlagen"));
+  } finally {
+    // WICHTIG: Overlay IMMER entfernen, egal was passiert!
+    // Das verhindert, dass die App "einfriert".
+    if (overlay) overlay.remove();
   }
 }
 
 // 2. Das Overlay für iOS (benötigt Klick für Rechte)
 function showImportOverlay(title) {
-  // Altes Overlay weg
   const old = document.getElementById("importOverlay");
   if (old) old.remove();
 
   const overlay = document.createElement("div");
   overlay.id = "importOverlay";
   
-  // Styling: Schwarz, Fullscreen, über allem
   Object.assign(overlay.style, {
     position: "fixed", inset: "0", zIndex: "10000",
     background: "rgba(11, 12, 16, 0.96)",
     display: "flex", flexDirection: "column",
     alignItems: "center", justifyContent: "center",
-    cursor: "pointer", textAlign: "center", padding: "20px"
+    cursor: "pointer", textAlign: "center", padding: "20px",
+    transition: "opacity 0.2s"
   });
 
   overlay.innerHTML = `
@@ -1611,10 +1634,12 @@ function showImportOverlay(title) {
     </div>
   `;
 
-  // Beim Klick Import starten
   overlay.addEventListener("click", () => {
+    overlay.style.opacity = "0.5"; // Visuelles Feedback beim Klick
+    overlay.style.pointerEvents = "none"; // Doppelklicks verhindern
     setStatus("Lese Zwischenablage...", { sticky: true });
-    performClipboardImport(title);
+    // Kurze Verzögerung für UI-Update, dann Import
+    setTimeout(() => performClipboardImport(title), 50);
   });
   
   document.body.appendChild(overlay);
@@ -1627,24 +1652,23 @@ async function handleSharedContent() {
   const sharedTitle = params.get("title");
   const directText = params.get("text");
 
-  // Wenn nix in der URL ist -> Abbruch
   if (!importMode && !directText) return;
 
-  // URL säubern
+  // URL sofort säubern
   window.history.replaceState({}, document.title, window.location.pathname);
 
   // Fall A: Shortcut (Clipboard)
   if (importMode === "clipboard") {
-    // Auf iOS blockt der Browser den direkten Zugriff beim Laden.
-    // Wir zeigen IMMER das Overlay, das ist am sichersten.
     showImportOverlay(sharedTitle);
     return;
   }
 
-  // Fall B: Direkter Text (Legacy)
+  // Fall B: Direkter Text (Legacy / Fallback)
   if (directText) {
     const words = wordsFromText(directText);
     if (!words.length) return;
+    
+    // Auch hier: Duplikat-Check Light (nur ID basierend auf Timestamp geht nicht, daher neu)
     const newId = `url_${Date.now()}`;
     await saveBookToLibrary({
       id: newId,
@@ -1690,7 +1714,7 @@ async function handleSharedContent() {
 
   try { await renderShelf(); } catch(e){}
 
-  // WICHTIG: Hier wird geprüft, ob wir per Shortcut geöffnet wurden
+  // Check auf Importe
   await handleSharedContent();
 
   if (!S.book.id) {
