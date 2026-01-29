@@ -1523,19 +1523,19 @@ const positionPopoverUnderButton = (p, btn) => {
 
 /* -----------------------------
    Share Target / Shortcut Handler
-   (Robustere Version: Duplikat-Schutz & Overlay-Fix)
+   (FINAL & ROBUST: Overlay verschwindet IMMER)
 ------------------------------ */
 
-// 1. Der eigentliche Import
+// 1. Der Import
 async function performClipboardImport(titleOverride) {
-  // Wir holen uns das Overlay sofort, um es später sicher zu entfernen
   const overlay = document.getElementById("importOverlay");
   
   try {
     const text = await navigator.clipboard.readText();
     
+    // Check: Ist überhaupt Text da?
     if (!text || !text.trim()) {
-      setStatus("Zwischenablage leer oder Zugriff verweigert.");
+      setStatus("Zwischenablage ist leer!");
       return;
     }
 
@@ -1545,33 +1545,24 @@ async function performClipboardImport(titleOverride) {
       return;
     }
 
-    // DUPLIKAT-CHECK: Prüfen, ob wir das Buch schon haben
-    // (Verhindert doppelte Einträge beim Mehrfach-Klicken oder Reloads)
+    // Duplikat-Check: Haben wir das Buch schon?
     let bookIdToLoad;
     try {
       const allBooks = await idbGetAll();
-      // Einfacher Vergleich: Titel identisch UND Wortanzahl identisch?
       const existing = allBooks.find(b => 
         (b.title === titleOverride || b.title === "Geteilter Artikel") && 
         b.words.length === words.length
       );
-      
-      if (existing) {
-        console.log("Buch existiert bereits, öffne vorhandenes...");
-        bookIdToLoad = existing.id;
-        setStatus("Bereits importiert – öffne...");
-      }
-    } catch(e) { /* Ignore DB check errors */ }
+      if (existing) bookIdToLoad = existing.id;
+    } catch(e) {}
 
-    // Wenn nicht vorhanden, neu anlegen
+    // Wenn neu, dann speichern
     if (!bookIdToLoad) {
       const newId = `share_${Date.now()}`;
       bookIdToLoad = newId;
-      const bookTitle = titleOverride || "Geteilter Artikel";
-
       await saveBookToLibrary({
         id: newId,
-        title: bookTitle,
+        title: titleOverride || "Geteilter Artikel",
         author: "Import",
         coverDataUrl: "", 
         words: words,
@@ -1584,127 +1575,101 @@ async function performClipboardImport(titleOverride) {
       });
     }
 
-    // Buch laden und UI aktualisieren
     await loadBookFromLibrary(bookIdToLoad);
     
-    // Panels schließen (falls Settings/Shelf offen waren)
+    // Alles schließen
     document.querySelectorAll(".isActive").forEach(b => b.classList.remove("isActive"));
     document.querySelectorAll(".panel, .popoverPanel").forEach(p => {
-       p.classList.remove("isOpen"); 
-       p.classList.add("hidden");
+       p.classList.remove("isOpen"); p.classList.add("hidden");
     });
 
   } catch (e) {
-    console.error("Clipboard Import Error:", e);
-    setStatus("Fehler: " + (e.message || "Import fehlgeschlagen"));
+    console.error(e);
+    alert("Import-Fehler: " + e.message);
   } finally {
-    // WICHTIG: Overlay IMMER entfernen, egal was passiert!
-    // Das verhindert, dass die App "einfriert".
+    // WICHTIG: Das Overlay MUSS weg, egal was passiert
     if (overlay) overlay.remove();
   }
 }
 
-// 2. Das Overlay für iOS (benötigt Klick für Rechte)
+// 2. Das Overlay (Grüner Knopf)
 function showImportOverlay(title) {
   const old = document.getElementById("importOverlay");
   if (old) old.remove();
 
   const overlay = document.createElement("div");
   overlay.id = "importOverlay";
-  
   Object.assign(overlay.style, {
     position: "fixed", inset: "0", zIndex: "10000",
-    background: "rgba(11, 12, 16, 0.96)",
+    background: "rgba(11, 12, 16, 0.98)",
     display: "flex", flexDirection: "column",
     alignItems: "center", justifyContent: "center",
-    cursor: "pointer", textAlign: "center", padding: "20px",
-    transition: "opacity 0.2s"
+    cursor: "pointer", textAlign: "center", padding: "20px"
   });
 
   overlay.innerHTML = `
-    <div style="font-size:50px; margin-bottom:20px;">📋</div>
-    <div style="font-size:22px; font-weight:bold; color:#e9eaee; margin-bottom:10px;">
+    <div style="font-size:60px; margin-bottom:20px;">📋</div>
+    <div style="font-size:24px; font-weight:bold; color:#fff; margin-bottom:10px;">
       Import bereit
     </div>
-    <div style="color:#9aa0a6; margin-bottom:30px; max-width:300px;">
+    <div style="color:#aaa; margin-bottom:40px; max-width:80%;">
       "${escapeHtml(title || 'Artikel')}"
     </div>
-    <div style="padding:14px 28px; background:#7ee787; color:#0b0c10; border-radius:12px; font-weight:bold; font-size:16px;">
-      Hier tippen zum Öffnen
+    <div style="padding:16px 32px; background:#7ee787; color:#000; border-radius:12px; font-weight:bold; font-size:18px;">
+      HIER TIPPEN
     </div>
   `;
 
   overlay.addEventListener("click", () => {
-    overlay.style.opacity = "0.5"; // Visuelles Feedback beim Klick
-    overlay.style.pointerEvents = "none"; // Doppelklicks verhindern
+    // Feedback, dass geklickt wurde
+    overlay.style.opacity = "0.5";
     setStatus("Lese Zwischenablage...", { sticky: true });
-    // Kurze Verzögerung für UI-Update, dann Import
+    // Minimaler Timeout, damit UI rendert
     setTimeout(() => performClipboardImport(title), 50);
   });
   
   document.body.appendChild(overlay);
 }
 
-// 3. Checkt die URL beim Start
+// 3. URL Handler
 async function handleSharedContent() {
   const params = new URLSearchParams(window.location.search);
   const importMode = params.get("import"); 
   const sharedTitle = params.get("title");
   const directText = params.get("text");
 
-  if (!importMode && !directText) return;
+  if (importMode || directText) {
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
 
-  // URL sofort säubern
-  window.history.replaceState({}, document.title, window.location.pathname);
-
-  // Fall A: Shortcut (Clipboard)
+  // Fall A: Shortcut (via Clipboard)
   if (importMode === "clipboard") {
     showImportOverlay(sharedTitle);
     return;
   }
 
-  // Fall B: Direkter Text (Legacy / Fallback)
+  // Fall B: Legacy
   if (directText) {
     const words = wordsFromText(directText);
     if (!words.length) return;
-    
-    // Auch hier: Duplikat-Check Light (nur ID basierend auf Timestamp geht nicht, daher neu)
     const newId = `url_${Date.now()}`;
     await saveBookToLibrary({
-      id: newId,
-      title: sharedTitle || "Geteilter Text",
-      author: "URL Import",
-      coverDataUrl: "",
-      words: words,
-      chapters: [],
-      toc: [],
-      idx: 0,
-      bookmarks: [],
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+      id: newId, title: sharedTitle || "URL Text", author: "Import",
+      coverDataUrl: "", words: words, chapters: [], toc: [], idx: 0, bookmarks: [],
+      createdAt: Date.now(), updatedAt: Date.now(),
     });
     await loadBookFromLibrary(newId);
   }
 }
 
 /* -----------------------------
-   Boot (Startvorgang)
+   Boot
 ------------------------------ */
 (async function boot() {
   setTopbarHeightVar();
-  try { bindUI(); } catch (e) { console.error("bindUI failed:", e); }
-
+  try { bindUI(); } catch (e) {}
   initDockPanels();
-
-  try {
-    const p = await ensurePersistentStorage();
-    if (p?.ok && p.persisted === false) {
-      console.log("Storage not persisted.");
-    }
-  } catch (e) {
-    window.__storageDegraded = true;
-  }
-
+  try { await ensurePersistentStorage(); } catch (e) {}
   try { loadSettingsFromLS(); } catch(e){}
   try { applySettingsToUI(); } catch(e){}
 
@@ -1714,7 +1679,7 @@ async function handleSharedContent() {
 
   try { await renderShelf(); } catch(e){}
 
-  // Check auf Importe
+  // Check auf Import
   await handleSharedContent();
 
   if (!S.book.id) {
@@ -1722,5 +1687,5 @@ async function handleSharedContent() {
   }
 })().catch((e) => {
   console.error(e);
-  setStatus("Boot-Fehler (Fallback aktiv)");
+  setStatus("Boot-Fehler");
 });
