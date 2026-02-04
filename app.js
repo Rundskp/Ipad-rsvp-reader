@@ -1135,12 +1135,22 @@ async function handleFile(file) {
 
     setStatus(`Geladen: ${S.book.title} (${S.words.length} Wörter)`, { sticky: true, toastMs: 900 });
   } catch (e) {
+  // PDF ohne Textlayer (Scan ohne OCR)
+  if (e?.code === "PDF_NO_TEXT" || e?.message === "PDF_NO_TEXT") {
+    setStatus("PDF enthält keinen Text (OCR nötig).");
+    alert("Kein Text erkannt.\n\nDieses PDF ist vermutlich nur ein Scan/Bild.\nBitte in Quick Scan OCR aktivieren und als durchsuchbares PDF exportieren.");
+  } else if (e?.message === "PDFJS_NOT_LOADED") {
+    setStatus("pdf.js fehlt in /lib.");
+    alert("pdf.js fehlt.\n\nLege lib/pdf.min.js und lib/pdf.worker.min.js ab und binde sie in index.html ein.");
+  } else {
     setStatus(`Fehler: ${e?.message || e}`);
-    console.error(e);
-    S.words = [];
-    updateProgressUI();
-    showCurrent();
   }
+
+  console.error(e);
+  S.words = [];
+  updateProgressUI();
+  showCurrent();
+}
 }
 
 /* -----------------------------
@@ -1638,7 +1648,53 @@ async function handleSharedContent() {
   const importMode = params.get("import"); 
   const sharedTitle = params.get("title");
   const directText = params.get("text");
+  const importUrl = params.get("import_url");
+  if (importUrl && importUrl.toLowerCase().includes(".pdf")) {
+    // URL cleanen
+    window.history.replaceState({}, document.title, window.location.pathname);
 
+    try {
+      setStatus("Lade PDF aus dem Netz…", { sticky: true });
+
+      const res = await fetch(importUrl);
+      if (!res.ok) throw new Error("PDF_FETCH_FAILED");
+
+      const blob = await res.blob();
+
+      // iOS/Safari mag File() manchmal – so füttern wir den gleichen Parser wie lokal
+      const f = new File([blob], "import.pdf", { type: "application/pdf" });
+
+      const parsed = await loadPdfFromFile(f);
+
+      // Speichern + laden wie bei EPUB/TXT
+      await saveBookToLibrary({
+        id: parsed.id,
+        title: parsed.title || "PDF Import",
+        author: parsed.author || "Import",
+        coverDataUrl: "",
+        words: parsed.words,
+        chapters: [],
+        toc: [],
+        idx: 0,
+        bookmarks: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+
+      await loadBookFromLibrary(parsed.id);
+      setStatus(`Geladen: ${parsed.title} (${parsed.words.length} Wörter)`, { sticky: true, toastMs: 900 });
+      return;
+    } catch (e) {
+      console.error(e);
+      setStatus("PDF konnte nicht geladen werden (CORS?).");
+      alert(
+        "PDF konnte nicht direkt importiert werden.\n\n" +
+        "Manche Webseiten blocken das (CORS).\n" +
+        "Workaround: PDF in 'Dateien' speichern und im Reader über 'Datei laden' öffnen."
+      );
+      return;
+    }
+  }
   if (importMode || directText) {
     window.history.replaceState({}, document.title, window.location.pathname);
   }
