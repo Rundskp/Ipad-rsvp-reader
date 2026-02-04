@@ -307,7 +307,13 @@
   <!-- libs: ORDER MATTERS -->
   <script src="./lib/jszip.min.js"></script>
   <script src="./lib/epub.min.js"></script>
-
+<!-- PDF support -->
+<script src="./lib/pdf.min.js"></script>
+<script>
+  if (window.pdfjsLib) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "./lib/pdf.worker.min.js";
+  }
+</script>
   <!-- app -->
 <script src="./app.js?v=CLIPBOARD_FIX_1"></script>
 
