@@ -1089,7 +1089,67 @@ async function loadPdfFromFile(file) {
     e.code = "PDFJS_NOT_LOADED";
     throw e;
   }
+function prettifyHeadingLabel(s) {
+  s = String(s || "").trim();
 
+  // Whitespace normalisieren
+  s = s.replace(/\s+/g, " ");
+
+  // typische PDF-Header/Footers killen
+  if (/^(seite|page)\s+\d+(\s+von\s+\d+)?$/i.test(s)) return "";
+  if (/^\d+\s*\/\s*\d+$/.test(s)) return "";
+
+  // Bullet/Trennzeichen vorne weg
+  s = s.replace(/^[•·▪●○\-\–—]+/g, "").trim();
+
+  // Mehrfachpunkte/komische Trennungen
+  s = s.replace(/\.{2,}/g, ".").trim();
+
+  // Wenn ALL CAPS: Title Case light (aber nur bei kurzen Strings)
+  const isAllCaps = s.length <= 60 && s === s.toUpperCase() && /[A-ZÄÖÜ]/.test(s);
+  if (isAllCaps) {
+    s = s
+      .toLowerCase()
+      .replace(/\b([a-zäöüß])/g, m => m.toUpperCase());
+  }
+
+  // Am Ende keinen Punkt erzwingen
+  s = s.replace(/[.:;\-–—]+$/g, "").trim();
+
+  // Länge begrenzen (Kapitel-Leiste soll nicht explodieren)
+  if (s.length > 52) s = s.slice(0, 51) + "…";
+
+  return s;
+}
+
+function dedupeAndNormalizeHeadings(headings) {
+  // headings: [{page, label}]
+  const out = [];
+  const seen = new Set();
+
+  for (const h of headings) {
+    let label = prettifyHeadingLabel(h.label);
+    if (!label) continue;
+
+    // Standardisiere Nummerierung: "1.2  Foo" -> "1.2 Foo"
+    label = label.replace(/^(\d+(?:\.\d+)*)(\s*[\)\.]?\s*)/, "$1 ");
+
+    // Duplikate raus (case-insensitive)
+    const key = label.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    out.push({ page: h.page, label });
+  }
+
+  // Wenn die erste Überschrift erst spät kommt:
+  // Wir wollen trotzdem ein "Kapitel 1" am Anfang, damit die Leiste nicht leer wirkt.
+  if (out.length && out[0].page > 2) {
+    out.unshift({ page: 1, label: "Kapitel 1" });
+  }
+
+  return out;
+}
   setStatus("Lade PDF…", { sticky: true });
 
   const ab = await file.arrayBuffer();
@@ -1293,11 +1353,11 @@ async function loadPdfFromFile(file) {
 
   // 2) Sort by page
   const headings = [...bestByPage.values()]
-    .sort((a, b) => a.page - b.page)
-    .map(h => ({ page: h.page, label: h.text }));
-
-  // 3) Map page -> wordStart index
+  .sort((a, b) => a.page - b.page)
+  .map(h => ({ page: h.page, label: h.text }));  // 3) Map page -> wordStart index
+  
   const pageStartWord = [];
+
   let acc = 0;
   for (let i = 0; i < pageWords.length; i++) {
     pageStartWord[i + 1] = acc;      // page number starts at 1
@@ -1336,8 +1396,11 @@ async function loadPdfFromFile(file) {
       k++;
       const label = `Teil ${k}`;
       const href = `chunk${k}`;
-      chapters.push({ label, href, start, end });
-      toc.push({ label, href });
+      const niceLabel = /^\d+(\.\d+)*\s/.test(cur.label)
+        ? cur.label
+        : `Kapitel ${i + 1}: ${cur.label}`;
+      chapters.push({ label: niceLabel, href, start, end });
+      toc.push({ label: niceLabel, href });
     }
   }
 
