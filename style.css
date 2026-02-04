@@ -145,6 +145,13 @@ body{
   outline-offset: 2px;
 }
 
+#btnBack, #btnFwd, #btnPlay, #btnBookmark {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
 /* =========================
    LAYOUT
 ========================= */
