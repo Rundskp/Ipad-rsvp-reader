@@ -3,7 +3,7 @@
    ============================================================= */
 
 // Version erhöht, um Update zu erzwingen
-const CACHE = "rsvp-cache-v102";
+const CACHE = "rsvp-cache-v103";
 
 const ASSETS = [
   "./",
