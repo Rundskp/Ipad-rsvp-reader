@@ -154,6 +154,10 @@ function toast(msg, ms = 1400) {
 }
 
 function setStatus(msg, { sticky = false, toastMs = 1400 } = {}) {
+  // Geladen-Meldungen NIE sticky, sonst pickt's ewig.
+  if (sticky && typeof msg === "string" && msg.startsWith("Geladen:")) {
+  sticky = false;
+  }
   if (!el.status) return;
 
   if (sticky) {
@@ -1515,8 +1519,8 @@ function attachScrubButton(btn, dir /* -1 or +1 */) {
       didHold = true;
       const tick = () => doStep();
       tick();
-      const ms = Math.max(80, msPerToken(10, S.settings.chunk)); // ~10 WPM
-      interval = setInterval(tick, ms);
+      const ms = Math.max(30, (1000 * Math.max(1, S.settings.chunk)) / 10);
+interval = setInterval(tick, ms);
     }, 500);
   };
 
