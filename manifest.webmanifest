@@ -1,18 +1,19 @@
 {
   "name": "RSVP Reader",
   "short_name": "RSVP",
-  "start_url": "./index.html",
+  "start_url": "/Ipad-rsvp-reader/index.html",
+  "scope": "/Ipad-rsvp-reader/",
   "display": "standalone",
   "background_color": "#0b0c10",
   "theme_color": "#0b0c10",
   "icons": [],
   "share_target": {
-    "action": "./index.html",
+    "action": "/Ipad-rsvp-reader/index.html",
     "method": "GET",
-    "enctype": "application/x-www-form-urlencoded",
     "params": {
       "title": "title",
-      "text": "text"
+      "text": "text",
+      "url": "import_url"
     }
   }
 }
