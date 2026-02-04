@@ -1095,7 +1095,8 @@ async function handleFile(file) {
     let parsed;
     if (ext === "epub") parsed = await loadEpubFromFile(file);
     else if (ext === "txt") parsed = await loadTxtFromFile(file);
-    else throw new Error("Bitte .epub oder .txt laden.");
+    else if (ext === "pdf") parsed = await loadPdfFromFile(file);
+    else throw new Error("Bitte .epub, .txt oder .pdf laden.");
 
     const existing = await idbGet(parsed.id);
     const idx = existing?.idx ?? 0;
@@ -1641,7 +1642,39 @@ async function handleSharedContent() {
   if (importMode || directText) {
     window.history.replaceState({}, document.title, window.location.pathname);
   }
+// PDF via URL (import_url)
+const importUrl = params.get("import_url");
+if (importUrl && importUrl.toLowerCase().endsWith(".pdf")) {
+  window.history.replaceState({}, document.title, window.location.pathname);
 
+  try {
+    setStatus("Lade PDF aus dem Netz…", { sticky: true });
+
+    const res = await fetch(importUrl);
+    if (!res.ok) throw new Error("PDF_FETCH_FAILED");
+
+    const blob = await res.blob();
+    const file = new File([blob], "shared.pdf", { type: "application/pdf" });
+
+    const parsed = await loadPdfFromFile(file);
+
+    await saveBookToLibrary({
+      ...parsed,
+      idx: 0,
+      bookmarks: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    await loadBookFromLibrary(parsed.id);
+    return;
+  } catch (e) {
+    setStatus(
+      "PDF konnte nicht geladen werden (CORS). Bitte in Dateien speichern und lokal importieren."
+    );
+    return;
+  }
+}
   // Fall A: Shortcut (via Clipboard)
   if (importMode === "clipboard") {
     showImportOverlay(sharedTitle);
@@ -1689,3 +1722,53 @@ async function handleSharedContent() {
   console.error(e);
   setStatus("Boot-Fehler");
 });
+
+/*–––PDF---*/
+async function loadPdfFromFile(file) {
+  if (!window.pdfjsLib) throw new Error("PDFJS_NOT_LOADED");
+
+  setStatus("Lade PDF…", { sticky: true });
+
+  const ab = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
+
+  let collected = [];
+  let totalChars = 0;
+
+  for (let p = 1; p <= pdf.numPages; p++) {
+    setStatus(`Extrahiere PDF Seite ${p}/${pdf.numPages}…`, { sticky: true });
+
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    const strings = content.items.map(i => i.str).filter(Boolean);
+
+    const pageText = strings.join(" ");
+    totalChars += pageText.length;
+    collected.push(pageText);
+  }
+
+  const raw = collected.join("\n\n");
+  const cleaned = raw
+    .replace(/-\s*\n/g, "")
+    .replace(/\n+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (totalChars < 200 || cleaned.length < 200) {
+    const e = new Error("PDF_NO_TEXT");
+    e.code = "PDF_NO_TEXT";
+    throw e;
+  }
+
+  const words = wordsFromText(cleaned);
+
+  return {
+    id: stableBookId(file),
+    title: file.name.replace(/\.pdf$/i, ""),
+    author: "PDF",
+    coverDataUrl: "",
+    words,
+    chapters: [],
+    toc: [],
+  };
+}
