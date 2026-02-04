@@ -333,21 +333,30 @@ body{
    POPOVER PANELS (Settings/Help/Donate)
    Erhöhte max-height, damit QR-Codes nicht abgeschnitten werden
 ========================= */
-.popoverPanel {
+.popoverPanel{
   position: fixed;
   z-index: 200;
-  width: min(520px, calc(100vw - 24px));
-  /* Erhöht von 520px auf 800px/90vh für mehr Platz */
-  max-height: min(90vh, 800px); 
-  overflow-y: auto; /* Wichtig für Scrollbarkeit bei langem Inhalt */
+  left: 12px;
+  right: 12px;
+
+  /* Statt max-height: echte Klammer zwischen Topbar und Safe-Area */
+  top: calc(var(--topbarH) + 14px);
+  bottom: calc(12px + env(safe-area-inset-bottom));
+
+  width: auto;
+  max-width: 520px;
+  margin: 0 auto;
+
+  /* Panel selbst NICHT scrollen lassen */
+  overflow: hidden;
+
+  padding: 0; /* Scroll-Padding kommt innen */
+  border-radius: 18px;
 
   opacity: 0;
   transform: translateY(-8px) scale(.98);
   pointer-events: none;
   transition: opacity .14s ease, transform .14s ease;
-  
-  /* Standard-Scrollbar-Styling erzwingen */
-  -webkit-overflow-scrolling: touch;
 }
 
 .popoverPanel.isOpen{
@@ -355,9 +364,32 @@ body{
   transform: translateY(0) scale(1);
   pointer-events: auto;
 }
+.popoverPanel .dialog{
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 
-.popoverPanel .dialog{ width: 100%; max-width: none; max-height: none; overflow: visible; }
+  /* damit unten nix von Browser/Safe-Area erschlagen wird */
+  padding-bottom: calc(18px + env(safe-area-inset-bottom));
+}
 
+#helpBackdrop, #donateBackdrop{
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@supports (height: 100dvh) {
+  .popoverPanel{
+    bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+}
+
+@supports (-webkit-touch-callout: none) {
+  .popoverPanel{
+    /* iOS fallback */
+    bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+}
 
 /* =========================
    SIDEBAR (Kapitel/Lesezeichen)
