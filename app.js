@@ -1,9 +1,9 @@
 /* =============================================================
    RSVP Reader - Speed Reading Tool
    (c) 2026 rundskp
-   
+
    NON-COMMERCIAL USE ONLY
-   Dieses Tool ist für den privaten Gebrauch bestimmt. 
+   Dieses Tool ist für den privaten Gebrauch bestimmt.
    Kommerzielle Nutzung oder Weiterverkauf sind untersagt.
    ============================================================= */
 
@@ -26,25 +26,20 @@ console.log("%c[Legal]%c (c) 2026 rundskp. No derivatives allowed. Do not redist
 function setTopbarHeightVar() {
   const tb = document.querySelector('.topbar');
   if (!tb) return;
-  // Misst die echte Höhe (wichtig für den 2-Zeilen-Modus am Handy)
   const h = Math.max(0, tb.offsetHeight || 0);
   document.documentElement.style.setProperty('--topbarH', h + 'px');
 }
 
-// 1. Beim Laden der Seite sofort messen
 window.addEventListener('load', setTopbarHeightVar);
 
-// 2. Bei Größenänderung (z.B. Handy drehen) verzögert messen (Debounce)
-// Das verhindert, dass die Funktion 60-mal pro Sekunde feuert.
 let _tbT = null;
 window.addEventListener('resize', () => {
   clearTimeout(_tbT);
-  _tbT = setTimeout(setTopbarHeightVar, 100); // 100ms Puffer reicht völlig
+  _tbT = setTimeout(setTopbarHeightVar, 100);
 });
 
-// Falls du Bilder/Cover im Header hast, die erst spät laden:
-// Erneut messen, wenn alles fertig gerendert ist
 window.addEventListener('DOMContentLoaded', setTopbarHeightVar);
+
 const $ = (id) => document.getElementById(id);
 
 function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
@@ -143,9 +138,9 @@ const el = {
   btcQrHint: $("btcQrHint"),
 };
 
-
 /* -----------------------------
-   Toast (above everything)
+   Toast + Status
+   - sticky: bleibt stehen bis du was anderes setzt
 ------------------------------ */
 const toastEl = $("toast");
 let _toastT = null;
@@ -158,30 +153,31 @@ function toast(msg, ms = 1400) {
   _toastT = setTimeout(() => toastEl.classList.add("hidden"), ms);
 }
 
-let _statusT = null;
 function setStatus(msg, { sticky = false, toastMs = 1400 } = {}) {
-  // Wenn sticky (z.B. Laden), dann NUR im Status-Feld anzeigen, kein Toast.
-  if (!sticky) {
-    toast(msg, toastMs);
-  }
-  
   if (!el.status) return;
+
   if (sticky) {
-    el.status.textContent = msg;
-    if (_statusT) clearTimeout(_statusT);
-    // Löscht den Text nach 3 Sekunden
-    _statusT = setTimeout(() => { 
-      if (el.status) el.status.textContent = ""; 
-    }, 3000);
+    // NUR Status, bleibt stehen
+    el.status.textContent = msg || "";
+    return;
   }
+
+  // Toast + Status kurz
+  if (msg) toast(msg, toastMs);
+  el.status.textContent = msg || "";
+
+  // Auto-clear nach kurzer Zeit (nur bei non-sticky)
+  setTimeout(() => {
+    if (el.status && el.status.textContent === msg) el.status.textContent = "";
+  }, 2200);
 }
 
 /* -----------------------------
-   DEBUG: missing IDs (Fix für btnExportSelected)
+   DEBUG: missing IDs
 ------------------------------ */
 (() => {
   const missing = Object.entries(el)
-    .filter(([k, v]) => !v && k !== "btnExportSelected") // Ignoriere den alten Button
+    .filter(([k, v]) => !v)
     .map(([k]) => k);
   if (missing.length) console.warn("Missing DOM IDs:", missing);
 })();
@@ -326,13 +322,9 @@ function toggleSelectAllBooks() {
   const checkboxes = document.querySelectorAll(".bookPick");
   if (!checkboxes.length) return;
 
-  // Prüfen, ob bereits alle markiert sind
   const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-  
-  // Wenn alle markiert sind -> alles abwählen. Sonst -> alles auswählen.
   checkboxes.forEach(cb => cb.checked = !allChecked);
-  
-  // Button-Text dynamisch anpassen
+
   if (el.btnSelectAll) {
     el.btnSelectAll.textContent = allChecked ? "Alle auswählen" : "Auswahl aufheben";
   }
@@ -350,7 +342,6 @@ async function deleteSelectedFromLibrary() {
   if (confirm(`${ids.length} Buch/Bücher wirklich dauerhaft löschen?`)) {
     for (const id of ids) {
       await idbDelete(id);
-      // Falls das gerade offene Buch gelöscht wird, Reader leeren
       if (S.book.id === id) {
         S.book.id = null;
         S.words = [];
@@ -359,7 +350,7 @@ async function deleteSelectedFromLibrary() {
         syncHeaderUI();
       }
     }
-    await renderShelf(); // Liste neu zeichnen
+    await renderShelf();
     setStatus(`${ids.length} Buch/Bücher gelöscht.`);
   }
 }
@@ -787,8 +778,8 @@ function setTab(which) {
   } else {
     el.tabMarks.classList.add("active");
     el.tabToc.classList.remove("active");
-    hide(el.tocPane);
     show(el.marksPane);
+    hide(el.tocPane);
   }
 }
 
@@ -814,7 +805,6 @@ function renderToc() {
     div.innerHTML = `<div><b>${escapeHtml(t.label || t.href)}</b></div><div class="small">${start !== null ? `Wort #${start}` : "Kapitel"}</div>`;
     div.addEventListener("click", () => {
       if (start !== null) jumpToIndex(start);
-      // window.__dockClose entfernt: Sidebar bleibt offen ✅
     });
     el.tocList.appendChild(div);
   }
@@ -848,7 +838,7 @@ async function saveBookToLibrary(bookObj) {
 }
 
 async function renderShelf() {
-  if (el.btnSelectAll) el.btnSelectAll.textContent = "Alle auswählen"; // Reset Button Text
+  if (el.btnSelectAll) el.btnSelectAll.textContent = "Alle auswählen";
   try {
     if (!el.shelfList) return;
 
@@ -892,7 +882,7 @@ async function renderShelf() {
       const t = document.createElement("div");
       t.className = "t";
       t.textContent = b.title || "—";
-      card.title = b.title || ""; // Zeigt den vollen Titel beim Drüberfahren (Tooltip)
+      card.title = b.title || "";
 
       top.appendChild(pick);
       top.appendChild(t);
@@ -948,7 +938,7 @@ async function loadBookFromLibrary(id) {
   updateProgressUI();
   showCurrent();
 
-  setStatus(`Geladen: ${S.book.title} (${S.words.length} Wörter)`, { sticky: true, toastMs: 900 });
+  setStatus(`Geladen: ${S.book.title} (${S.words.length} Wörter)`, { sticky: true });
 }
 
 /* -----------------------------
@@ -994,7 +984,7 @@ async function extractCoverDataUrl(book) {
 async function loadEpubFromFile(file) {
   if (typeof window.ePub !== "function") throw new Error("EPUB Engine (epub.js) nicht geladen.");
 
-  setStatus("Lade EPUB…");
+  setStatus("Lade EPUB…", { sticky: true });
   const buf = await file.arrayBuffer();
 
   const book = ePub(buf);
@@ -1030,7 +1020,7 @@ async function loadEpubFromFile(file) {
     if (isNavItem(item)) continue;
     if (!looksLikeHtmlItem(item)) continue;
 
-    setStatus(`Extrahiere Kapitel ${i+1}/${spine.length}… (${kept} gesammelt)`);
+    setStatus(`Extrahiere Kapitel ${i+1}/${spine.length}… (${kept} gesammelt)`, { sticky: true });
 
     await item.load(book.load.bind(book));
     const rawText = cleanDocText(item.document);
@@ -1065,7 +1055,7 @@ async function loadEpubFromFile(file) {
 }
 
 async function loadTxtFromFile(file) {
-  setStatus("Lade TXT…");
+  setStatus("Lade TXT…", { sticky: true });
   const txt = await file.text();
   const words = wordsFromText(txt);
   return {
@@ -1080,708 +1070,15 @@ async function loadTxtFromFile(file) {
 }
 
 /* -----------------------------
-   File handling
+   PDF extraction (pdf.js)
+   - Nur Textlayer. Kein OCR im Browser.
 ------------------------------ */
-async function handleFile(file) {
-  try {
-    stopPlayback();
-    S.words = [];
-    S.idx = 0;
-    S.bookmarks = [];
-
-    await ensurePersistentStorage();
-
-    const ext = (file.name.split(".").pop() || "").toLowerCase();
-    let parsed;
-    if (ext === "epub") parsed = await loadEpubFromFile(file);
-    else if (ext === "txt") parsed = await loadTxtFromFile(file);
-    else if (ext === "pdf") parsed = await loadPdfFromFile(file);
-    else throw new Error("Bitte .epub, .txt oder .pdf laden.");
-
-    const existing = await idbGet(parsed.id);
-    const idx = existing?.idx ?? 0;
-    const marks = existing?.bookmarks ?? [];
-
-    S.book.id = parsed.id;
-    S.book.title = parsed.title || "—";
-    S.book.author = parsed.author || "—";
-    S.book.coverDataUrl = parsed.coverDataUrl || "";
-    S.book.chapters = parsed.chapters || [];
-    S.book.toc = parsed.toc || [];
-
-    S.words = parsed.words || [];
-    S.idx = clamp(idx, 0, Math.max(0, S.words.length - 1));
-    S.bookmarks = marks;
-
-    syncHeaderUI();
-    renderToc();
-    renderBookmarks();
-    updateProgressUI();
-    showCurrent();
-
-    await saveBookToLibrary({
-      id: parsed.id,
-      title: S.book.title,
-      author: S.book.author,
-      coverDataUrl: S.book.coverDataUrl,
-      words: S.words,
-      chapters: S.book.chapters,
-      toc: S.book.toc,
-      idx: S.idx,
-      bookmarks: S.bookmarks,
-      createdAt: existing?.createdAt || Date.now(),
-      updatedAt: Date.now(),
-    });
-
-    setStatus(`Geladen: ${S.book.title} (${S.words.length} Wörter)`, { sticky: true, toastMs: 900 });
-  } catch (e) {
-  // PDF ohne Textlayer (Scan ohne OCR)
-  if (e?.code === "PDF_NO_TEXT" || e?.message === "PDF_NO_TEXT") {
-    setStatus("PDF enthält keinen Text (OCR nötig).");
-    alert("Kein Text erkannt.\n\nDieses PDF ist vermutlich nur ein Scan/Bild.\nBitte in Quick Scan OCR aktivieren und als durchsuchbares PDF exportieren.");
-  } else if (e?.message === "PDFJS_NOT_LOADED") {
-    setStatus("pdf.js fehlt in /lib.");
-    alert("pdf.js fehlt.\n\nLege lib/pdf.min.js und lib/pdf.worker.min.js ab und binde sie in index.html ein.");
-  } else {
-    setStatus(`Fehler: ${e?.message || e}`);
-  }
-
-  console.error(e);
-  S.words = [];
-  updateProgressUI();
-  showCurrent();
-}
-}
-
-/* -----------------------------
-   Help content
------------------------------- */
-function buildHelpHtml() {
-  const lines = [
-    `<div class="h">Schnellstart</div>
-     <div class="b">Tippe <span class="k">Datei laden</span>, wähle ein <span class="k">.epub</span> oder <span class="k">.txt</span>. Danach mit <span class="k">Play</span> starten.</div>`,
-    `<div class="h">Tippen im Lesefeld</div>
-     <div class="b">Links = zurück, Mitte = Play/Pause, rechts = vor.</div>`,
-    `<div class="h">Sidebar ☰</div>
-     <div class="b"><span class="k">Kapitel</span> zeigt den Index (wenn im EPUB vorhanden). <span class="k">Lesezeichen</span> sind Sprungmarken.</div>`,
-    `<div class="h">Lesezeichen 🔖</div>
-     <div class="b">Setzt ein Lesezeichen bei der aktuellen Wortposition. In der Sidebar kannst du direkt hinspringen.</div>`,
-    `<div class="h">Cover/Titel 🛈</div>
-     <div class="b">Zeigt Cover + Titel + Fortschritt.</div>`,
-    `<div class="h">Einstellungen ⚙︎</div>
-     <div class="b">WPM = Geschwindigkeit, Chunk = mehrere Wörter pro Anzeige, ORP = Fokus-Buchstabe, Satzzeichenpause = Extra-Zeit bei Punkt/Komma.</div>`,
-    `<div class="h">Auto-Stop</div>
-     <div class="b">Stoppt am Kapitelende oder nach X Wörtern oder nach X Minuten – aber immer erst am Satzende.</div>`,
-    `<div class="h">Bibliothek 📚</div>
-     <div class="b">Gelesene Bücher werden offline gespeichert (inkl. Cover & Lesezeichen).</div>`,
-    `<div class="h">Wenn etwas „weg“ ist</div>
-     <div class="b">Privater Modus blockt/killt Speicher. Am besten als Home-Screen-App nutzen.</div>`,
-  ];
-  return lines.join("");
-}
-
-/* -----------------------------
-   Donate helpers
------------------------------- */
-/* !!! RECHTLICHER WARNHINWEIS !!!
-   Das Ändern dieser Adressen und die anschließende Verbreitung des Tools 
-   verstößt gegen die CC BY-NC-ND 4.0 Lizenz und ist streng untersagt. 
-   Support the original creator: rundskp */
-const DONATE = {
-  paypal: "https://paypal.me/rophko",
-  btc: "bc1qwr08y9ngmvplpr8tuk4w34rl4pkryur8u4cf5f"
-};
-
-
-function qrUrl(data) {
-  return "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" + encodeURIComponent(data);
-}
-
-async function copyToClipboard(text) {
-  try {
-    await navigator.clipboard.writeText(text);
-    setStatus("Kopiert ✅");
-  } catch {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand("copy");
-    ta.remove();
-    setStatus("Kopiert ✅");
-  }
-}
-
-/* -----------------------------
-   Bind UI (NO panel toggling here!)
------------------------------- */
-function bindUI() {
-  // Feedback-Helper für Knöpfe
-  const addFeedback = (btn) => {
-    if (!btn) return;
-    btn.classList.remove("btn-feedback");
-    void btn.offsetWidth; // Zwingt den Browser zum Neustart der Animation
-    btn.classList.add("btn-feedback");
-  };
-  
-  // file
-  el.file?.addEventListener("change", (ev) => {
-    const f = ev.target.files?.[0];
-    if (f) handleFile(f);
-    ev.target.value = "";
-  });
-
-  // export/import
-  el.btnExportAll?.addEventListener("click", () => exportLibrary({ mode: "all" }));
-  // Zweiter Speicher-Button für Mobile-Layout
-  document.getElementById("btnExportAllMobile")?.addEventListener("click", () => exportLibrary({ mode: "all" }));
-  el.btnExportSelected?.addEventListener("click", () => exportLibrary({ mode: "selected" }));
-  el.importFile?.addEventListener("change", (ev) => {
-    const f = ev.target.files?.[0];
-    if (f) importLibraryFromJsonFile(f);
-    ev.target.value = "";
-  });
-  el.btnSelectAll?.addEventListener("click", toggleSelectAllBooks);
-  el.btnDeleteSelected?.addEventListener("click", deleteSelectedFromLibrary);
-
-// player buttons mit Feedback
-  el.btnPlay?.addEventListener("click", () => { togglePlay(); addFeedback(el.btnPlay); });
-  el.btnBack?.addEventListener("click", () => { step(-1); addFeedback(el.btnBack); });
-  el.btnFwd?.addEventListener("click", () => { step(+1); addFeedback(el.btnFwd); });
-  el.btnBookmark?.addEventListener("click", () => { addBookmarkAtCurrent(); addFeedback(el.btnBookmark); });
-
-  // seek
-  el.seek?.addEventListener("input", () => {
-    stopPlayback();
-    S.idx = Number(el.seek.value);
-    showCurrent();
-    persistCurrentBookState().catch(()=>{});
-  });
-
-  // tap zones
-  el.display?.addEventListener("click", (ev) => {
-    const r = el.display.getBoundingClientRect();
-    const x = ev.clientX - r.left;
-    const third = r.width / 3;
-    if (x < third) step(-1);
-    else if (x > 2 * third) step(+1);
-    else togglePlay();
-  });
-
-  // tabs in sidebar
-  el.tabToc?.addEventListener("click", () => setTab("toc"));
-  el.tabMarks?.addEventListener("click", () => setTab("marks"));
-// Schließen-Logik für das mobile Sidebar-X
-  const btnCloseMob = $("btnSidebarCloseMobile");
-  if(btnCloseMob) {
-    btnCloseMob.addEventListener("click", () => {
-      if (window.__dockClose) window.__dockClose("sidebar");
-    });
-  }
-
-  // settings live updates
-  el.wpm?.addEventListener("input", () => {
-    S.settings.wpm = Number(el.wpm.value);
-    if (el.wpmVal) el.wpmVal.textContent = String(S.settings.wpm);
-    if (el.wpmSettingVal) el.wpmSettingVal.textContent = String(S.settings.wpm);
-  });
-
-  el.chunk?.addEventListener("input", () => {
-    S.settings.chunk = Number(el.chunk.value);
-    if (el.chunkVal) el.chunkVal.textContent = String(S.settings.chunk);
-  });
-
-  el.orp?.addEventListener("change", () => { S.settings.orp = el.orp.checked; showCurrent(); });
-  el.punct?.addEventListener("change", () => { S.settings.punct = el.punct.checked; });
-  el.punctMs?.addEventListener("input", () => { S.settings.punctMs = Number(el.punctMs.value); if (el.punctVal) el.punctVal.textContent = String(S.settings.punctMs); });
-
-  el.stopChapter?.addEventListener("change", () => { S.settings.stopChapter = el.stopChapter.checked; });
-  el.stopWordsOn?.addEventListener("change", () => { S.settings.stopWordsOn = el.stopWordsOn.checked; });
-  el.stopWords?.addEventListener("input", () => { S.settings.stopWords = Number(el.stopWords.value || 0); });
-  el.stopMinsOn?.addEventListener("change", () => { S.settings.stopMinsOn = el.stopMinsOn.checked; });
-  el.stopMins?.addEventListener("input", () => { S.settings.stopMins = Number(el.stopMins.value || 0); });
-
-  // save/load buttons
-  el.btnSaveSettings?.addEventListener("click", () => {
-    readSettingsFromUI();
-    saveSettingsToLS();
-    applySettingsToUI();
-    setStatus("Einstellungen gespeichert ✅", { toastMs: 1100 });
-  });
-  el.btnLoadSettings?.addEventListener("click", () => {
-    loadSettingsFromLS();
-    applySettingsToUI();
-    setStatus("Einstellungen geladen ✅", { toastMs: 1100 });
-  });
-
-  // Donate QR + copy
-  el.btnPaypalQR?.addEventListener("click", () => {
-    const u = DONATE.paypal;
-    if (!el.paypalQrImg || !el.paypalQrWrap) return;
-
-    el.paypalQrImg.onerror = () => { if (el.paypalQrHint) el.paypalQrHint.textContent = "QR konnte nicht geladen werden (Netz/Blocker)."; };
-    el.paypalQrImg.src = qrUrl(u);
-    el.paypalQrWrap.style.display = "block";
-    if (el.paypalQrHint) el.paypalQrHint.textContent = "";
-  });
-
-  el.btnCopyBtc?.addEventListener("click", () => copyToClipboard(DONATE.btc));
-
-  el.btnBtcQR?.addEventListener("click", () => {
-    const uri = "bitcoin:" + DONATE.btc;
-    if (!el.btcQrImg || !el.btcQrWrap) return;
-
-    el.btcQrImg.onerror = () => { if (el.btcQrHint) el.btcQrHint.textContent = "QR konnte nicht geladen werden (Netz/Blocker)."; };
-    el.btcQrImg.src = qrUrl(uri);
-    el.btcQrWrap.style.display = "block";
-    if (el.btcQrHint) el.btcQrHint.textContent = "";
-  });
-  // Zweiter Speicher-Button für Mobile-Layout
-  document.getElementById("btnExportAllMobile")?.addEventListener("click", () => exportLibrary({ mode: "all" }));
-}
-
-/* =====================================================
-   Dock + Popover Panels (ONE source of truth)
-   - Dock: sidebar / shelf => toggle
-   - Header: toggles #headerInfo (not a panel)
-   - Popover: settings / help / donate => open under button, close only via X
-===================================================== */
-
-let _dockPanelsInited = false;
-
-function initDockPanels() {
-  if (_dockPanelsInited) return;
-  _dockPanelsInited = true;
-
-  // Buttons finden + alte Listener killen (wichtig wenn du öfter reloadest / hot-swappst)
-  let buttons = [...document.querySelectorAll(".topBtn[data-panel]")];
-  buttons = buttons.map((btn) => {
-    const clone = btn.cloneNode(true);
-    btn.replaceWith(clone);
-    return clone;
-  });
-
-  // Panels finden
-  const panels = [...document.querySelectorAll("[data-panel-id]")];
-  const panelById = (id) => panels.find(p => p.dataset.panelId === id);
-
-  // Dock toggles
-  const DOCK_TOGGLES = new Set(["sidebar", "shelf"]);
-  // Popovers
-  const POPOVERS = new Set(["settings", "help", "donate"]);
-
-  const isVisible = (p) => !p.classList.contains("hidden");
-
-  const showWithAnim = (p) => {
-    p.classList.remove("hidden");
-    p.hidden = false;
-    requestAnimationFrame(() => p.classList.add("isOpen"));
-  };
-
-  const hideWithAnim = (p) => {
-    p.classList.remove("isOpen");
-    setTimeout(() => {
-      p.classList.add("hidden");
-      p.hidden = true;
-    }, 160);
-  };
-
-  // Sidebar kuerzen wenn Shelf offen (damit Bottombar nicht überlagert)
-  // --- Shelf safe area: misst echte Shelf-Höhe automatisch
-    function setShelfSafe(on) {
-      const shelfEl =
-        document.querySelector('[data-panel-id="shelf"]') ||
-        document.getElementById("shelf");
-
-      if (!on || !shelfEl) {
-        document.documentElement.style.setProperty("--shelfSafe", "0px");
-        return;
-      }
-
-      // Falls Shelf noch animiert/öffnet: nach dem Render messen
-      requestAnimationFrame(() => {
-        const r = shelfEl.getBoundingClientRect();
-        const h = Math.max(0, Math.round(r.height));
-        // +12px Luft, damit nix “küsst”
-        document.documentElement.style.setProperty("--shelfSafe", `${h + 12}px`);
-      });
-    }
-
-
-    const openDock = (p, btn) => {
-        setTopbarHeightVar(); // <--- Füge diese Zeile hier ein!
-        showWithAnim(p);
-        btn?.classList.add("isActive");
-        if (p.dataset.panelId === "shelf") setShelfSafe(true);
-      };
-
-  const closeDock = (p, btn) => {
-    hideWithAnim(p);
-    btn?.classList.remove("isActive");
-    if (p.dataset.panelId === "shelf") setShelfSafe(false);
-  };
-
-  // Popover positioning
-const positionPopoverUnderButton = (p, btn) => {
-    const r = btn.getBoundingClientRect();
-
-    // Reset der Styles
-    p.style.left = "0px";
-    p.style.right = "auto";
-
-    // 1. Horizontale Positionierung (bleibt am Button orientiert)
-    let left = r.left;
-    const maxLeft = window.innerWidth - p.offsetWidth - 12;
-    left = Math.max(12, Math.min(left, maxLeft));
-    p.style.left = `${left}px`;
-
-    // 2. Vertikale Positionierung (jetzt identisch mit der Sidebar)
-    // Wir nutzen den gleichen Wert wie in der style.css für .panel
-    p.style.top = "calc(var(--topbarH) + 14px)";
-  };
-
-  const openPopover = (p, btn, id) => {
-    if (id === "help" && el.helpBody) el.helpBody.innerHTML = buildHelpHtml();
-    if (id === "donate") {
-      if (el.btcAddr) el.btcAddr.textContent = DONATE.btc;
-      if (el.paypalQrWrap) el.paypalQrWrap.style.display = "none";
-      if (el.btcQrWrap) el.btcQrWrap.style.display = "none";
-      if (el.paypalQrHint) el.paypalQrHint.textContent = "";
-      if (el.btcQrHint) el.btcQrHint.textContent = "";
-    }
-
-    showWithAnim(p);
-    requestAnimationFrame(() => positionPopoverUnderButton(p, btn));
-    btn?.classList.add("isActive");
-  };
-
-  const closePopover = (p, btn) => {
-    hideWithAnim(p);
-    btn?.classList.remove("isActive");
-  };
-
-  // expose close helper (used by TOC)
-  window.__dockClose = (id) => {
-    const p = panelById(id);
-    const b = document.querySelector(`.topBtn[data-panel="${id}"]`);
-    if (!p) return;
-    if (POPOVERS.has(id)) closePopover(p, b);
-    else closeDock(p, b);
-  };
-
-  // X buttons only (no outside click)
-  const hookClose = (closeEl, panelId, btnId) => {
-    if (!closeEl) return;
-    closeEl.addEventListener("click", (e) => {
-      e.preventDefault();
-      const p = panelById(panelId);
-      const b = document.getElementById(btnId);
-      if (!p) return;
-      closePopover(p, b);
-    });
-  };
-
-  hookClose(el.btnSettingsClose, "settings", "btnSettings");
-  hookClose(el.btnHelpClose, "help", "btnHelp");
-  hookClose(el.btnDonateClose, "donate", "btnDonate");
-
-  // Top buttons
-  buttons.forEach(btn => {
-    btn.addEventListener("click", (e) => {
-      e.preventDefault();
-
-      const id = btn.dataset.panel;
-
-      // Header toggle: only toggles headerInfo
-      if (id === "header") {
-        if (!el.headerInfo) return;
-        const willShow = el.headerInfo.classList.contains("hidden");
-        willShow ? show(el.headerInfo) : hide(el.headerInfo);
-        btn.classList.toggle("isActive", willShow);
-        return;
-      }
-
-      const p = panelById(id);
-      if (!p) return;
-
-      if (DOCK_TOGGLES.has(id)) {
-        isVisible(p) ? closeDock(p, btn) : openDock(p, btn);
-        return;
-      }
-
-      if (POPOVERS.has(id)) {
-        isVisible(p) ? closePopover(p, btn) : openPopover(p, btn, id);
-        return;
-      }
-    });
-  });
-
-  // reposition open popovers on resize/scroll
-  const repositionOpenPopovers = () => {
-    for (const id of POPOVERS) {
-      const p = panelById(id);
-      if (!p || !isVisible(p)) continue;
-      const btn = document.querySelector(`.topBtn[data-panel="${id}"]`);
-      if (btn) positionPopoverUnderButton(p, btn);
-    }
-  };
-  window.addEventListener("resize", repositionOpenPopovers, { passive: true });
-  window.addEventListener("scroll", repositionOpenPopovers, { passive: true });
-
-  // safety start state
-  setShelfSafe(false);
-}
-
-/* -----------------------------
-   Share Target / Shortcut Handler
-   (FINAL & ROBUST: Overlay verschwindet IMMER)
------------------------------- */
-
-// 1. Der Import
-async function performClipboardImport(titleOverride) {
-  const overlay = document.getElementById("importOverlay");
-  
-  try {
-    const text = await navigator.clipboard.readText();
-    
-    // Check: Ist überhaupt Text da?
-    if (!text || !text.trim()) {
-      setStatus("Zwischenablage ist leer!");
-      return;
-    }
-
-    const words = wordsFromText(text);
-    if (!words.length) {
-      setStatus("Kein lesbarer Text gefunden.");
-      return;
-    }
-
-    // Duplikat-Check: Haben wir das Buch schon?
-    let bookIdToLoad;
-    try {
-      const allBooks = await idbGetAll();
-      const existing = allBooks.find(b => 
-        (b.title === titleOverride || b.title === "Geteilter Artikel") && 
-        b.words.length === words.length
-      );
-      if (existing) bookIdToLoad = existing.id;
-    } catch(e) {}
-
-    // Wenn neu, dann speichern
-    if (!bookIdToLoad) {
-      const newId = `share_${Date.now()}`;
-      bookIdToLoad = newId;
-      await saveBookToLibrary({
-        id: newId,
-        title: titleOverride || "Geteilter Artikel",
-        author: "Import",
-        coverDataUrl: "", 
-        words: words,
-        chapters: [],
-        toc: [],
-        idx: 0,
-        bookmarks: [],
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      });
-    }
-
-    await loadBookFromLibrary(bookIdToLoad);
-    
-    // Alles schließen
-    document.querySelectorAll(".isActive").forEach(b => b.classList.remove("isActive"));
-    document.querySelectorAll(".panel, .popoverPanel").forEach(p => {
-       p.classList.remove("isOpen"); p.classList.add("hidden");
-    });
-
-  } catch (e) {
-    console.error(e);
-    alert("Import-Fehler: " + e.message);
-  } finally {
-    // WICHTIG: Das Overlay MUSS weg, egal was passiert
-    if (overlay) overlay.remove();
-  }
-}
-
-// 2. Das Overlay (Grüner Knopf)
-function showImportOverlay(title) {
-  const old = document.getElementById("importOverlay");
-  if (old) old.remove();
-
-  const overlay = document.createElement("div");
-  overlay.id = "importOverlay";
-  Object.assign(overlay.style, {
-    position: "fixed", inset: "0", zIndex: "10000",
-    background: "rgba(11, 12, 16, 0.98)",
-    display: "flex", flexDirection: "column",
-    alignItems: "center", justifyContent: "center",
-    cursor: "pointer", textAlign: "center", padding: "20px"
-  });
-
-  overlay.innerHTML = `
-    <div style="font-size:60px; margin-bottom:20px;">📋</div>
-    <div style="font-size:24px; font-weight:bold; color:#fff; margin-bottom:10px;">
-      Import bereit
-    </div>
-    <div style="color:#aaa; margin-bottom:40px; max-width:80%;">
-      "${escapeHtml(title || 'Artikel')}"
-    </div>
-    <div style="padding:16px 32px; background:#7ee787; color:#000; border-radius:12px; font-weight:bold; font-size:18px;">
-      HIER TIPPEN
-    </div>
-  `;
-
-  overlay.addEventListener("click", () => {
-    // Feedback, dass geklickt wurde
-    overlay.style.opacity = "0.5";
-    setStatus("Lese Zwischenablage...", { sticky: true });
-    // Minimaler Timeout, damit UI rendert
-    setTimeout(() => performClipboardImport(title), 50);
-  });
-  
-  document.body.appendChild(overlay);
-}
-
-// 3. URL Handler
-async function handleSharedContent() {
-  const params = new URLSearchParams(window.location.search);
-  const importMode = params.get("import"); 
-  const sharedTitle = params.get("title");
-  const directText = params.get("text");
-  const importUrl = params.get("import_url");
-  if (importUrl && importUrl.toLowerCase().includes(".pdf")) {
-    // URL cleanen
-    window.history.replaceState({}, document.title, window.location.pathname);
-
-    try {
-      setStatus("Lade PDF aus dem Netz…", { sticky: true });
-
-      const res = await fetch(importUrl);
-      if (!res.ok) throw new Error("PDF_FETCH_FAILED");
-
-      const blob = await res.blob();
-
-      // iOS/Safari mag File() manchmal – so füttern wir den gleichen Parser wie lokal
-      const f = new File([blob], "import.pdf", { type: "application/pdf" });
-
-      const parsed = await loadPdfFromFile(f);
-
-      // Speichern + laden wie bei EPUB/TXT
-      await saveBookToLibrary({
-        id: parsed.id,
-        title: parsed.title || "PDF Import",
-        author: parsed.author || "Import",
-        coverDataUrl: "",
-        words: parsed.words,
-        chapters: [],
-        toc: [],
-        idx: 0,
-        bookmarks: [],
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      });
-
-      await loadBookFromLibrary(parsed.id);
-      setStatus(`Geladen: ${parsed.title} (${parsed.words.length} Wörter)`, { sticky: true, toastMs: 900 });
-      return;
-    } catch (e) {
-      console.error(e);
-      setStatus("PDF konnte nicht geladen werden (CORS?).");
-      alert(
-        "PDF konnte nicht direkt importiert werden.\n\n" +
-        "Manche Webseiten blocken das (CORS).\n" +
-        "Workaround: PDF in 'Dateien' speichern und im Reader über 'Datei laden' öffnen."
-      );
-      return;
-    }
-  }
-  if (importMode || directText) {
-    window.history.replaceState({}, document.title, window.location.pathname);
-  }
-// PDF via URL (import_url)
-const importUrl = params.get("import_url");
-if (importUrl && importUrl.toLowerCase().endsWith(".pdf")) {
-  window.history.replaceState({}, document.title, window.location.pathname);
-
-  try {
-    setStatus("Lade PDF aus dem Netz…", { sticky: true });
-
-    const res = await fetch(importUrl);
-    if (!res.ok) throw new Error("PDF_FETCH_FAILED");
-
-    const blob = await res.blob();
-    const file = new File([blob], "shared.pdf", { type: "application/pdf" });
-
-    const parsed = await loadPdfFromFile(file);
-
-    await saveBookToLibrary({
-      ...parsed,
-      idx: 0,
-      bookmarks: [],
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
-
-    await loadBookFromLibrary(parsed.id);
-    return;
-  } catch (e) {
-    setStatus(
-      "PDF konnte nicht geladen werden (CORS). Bitte in Dateien speichern und lokal importieren."
-    );
-    return;
-  }
-}
-  // Fall A: Shortcut (via Clipboard)
-  if (importMode === "clipboard") {
-    showImportOverlay(sharedTitle);
-    return;
-  }
-
-  // Fall B: Legacy
-  if (directText) {
-    const words = wordsFromText(directText);
-    if (!words.length) return;
-    const newId = `url_${Date.now()}`;
-    await saveBookToLibrary({
-      id: newId, title: sharedTitle || "URL Text", author: "Import",
-      coverDataUrl: "", words: words, chapters: [], toc: [], idx: 0, bookmarks: [],
-      createdAt: Date.now(), updatedAt: Date.now(),
-    });
-    await loadBookFromLibrary(newId);
-  }
-}
-
-/* -----------------------------
-   Boot
------------------------------- */
-(async function boot() {
-  setTopbarHeightVar();
-  try { bindUI(); } catch (e) {}
-  initDockPanels();
-  try { await ensurePersistentStorage(); } catch (e) {}
-  try { loadSettingsFromLS(); } catch(e){}
-  try { applySettingsToUI(); } catch(e){}
-
-  setTab("toc");
-  updateProgressUI();
-  showCurrent();
-
-  try { await renderShelf(); } catch(e){}
-
-  // Check auf Import
-  await handleSharedContent();
-
-  if (!S.book.id) {
-    setStatus("Warte auf Datei…");
-  }
-})().catch((e) => {
-  console.error(e);
-  setStatus("Boot-Fehler");
-});
-
-/*–––PDF---*/
 async function loadPdfFromFile(file) {
-  if (!window.pdfjsLib) throw new Error("PDFJS_NOT_LOADED");
+  if (!window.pdfjsLib) {
+    const e = new Error("PDFJS_NOT_LOADED");
+    e.code = "PDFJS_NOT_LOADED";
+    throw e;
+  }
 
   setStatus("Lade PDF…", { sticky: true });
 
@@ -1828,3 +1125,634 @@ async function loadPdfFromFile(file) {
     toc: [],
   };
 }
+
+/* -----------------------------
+   File handling
+------------------------------ */
+async function handleFile(file) {
+  try {
+    stopPlayback();
+    S.words = [];
+    S.idx = 0;
+    S.bookmarks = [];
+
+    await ensurePersistentStorage();
+
+    const ext = (file.name.split(".").pop() || "").toLowerCase();
+    let parsed;
+
+    if (ext === "epub") parsed = await loadEpubFromFile(file);
+    else if (ext === "txt") parsed = await loadTxtFromFile(file);
+    else if (ext === "pdf") parsed = await loadPdfFromFile(file);
+    else throw new Error("Bitte .epub, .txt oder .pdf laden.");
+
+    const existing = await idbGet(parsed.id);
+    const idx = existing?.idx ?? 0;
+    const marks = existing?.bookmarks ?? [];
+
+    S.book.id = parsed.id;
+    S.book.title = parsed.title || "—";
+    S.book.author = parsed.author || "—";
+    S.book.coverDataUrl = parsed.coverDataUrl || "";
+    S.book.chapters = parsed.chapters || [];
+    S.book.toc = parsed.toc || [];
+
+    S.words = parsed.words || [];
+    S.idx = clamp(idx, 0, Math.max(0, S.words.length - 1));
+    S.bookmarks = marks;
+
+    syncHeaderUI();
+    renderToc();
+    renderBookmarks();
+    updateProgressUI();
+    showCurrent();
+
+    await saveBookToLibrary({
+      id: parsed.id,
+      title: S.book.title,
+      author: S.book.author,
+      coverDataUrl: S.book.coverDataUrl,
+      words: S.words,
+      chapters: S.book.chapters,
+      toc: S.book.toc,
+      idx: S.idx,
+      bookmarks: S.bookmarks,
+      createdAt: existing?.createdAt || Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    setStatus(`Geladen: ${S.book.title} (${S.words.length} Wörter)`, { sticky: true });
+  } catch (e) {
+    console.error(e);
+
+    if (e?.code === "PDF_NO_TEXT" || e?.message === "PDF_NO_TEXT") {
+      setStatus("PDF enthält keinen Text (OCR nötig).", { sticky: true });
+      alert(
+        "Kein Text erkannt.\n\n" +
+        "Dieses PDF ist vermutlich ein Scan/Bild.\n" +
+        "Bitte in Quick Scan OCR aktivieren und als 'durchsuchbares PDF' exportieren."
+      );
+    } else if (e?.code === "PDFJS_NOT_LOADED" || e?.message === "PDFJS_NOT_LOADED") {
+      setStatus("pdf.js fehlt in /lib.", { sticky: true });
+      alert(
+        "pdf.js fehlt.\n\n" +
+        "Lege lib/pdf.min.js und lib/pdf.worker.min.js ab\n" +
+        "und binde sie in index.html VOR app.js ein."
+      );
+    } else {
+      setStatus(`Fehler: ${e?.message || e}`, { sticky: true });
+    }
+
+    S.words = [];
+    updateProgressUI();
+    showCurrent();
+  }
+}
+
+/* -----------------------------
+   Help content
+------------------------------ */
+function buildHelpHtml() {
+  const lines = [
+    `<div class="h">Schnellstart</div>
+     <div class="b">Tippe <span class="k">Datei laden</span>, wähle ein <span class="k">.epub</span>, <span class="k">.txt</span> oder <span class="k">.pdf</span>. Danach mit <span class="k">Play</span> starten.</div>`,
+    `<div class="h">PDF Hinweis</div>
+     <div class="b">PDFs ohne Textlayer (Scan/Bild) können nicht gelesen werden. Bitte vorher OCR (z.B. Quick Scan → durchsuchbares PDF).</div>`,
+    `<div class="h">Tippen im Lesefeld</div>
+     <div class="b">Links = zurück, Mitte = Play/Pause, rechts = vor.</div>`,
+    `<div class="h">Sidebar ☰</div>
+     <div class="b"><span class="k">Kapitel</span> zeigt den Index (wenn im EPUB vorhanden). <span class="k">Lesezeichen</span> sind Sprungmarken.</div>`,
+    `<div class="h">Lesezeichen 🔖</div>
+     <div class="b">Setzt ein Lesezeichen bei der aktuellen Wortposition. In der Sidebar kannst du direkt hinspringen.</div>`,
+    `<div class="h">Cover/Titel 🛈</div>
+     <div class="b">Zeigt Cover + Titel + Fortschritt.</div>`,
+    `<div class="h">Einstellungen ⚙︎</div>
+     <div class="b">WPM = Geschwindigkeit, Chunk = mehrere Wörter pro Anzeige, ORP = Fokus-Buchstabe, Satzzeichenpause = Extra-Zeit bei Punkt/Komma.</div>`,
+    `<div class="h">Auto-Stop</div>
+     <div class="b">Stoppt am Kapitelende oder nach X Wörtern oder nach X Minuten – aber immer erst am Satzende.</div>`,
+    `<div class="h">Bibliothek 📚</div>
+     <div class="b">Gelesene Bücher werden offline gespeichert (inkl. Cover & Lesezeichen).</div>`,
+    `<div class="h">Wenn etwas „weg“ ist</div>
+     <div class="b">Privater Modus blockt/killt Speicher. Am besten als Home-Screen-App nutzen.</div>`,
+  ];
+  return lines.join("");
+}
+
+/* -----------------------------
+   Donate helpers
+------------------------------ */
+const DONATE = {
+  paypal: "https://paypal.me/rophko",
+  btc: "bc1qwr08y9ngmvplpr8tuk4w34rl4pkryur8u4cf5f"
+};
+
+function qrUrl(data) {
+  return "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" + encodeURIComponent(data);
+}
+
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    setStatus("Kopiert ✅");
+  } catch {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+    setStatus("Kopiert ✅");
+  }
+}
+
+/* -----------------------------
+   Bind UI
+------------------------------ */
+function bindUI() {
+  const addFeedback = (btn) => {
+    if (!btn) return;
+    btn.classList.remove("btn-feedback");
+    void btn.offsetWidth;
+    btn.classList.add("btn-feedback");
+  };
+
+  el.file?.addEventListener("change", (ev) => {
+    const f = ev.target.files?.[0];
+    if (f) handleFile(f);
+    ev.target.value = "";
+  });
+
+  el.btnExportAll?.addEventListener("click", () => exportLibrary({ mode: "all" }));
+  document.getElementById("btnExportAllMobile")?.addEventListener("click", () => exportLibrary({ mode: "all" }));
+
+  // (btnExportSelected existiert in deiner HTML nicht mehr -> optional chaining wäre ok, lassen wir weg)
+
+  el.importFile?.addEventListener("change", (ev) => {
+    const f = ev.target.files?.[0];
+    if (f) importLibraryFromJsonFile(f);
+    ev.target.value = "";
+  });
+
+  el.btnSelectAll?.addEventListener("click", toggleSelectAllBooks);
+  el.btnDeleteSelected?.addEventListener("click", deleteSelectedFromLibrary);
+
+  el.btnPlay?.addEventListener("click", () => { togglePlay(); addFeedback(el.btnPlay); });
+  el.btnBack?.addEventListener("click", () => { step(-1); addFeedback(el.btnBack); });
+  el.btnFwd?.addEventListener("click", () => { step(+1); addFeedback(el.btnFwd); });
+  el.btnBookmark?.addEventListener("click", () => { addBookmarkAtCurrent(); addFeedback(el.btnBookmark); });
+
+  el.seek?.addEventListener("input", () => {
+    stopPlayback();
+    S.idx = Number(el.seek.value);
+    showCurrent();
+    persistCurrentBookState().catch(()=>{});
+  });
+
+  el.display?.addEventListener("click", (ev) => {
+    const r = el.display.getBoundingClientRect();
+    const x = ev.clientX - r.left;
+    const third = r.width / 3;
+    if (x < third) step(-1);
+    else if (x > 2 * third) step(+1);
+    else togglePlay();
+  });
+
+  el.tabToc?.addEventListener("click", () => setTab("toc"));
+  el.tabMarks?.addEventListener("click", () => setTab("marks"));
+
+  const btnCloseMob = $("btnSidebarCloseMobile");
+  if(btnCloseMob) {
+    btnCloseMob.addEventListener("click", () => {
+      if (window.__dockClose) window.__dockClose("sidebar");
+    });
+  }
+
+  el.wpm?.addEventListener("input", () => {
+    S.settings.wpm = Number(el.wpm.value);
+    if (el.wpmVal) el.wpmVal.textContent = String(S.settings.wpm);
+    if (el.wpmSettingVal) el.wpmSettingVal.textContent = String(S.settings.wpm);
+  });
+
+  el.chunk?.addEventListener("input", () => {
+    S.settings.chunk = Number(el.chunk.value);
+    if (el.chunkVal) el.chunkVal.textContent = String(S.settings.chunk);
+  });
+
+  el.orp?.addEventListener("change", () => { S.settings.orp = el.orp.checked; showCurrent(); });
+  el.punct?.addEventListener("change", () => { S.settings.punct = el.punct.checked; });
+  el.punctMs?.addEventListener("input", () => { S.settings.punctMs = Number(el.punctMs.value); if (el.punctVal) el.punctVal.textContent = String(S.settings.punctMs); });
+
+  el.stopChapter?.addEventListener("change", () => { S.settings.stopChapter = el.stopChapter.checked; });
+  el.stopWordsOn?.addEventListener("change", () => { S.settings.stopWordsOn = el.stopWordsOn.checked; });
+  el.stopWords?.addEventListener("input", () => { S.settings.stopWords = Number(el.stopWords.value || 0); });
+  el.stopMinsOn?.addEventListener("change", () => { S.settings.stopMinsOn = el.stopMinsOn.checked; });
+  el.stopMins?.addEventListener("input", () => { S.settings.stopMins = Number(el.stopMins.value || 0); });
+
+  el.btnSaveSettings?.addEventListener("click", () => {
+    readSettingsFromUI();
+    saveSettingsToLS();
+    applySettingsToUI();
+    setStatus("Einstellungen gespeichert ✅");
+  });
+
+  el.btnLoadSettings?.addEventListener("click", () => {
+    loadSettingsFromLS();
+    applySettingsToUI();
+    setStatus("Einstellungen geladen ✅");
+  });
+
+  el.btnPaypalQR?.addEventListener("click", () => {
+    const u = DONATE.paypal;
+    if (!el.paypalQrImg || !el.paypalQrWrap) return;
+
+    el.paypalQrImg.onerror = () => { if (el.paypalQrHint) el.paypalQrHint.textContent = "QR konnte nicht geladen werden (Netz/Blocker)."; };
+    el.paypalQrImg.src = qrUrl(u);
+    el.paypalQrWrap.style.display = "block";
+    if (el.paypalQrHint) el.paypalQrHint.textContent = "";
+  });
+
+  el.btnCopyBtc?.addEventListener("click", () => copyToClipboard(DONATE.btc));
+
+  el.btnBtcQR?.addEventListener("click", () => {
+    const uri = "bitcoin:" + DONATE.btc;
+    if (!el.btcQrImg || !el.btcQrWrap) return;
+
+    el.btcQrImg.onerror = () => { if (el.btcQrHint) el.btcQrHint.textContent = "QR konnte nicht geladen werden (Netz/Blocker)."; };
+    el.btcQrImg.src = qrUrl(uri);
+    el.btcQrWrap.style.display = "block";
+    if (el.btcQrHint) el.btcQrHint.textContent = "";
+  });
+
+  document.getElementById("btnExportAllMobile")?.addEventListener("click", () => exportLibrary({ mode: "all" }));
+}
+
+/* =====================================================
+   Dock + Popover Panels (ONE source of truth)
+===================================================== */
+let _dockPanelsInited = false;
+
+function initDockPanels() {
+  if (_dockPanelsInited) return;
+  _dockPanelsInited = true;
+
+  let buttons = [...document.querySelectorAll(".topBtn[data-panel]")];
+  buttons = buttons.map((btn) => {
+    const clone = btn.cloneNode(true);
+    btn.replaceWith(clone);
+    return clone;
+  });
+
+  const panels = [...document.querySelectorAll("[data-panel-id]")];
+  const panelById = (id) => panels.find(p => p.dataset.panelId === id);
+
+  const DOCK_TOGGLES = new Set(["sidebar", "shelf"]);
+  const POPOVERS = new Set(["settings", "help", "donate"]);
+
+  const isVisible = (p) => !p.classList.contains("hidden");
+
+  const showWithAnim = (p) => {
+    p.classList.remove("hidden");
+    p.hidden = false;
+    requestAnimationFrame(() => p.classList.add("isOpen"));
+  };
+
+  const hideWithAnim = (p) => {
+    p.classList.remove("isOpen");
+    setTimeout(() => {
+      p.classList.add("hidden");
+      p.hidden = true;
+    }, 160);
+  };
+
+  function setShelfSafe(on) {
+    const shelfEl =
+      document.querySelector('[data-panel-id="shelf"]') ||
+      document.getElementById("shelf");
+
+    if (!on || !shelfEl) {
+      document.documentElement.style.setProperty("--shelfSafe", "0px");
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      const r = shelfEl.getBoundingClientRect();
+      const h = Math.max(0, Math.round(r.height));
+      document.documentElement.style.setProperty("--shelfSafe", `${h + 12}px`);
+    });
+  }
+
+  const openDock = (p, btn) => {
+    setTopbarHeightVar();
+    showWithAnim(p);
+    btn?.classList.add("isActive");
+    if (p.dataset.panelId === "shelf") setShelfSafe(true);
+  };
+
+  const closeDock = (p, btn) => {
+    hideWithAnim(p);
+    btn?.classList.remove("isActive");
+    if (p.dataset.panelId === "shelf") setShelfSafe(false);
+  };
+
+  const positionPopoverUnderButton = (p, btn) => {
+    const r = btn.getBoundingClientRect();
+    p.style.left = "0px";
+    p.style.right = "auto";
+
+    let left = r.left;
+    const maxLeft = window.innerWidth - p.offsetWidth - 12;
+    left = Math.max(12, Math.min(left, maxLeft));
+    p.style.left = `${left}px`;
+    p.style.top = "calc(var(--topbarH) + 14px)";
+  };
+
+  const openPopover = (p, btn, id) => {
+    if (id === "help" && el.helpBody) el.helpBody.innerHTML = buildHelpHtml();
+    if (id === "donate") {
+      if (el.btcAddr) el.btcAddr.textContent = DONATE.btc;
+      if (el.paypalQrWrap) el.paypalQrWrap.style.display = "none";
+      if (el.btcQrWrap) el.btcQrWrap.style.display = "none";
+      if (el.paypalQrHint) el.paypalQrHint.textContent = "";
+      if (el.btcQrHint) el.btcQrHint.textContent = "";
+    }
+
+    showWithAnim(p);
+    requestAnimationFrame(() => positionPopoverUnderButton(p, btn));
+    btn?.classList.add("isActive");
+  };
+
+  const closePopover = (p, btn) => {
+    hideWithAnim(p);
+    btn?.classList.remove("isActive");
+  };
+
+  window.__dockClose = (id) => {
+    const p = panelById(id);
+    const b = document.querySelector(`.topBtn[data-panel="${id}"]`);
+    if (!p) return;
+    if (POPOVERS.has(id)) closePopover(p, b);
+    else closeDock(p, b);
+  };
+
+  const hookClose = (closeEl, panelId, btnId) => {
+    if (!closeEl) return;
+    closeEl.addEventListener("click", (e) => {
+      e.preventDefault();
+      const p = panelById(panelId);
+      const b = document.getElementById(btnId);
+      if (!p) return;
+      closePopover(p, b);
+    });
+  };
+
+  hookClose(el.btnSettingsClose, "settings", "btnSettings");
+  hookClose(el.btnHelpClose, "help", "btnHelp");
+  hookClose(el.btnDonateClose, "donate", "btnDonate");
+
+  buttons.forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+
+      const id = btn.dataset.panel;
+
+      if (id === "header") {
+        if (!el.headerInfo) return;
+        const willShow = el.headerInfo.classList.contains("hidden");
+        willShow ? show(el.headerInfo) : hide(el.headerInfo);
+        btn.classList.toggle("isActive", willShow);
+        return;
+      }
+
+      const p = panelById(id);
+      if (!p) return;
+
+      if (DOCK_TOGGLES.has(id)) {
+        isVisible(p) ? closeDock(p, btn) : openDock(p, btn);
+        return;
+      }
+
+      if (POPOVERS.has(id)) {
+        isVisible(p) ? closePopover(p, btn) : openPopover(p, btn, id);
+        return;
+      }
+    });
+  });
+
+  const repositionOpenPopovers = () => {
+    for (const id of POPOVERS) {
+      const p = panelById(id);
+      if (!p || !isVisible(p)) continue;
+      const btn = document.querySelector(`.topBtn[data-panel="${id}"]`);
+      if (btn) positionPopoverUnderButton(p, btn);
+    }
+  };
+  window.addEventListener("resize", repositionOpenPopovers, { passive: true });
+  window.addEventListener("scroll", repositionOpenPopovers, { passive: true });
+
+  setShelfSafe(false);
+}
+
+/* -----------------------------
+   Share Target / Shortcut Handler
+------------------------------ */
+async function performClipboardImport(titleOverride) {
+  const overlay = document.getElementById("importOverlay");
+
+  try {
+    const text = await navigator.clipboard.readText();
+
+    if (!text || !text.trim()) {
+      setStatus("Zwischenablage ist leer!");
+      return;
+    }
+
+    const words = wordsFromText(text);
+    if (!words.length) {
+      setStatus("Kein lesbarer Text gefunden.");
+      return;
+    }
+
+    let bookIdToLoad;
+    try {
+      const allBooks = await idbGetAll();
+      const existing = allBooks.find(b =>
+        (b.title === titleOverride || b.title === "Geteilter Artikel") &&
+        b.words.length === words.length
+      );
+      if (existing) bookIdToLoad = existing.id;
+    } catch(e) {}
+
+    if (!bookIdToLoad) {
+      const newId = `share_${Date.now()}`;
+      bookIdToLoad = newId;
+      await saveBookToLibrary({
+        id: newId,
+        title: titleOverride || "Geteilter Artikel",
+        author: "Import",
+        coverDataUrl: "",
+        words: words,
+        chapters: [],
+        toc: [],
+        idx: 0,
+        bookmarks: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    }
+
+    await loadBookFromLibrary(bookIdToLoad);
+
+    document.querySelectorAll(".isActive").forEach(b => b.classList.remove("isActive"));
+    document.querySelectorAll(".panel, .popoverPanel").forEach(p => {
+      p.classList.remove("isOpen"); p.classList.add("hidden");
+    });
+
+  } catch (e) {
+    console.error(e);
+    alert("Import-Fehler: " + e.message);
+  } finally {
+    if (overlay) overlay.remove();
+  }
+}
+
+function showImportOverlay(title) {
+  const old = document.getElementById("importOverlay");
+  if (old) old.remove();
+
+  const overlay = document.createElement("div");
+  overlay.id = "importOverlay";
+  Object.assign(overlay.style, {
+    position: "fixed", inset: "0", zIndex: "10000",
+    background: "rgba(11, 12, 16, 0.98)",
+    display: "flex", flexDirection: "column",
+    alignItems: "center", justifyContent: "center",
+    cursor: "pointer", textAlign: "center", padding: "20px"
+  });
+
+  overlay.innerHTML = `
+    <div style="font-size:60px; margin-bottom:20px;">📋</div>
+    <div style="font-size:24px; font-weight:bold; color:#fff; margin-bottom:10px;">
+      Import bereit
+    </div>
+    <div style="color:#aaa; margin-bottom:40px; max-width:80%;">
+      "${escapeHtml(title || 'Artikel')}"
+    </div>
+    <div style="padding:16px 32px; background:#7ee787; color:#000; border-radius:12px; font-weight:bold; font-size:18px;">
+      HIER TIPPEN
+    </div>
+  `;
+
+  overlay.addEventListener("click", () => {
+    overlay.style.opacity = "0.5";
+    setStatus("Lese Zwischenablage...", { sticky: true });
+    setTimeout(() => performClipboardImport(title), 50);
+  });
+
+  document.body.appendChild(overlay);
+}
+
+// URL Handler
+async function handleSharedContent() {
+  const params = new URLSearchParams(window.location.search);
+  const importMode = params.get("import");
+  const sharedTitle = params.get("title");
+  const directText = params.get("text");
+  const importUrl = params.get("import_url");
+
+  if (importMode || directText || importUrl) {
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+
+  // BONUS: PDF via URL
+  if (importUrl) {
+    try {
+      setStatus("Lade PDF aus dem Netz…", { sticky: true });
+
+      const res = await fetch(importUrl);
+      if (!res.ok) throw new Error("PDF_FETCH_FAILED");
+
+      const ct = (res.headers.get("content-type") || "").toLowerCase();
+      const looksPdf = ct.includes("application/pdf") || importUrl.toLowerCase().includes(".pdf");
+      if (!looksPdf) throw new Error("IMPORT_URL_NOT_PDF");
+
+      const blob = await res.blob();
+      const f = new File([blob], "import.pdf", { type: "application/pdf" });
+
+      const parsed = await loadPdfFromFile(f);
+
+      await saveBookToLibrary({
+        id: parsed.id,
+        title: parsed.title || "PDF Import",
+        author: "Import",
+        coverDataUrl: "",
+        words: parsed.words,
+        chapters: [],
+        toc: [],
+        idx: 0,
+        bookmarks: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+
+      await loadBookFromLibrary(parsed.id);
+      setStatus(`Geladen: ${parsed.title} (${parsed.words.length} Wörter)`, { sticky: true });
+      return;
+
+    } catch (e) {
+      console.error(e);
+      setStatus("PDF konnte nicht geladen werden (CORS?).", { sticky: true });
+      alert(
+        "PDF konnte nicht direkt importiert werden.\n\n" +
+        "Manche Webseiten blocken das (CORS).\n" +
+        "Workaround: PDF in 'Dateien' speichern und dann lokal über 'Datei laden' öffnen."
+      );
+      return;
+    }
+  }
+
+  // Fall A: Shortcut (via Clipboard)
+  if (importMode === "clipboard") {
+    showImportOverlay(sharedTitle);
+    return;
+  }
+
+  // Fall B: Legacy direct text
+  if (directText) {
+    const words = wordsFromText(directText);
+    if (!words.length) return;
+    const newId = `url_${Date.now()}`;
+    await saveBookToLibrary({
+      id: newId, title: sharedTitle || "URL Text", author: "Import",
+      coverDataUrl: "", words: words, chapters: [], toc: [], idx: 0, bookmarks: [],
+      createdAt: Date.now(), updatedAt: Date.now(),
+    });
+    await loadBookFromLibrary(newId);
+  }
+}
+
+/* -----------------------------
+   Boot
+------------------------------ */
+(async function boot() {
+  setTopbarHeightVar();
+  try { bindUI(); } catch (e) { console.error("bindUI failed", e); }
+  initDockPanels();
+  try { await ensurePersistentStorage(); } catch (e) {}
+  try { loadSettingsFromLS(); } catch(e){}
+  try { applySettingsToUI(); } catch(e){}
+
+  setTab("toc");
+  updateProgressUI();
+  showCurrent();
+
+  try { await renderShelf(); } catch(e){}
+
+  await handleSharedContent();
+
+  if (!S.book.id) {
+    setStatus("Warte auf Datei…", { sticky: true });
+  }
+})().catch((e) => {
+  console.error(e);
+  setStatus("Boot-Fehler", { sticky: true });
+});
