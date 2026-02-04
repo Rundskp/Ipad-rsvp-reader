@@ -456,6 +456,12 @@ function escapeHtml(s) {
     .replaceAll("'", "&#039;");
 }
 
+function shortText(s, max = 60) {
+  s = String(s || "").trim();
+  if (s.length <= max) return s;
+  return s.slice(0, max - 1) + "…";
+}
+
 function wordsFromText(txt) {
   const cleaned = String(txt || "")
     .replace(/\u00AD/g, "")
@@ -938,7 +944,7 @@ async function loadBookFromLibrary(id) {
   updateProgressUI();
   showCurrent();
 
-  setStatus(`Geladen: ${S.book.title} (${S.words.length} Wörter)`, { sticky: true });
+  setStatus(`Geladen: ${shortText(S.book.title)} (${S.words.length} Wörter)`, { sticky: false, toastMs: 1200 });
 }
 
 /* -----------------------------
@@ -1083,9 +1089,86 @@ async function loadPdfFromFile(file) {
   setStatus("Lade PDF…", { sticky: true });
 
   const ab = await file.arrayBuffer();
+
+  // Worker (falls du das nicht schon irgendwo global machst)
+  // pdfjsLib.GlobalWorkerOptions.workerSrc = "./lib/pdf.worker.min.js";
+
   const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
 
-  let collected = [];
+  // --- Helper: render first page as cover ---
+  async function renderCoverDataUrl() {
+    try {
+      const page1 = await pdf.getPage(1);
+      // Scale so it looks nice in shelf but not huge
+      const viewport = page1.getViewport({ scale: 0.8 });
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d", { alpha: false });
+
+      canvas.width = Math.floor(viewport.width);
+      canvas.height = Math.floor(viewport.height);
+
+      await page1.render({ canvasContext: ctx, viewport }).promise;
+
+      // JPEG is smaller than PNG
+      return canvas.toDataURL("image/jpeg", 0.82);
+    } catch (e) {
+      console.warn("PDF cover render failed:", e);
+      return "";
+    }
+  }
+
+  // --- Helper: get PDF metadata title (best effort) ---
+  async function getPdfTitle() {
+    try {
+      const meta = await pdf.getMetadata();
+      const t = meta?.info?.Title || meta?.metadata?.get?.("dc:title") || "";
+      const cleaned = String(t || "").trim();
+      if (cleaned && cleaned.toLowerCase() !== "untitled") return cleaned;
+    } catch {}
+    // Fallback to filename
+    return String(file.name || "PDF").replace(/\.pdf$/i, "").trim() || "PDF";
+  }
+
+  // --- Helper: normalize heading text ---
+  function normalizeHeading(s) {
+    return String(s || "")
+      .replace(/\s+/g, " ")
+      .replace(/[•·▪●○]/g, "")
+      .trim();
+  }
+
+  function looksLikeHeading(text) {
+    if (!text) return false;
+    const t = text.trim();
+
+    // Too long = probably paragraph
+    if (t.length > 90) return false;
+
+    // Very short but only digits/punct => no
+    if (/^[\d\s\.\-–—]+$/.test(t)) return false;
+
+    // Page header/footer junk (common)
+    if (/^seite\s+\d+$/i.test(t)) return false;
+    if (/^\d+\s*\/\s*\d+$/.test(t)) return false;
+
+    // Strong signals:
+    // 1) Numbered headings
+    if (/^\d+(\.\d+)*\s+\S+/.test(t)) return true;
+
+    // 2) ALL CAPS short (often headings)
+    if (t.length >= 6 && t.length <= 60 && t === t.toUpperCase() && /[A-ZÄÖÜ]/.test(t)) return true;
+
+    // 3) Ends without period and has decent letters
+    if (!/[.!?]$/.test(t) && /[A-Za-zÄÖÜäöüß]{3,}/.test(t) && t.length <= 60) return true;
+
+    return false;
+  }
+
+  // --- Collect per page: text + heading candidates ---
+  const pageWords = [];           // words count per page
+  const pageTexts = [];           // cleaned page text
+  const headingCandidates = [];   // {page, text, score}
+
   let totalChars = 0;
 
   for (let p = 1; p <= pdf.numPages; p++) {
@@ -1093,15 +1176,96 @@ async function loadPdfFromFile(file) {
 
     const page = await pdf.getPage(p);
     const content = await page.getTextContent();
-    const strings = content.items.map(i => i.str).filter(Boolean);
 
-    const pageText = strings.join(" ");
-    totalChars += pageText.length;
-    collected.push(pageText);
+    // Items contain: str, transform, fontName
+    const items = content.items || [];
+    const styles = content.styles || {};
+
+    // Group into "lines" by y coordinate (rough)
+    // y is transform[5], font size approx abs(transform[3])
+    const lines = new Map(); // key -> {y, items:[], maxFont, topX}
+    const yBucket = (y) => Math.round(y / 4) * 4; // bucket to reduce jitter
+
+    for (const it of items) {
+      const str = String(it.str || "").trim();
+      if (!str) continue;
+
+      const tr = it.transform || [1, 0, 0, 1, 0, 0];
+      const x = tr[4] || 0;
+      const y = tr[5] || 0;
+      const fontSize = Math.abs(tr[3] || tr[0] || 0) || 0;
+
+      const key = yBucket(y);
+      if (!lines.has(key)) lines.set(key, { y, items: [], maxFont: fontSize, minX: x, maxX: x });
+      const L = lines.get(key);
+      L.items.push({ str, x, y, fontSize, fontName: it.fontName });
+      L.maxFont = Math.max(L.maxFont, fontSize);
+      L.minX = Math.min(L.minX, x);
+      L.maxX = Math.max(L.maxX, x);
+    }
+
+    // Convert lines -> sorted by y desc (PDF y grows upward usually)
+    const lineArr = [...lines.values()].sort((a, b) => b.y - a.y);
+
+    // Determine median font size on this page for relative comparison
+    const fontSamples = [];
+    for (const L of lineArr) {
+      if (L.maxFont) fontSamples.push(L.maxFont);
+    }
+    fontSamples.sort((a, b) => a - b);
+    const medianFont = fontSamples.length
+      ? fontSamples[Math.floor(fontSamples.length * 0.5)]
+      : 10;
+
+    // Build page text + headings
+    const pageLineTexts = [];
+    const viewport = page.getViewport({ scale: 1.0 });
+    const pageHeight = viewport.height || 800;
+
+    for (const L of lineArr) {
+      // Build line string in x-order
+      const parts = L.items.sort((a, b) => a.x - b.x).map(x => x.str);
+      const lineText = normalizeHeading(parts.join(" "));
+      if (!lineText) continue;
+
+      // Keep for body text
+      pageLineTexts.push(lineText);
+
+      // Heading candidate scoring
+      const isTopish = (pageHeight - L.y) < pageHeight * 0.30; // near top (PDF coords)
+      const bigFont = L.maxFont >= medianFont * 1.25;
+      const numbered = /^\d+(\.\d+)*\s+\S+/.test(lineText);
+
+      if ((numbered || (bigFont && isTopish)) && looksLikeHeading(lineText)) {
+        // score: number headings strongest, then font size, then topish
+        const score =
+          (numbered ? 3 : 0) +
+          (bigFont ? 2 : 0) +
+          (isTopish ? 1 : 0) +
+          Math.min(2, (L.maxFont / Math.max(1, medianFont)) - 1);
+
+        headingCandidates.push({ page: p, text: lineText, score });
+      }
+    }
+
+    // Page text cleanup
+    const pageRaw = pageLineTexts.join("\n");
+    const cleanedPage = pageRaw
+      .replace(/-\s*\n/g, "")       // hyphen line breaks
+      .replace(/\n+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    totalChars += cleanedPage.length;
+    pageTexts.push(cleanedPage);
+
+    const w = wordsFromText(cleanedPage);
+    pageWords.push(w.length);
   }
 
-  const raw = collected.join("\n\n");
-  const cleaned = raw
+  // validate text existence
+  const fullRaw = pageTexts.join("\n\n");
+  const cleaned = fullRaw
     .replace(/-\s*\n/g, "")
     .replace(/\n+/g, " ")
     .replace(/\s+/g, " ")
@@ -1115,14 +1279,75 @@ async function loadPdfFromFile(file) {
 
   const words = wordsFromText(cleaned);
 
+  // --- Build chapters/toc based on heading candidates ---
+  // 1) Deduplicate headings per page, pick best per page
+  const bestByPage = new Map();
+  for (const h of headingCandidates) {
+    const prev = bestByPage.get(h.page);
+    if (!prev || h.score > prev.score) bestByPage.set(h.page, h);
+  }
+
+  // 2) Sort by page
+  const headings = [...bestByPage.values()]
+    .sort((a, b) => a.page - b.page)
+    .map(h => ({ page: h.page, label: h.text }));
+
+  // 3) Map page -> wordStart index
+  const pageStartWord = [];
+  let acc = 0;
+  for (let i = 0; i < pageWords.length; i++) {
+    pageStartWord[i + 1] = acc;      // page number starts at 1
+    acc += pageWords[i];
+  }
+
+  let chapters = [];
+  let toc = [];
+
+  if (headings.length >= 2) {
+    for (let i = 0; i < headings.length; i++) {
+      const cur = headings[i];
+      const next = headings[i + 1];
+
+      const start = clamp(pageStartWord[cur.page] ?? 0, 0, Math.max(0, words.length));
+      const end = clamp(next ? (pageStartWord[next.page] ?? words.length) : words.length, start, words.length);
+
+      // Avoid tiny chapters (often false positives)
+      if (end - start < 120) continue;
+
+      const href = `p${cur.page}`;
+      chapters.push({ label: cur.label, href, start, end });
+      toc.push({ label: cur.label, href });
+    }
+
+    // If after filtering nothing remains -> fallback
+    if (!chapters.length) headings.length = 0;
+  }
+
+  // Fallback: chunk by word count
+  if (!chapters.length) {
+    const approx = 1200;
+    let k = 0;
+    for (let start = 0; start < words.length; start += approx) {
+      const end = Math.min(words.length, start + approx);
+      k++;
+      const label = `Teil ${k}`;
+      const href = `chunk${k}`;
+      chapters.push({ label, href, start, end });
+      toc.push({ label, href });
+    }
+  }
+
+  const title = await getPdfTitle();
+  const coverDataUrl = await renderCoverDataUrl();
+
   return {
     id: stableBookId(file),
-    title: file.name.replace(/\.pdf$/i, ""),
+    title,
     author: "PDF",
-    coverDataUrl: "",
+    coverDataUrl,
     words,
-    chapters: [],
-    toc: [],
+    chapters,
+    toc,
   };
 }
 
@@ -1265,6 +1490,63 @@ async function copyToClipboard(text) {
   }
 }
 
+function attachScrubButton(btn, dir /* -1 or +1 */) {
+  if (!btn) return;
+
+  const stopZoom = (ev) => { try { ev.preventDefault(); } catch {} };
+
+  let holdTimer = null;
+  let interval = null;
+  let didHold = false;
+
+  const clearHold = () => {
+    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+    if (interval)  { clearInterval(interval); interval = null; }
+  };
+
+  const doStep = () => step(dir); // nutzt deine existierende step()-Funktion
+
+  const startHold = () => {
+    if (S.playing) return; // long-press nur im Pausemodus
+    didHold = false;
+    clearHold();
+    holdTimer = setTimeout(() => {
+      if (S.playing) return;
+      didHold = true;
+      const tick = () => doStep();
+      tick();
+      const ms = Math.max(80, msPerToken(10, S.settings.chunk)); // ~10 WPM
+      interval = setInterval(tick, ms);
+    }, 500);
+  };
+
+  const endHold = () => {
+    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+    if (didHold) { clearHold(); return; }
+    clearHold();
+    doStep(); // kurzer Tap = 1 Schritt
+  };
+
+  // Pointer Events (best)
+  btn.addEventListener("pointerdown", (ev) => {
+    if (ev.pointerType === "mouse" && ev.button !== 0) return;
+    stopZoom(ev);
+    startHold();
+  }, { passive: false });
+
+  btn.addEventListener("pointerup", (ev) => {
+    stopZoom(ev);
+    endHold();
+  }, { passive: false });
+
+  btn.addEventListener("pointercancel", clearHold);
+
+  // Touch fallback (iOS)
+  btn.addEventListener("touchstart", (ev) => { stopZoom(ev); startHold(); }, { passive: false });
+  btn.addEventListener("touchend", (ev) => { stopZoom(ev); endHold(); }, { passive: false });
+  btn.addEventListener("touchcancel", clearHold, { passive: true });
+}
+
 /* -----------------------------
    Bind UI
 ------------------------------ */
@@ -1297,8 +1579,8 @@ function bindUI() {
   el.btnDeleteSelected?.addEventListener("click", deleteSelectedFromLibrary);
 
   el.btnPlay?.addEventListener("click", () => { togglePlay(); addFeedback(el.btnPlay); });
-  el.btnBack?.addEventListener("click", () => { step(-1); addFeedback(el.btnBack); });
-  el.btnFwd?.addEventListener("click", () => { step(+1); addFeedback(el.btnFwd); });
+  attachScrubButton(el.btnBack, -1);
+attachScrubButton(el.btnFwd, +1);
   el.btnBookmark?.addEventListener("click", () => { addBookmarkAtCurrent(); addFeedback(el.btnBookmark); });
 
   el.seek?.addEventListener("input", () => {
@@ -1385,6 +1667,9 @@ function bindUI() {
 
   document.getElementById("btnExportAllMobile")?.addEventListener("click", () => exportLibrary({ mode: "all" }));
 }
+
+if (el.btnBack) el.btnBack.innerHTML = "◀";
+if (el.btnFwd)  el.btnFwd.innerHTML  = "▶";
 
 /* =====================================================
    Dock + Popover Panels (ONE source of truth)
