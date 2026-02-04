@@ -1657,7 +1657,7 @@ async function handleSharedContent() {
   const importMode = params.get("import");
   const sharedTitle = params.get("title");
   const directText = params.get("text");
-  const importUrl = params.get("import_url");
+  const importUrl = params.get("import_url") || params.get("url");
 
   if (importMode || directText || importUrl) {
     window.history.replaceState({}, document.title, window.location.pathname);
