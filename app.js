@@ -1775,7 +1775,21 @@ function initDockPanels() {
       p.hidden = true;
     }, 160);
   };
+  let _scrollYBeforeModal = 0;
 
+function lockBackgroundScroll() {
+  _scrollYBeforeModal = window.scrollY || 0;
+  document.body.classList.add("modalOpen");
+  document.body.style.top = `-${_scrollYBeforeModal}px`;
+}
+
+function unlockBackgroundScroll() {
+  document.body.classList.remove("modalOpen");
+  const top = document.body.style.top;
+  document.body.style.top = "";
+  const y = top ? -parseInt(top, 10) : _scrollYBeforeModal;
+  window.scrollTo(0, y || 0);
+}
   function setShelfSafe(on) {
     const shelfEl =
       document.querySelector('[data-panel-id="shelf"]') ||
@@ -1827,7 +1841,7 @@ function initDockPanels() {
       if (el.paypalQrHint) el.paypalQrHint.textContent = "";
       if (el.btcQrHint) el.btcQrHint.textContent = "";
     }
-
+    lockBackgroundScroll();
     showWithAnim(p);
     requestAnimationFrame(() => positionPopoverUnderButton(p, btn));
     btn?.classList.add("isActive");
@@ -1835,6 +1849,7 @@ function initDockPanels() {
 
   const closePopover = (p, btn) => {
     hideWithAnim(p);
+    unlockBackgroundScroll();
     btn?.classList.remove("isActive");
   };
 
