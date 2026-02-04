@@ -777,3 +777,22 @@ body{
   50% { transform: scale(1.03); }
   100% { transform: scale(1); }
 }
+/* Wenn ein Popover offen ist: Hintergrund fixieren */
+body.modalOpen {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+}
+
+/* iOS: Scroll-Chaining verhindern */
+.popoverPanel .dialog {
+  overscroll-behavior: contain;
+}
+
+/* Backdrops sollen NICHT scrollen */
+#helpBackdrop, #donateBackdrop {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none;
+}
