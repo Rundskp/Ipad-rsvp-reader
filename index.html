@@ -237,29 +237,28 @@
             </div>
 
             <div>
-              <label>Highlight (mittlerer Buchstabe)</label>
-              <input id="orpColor" type="color" value="#2b6cff" class="colorPick">
-              <div class="hint">ORP/Fokus-Buchstabe</div>
+              <label>Hintergrund</label>
+              <input id="bgColor" type="color" value="#0b0c10" class="colorPick">
             </div>
 
             <div>
-              <label>Hintergrund</label>
-              <input id="bgColor" type="color" value="#0b0c10" class="colorPick">
+              <label>ORP-Buchstabe Farbe</label>
+              <input id="orpColor" type="color" value="#7ee787" class="colorPick">
             </div>
           </div>
 
           <div id="appearancePreview" class="appearancePreview" aria-label="Vorschau">
             <div class="previewLabel">Vorschau</div>
             <div class="previewBox">
-              <span id="appearancePreviewWord">Read fast. Think slow.</span>
+              <span id="appearancePreviewWord">Schn<span class="orp">e</span>ll</span>
             </div>
           </div>
         </div>
 
 <div class="rowBtns">
+          <button id="btnResetSettings" class="btn ghost danger" type="button">↺ Standard</button>
           <button id="btnSaveSettings" class="btn" type="button">Speichern</button>
           <button id="btnLoadSettings" class="btn ghost" type="button">Laden</button>
-          <button id="btnResetSettings" class="btn ghost" type="button">Auf Standard</button>
         </div>
       </div>
     </div>

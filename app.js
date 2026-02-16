@@ -50,7 +50,6 @@ function hide(x) { if (!x) return; x.classList.add("hidden"); x.hidden = true; }
 const el = {
   file: $("file"),
   status: $("status"),
-  bookmarkBar: $("bookmarkBar"),
 
   // Header info (toggle via btnHeader)
   headerInfo: $("headerInfo"),
@@ -106,12 +105,6 @@ const el = {
   punct: $("punct"),
   punctMs: $("punctMs"),
   punctVal: $("punctVal"),
-  fontSize: $("fontSize"),
-  fontSizeVal: $("fontSizeVal"),
-  fontFamily: $("fontFamily"),
-  textColor: $("textColor"),
-  bgColor: $("bgColor"),
-  appearancePreviewWord: $("appearancePreviewWord"),
   stopChapter: $("stopChapter"),
   stopWordsOn: $("stopWordsOn"),
   stopWords: $("stopWords"),
@@ -119,8 +112,17 @@ const el = {
   stopMins: $("stopMins"),
   btnSaveSettings: $("btnSaveSettings"),
   btnLoadSettings: $("btnLoadSettings"),
-  btnResetSettings: $("btnResetSettings"),
   btnSettingsClose: $("btnSettingsClose"),
+  btnResetSettings: $("btnResetSettings"),
+
+  // Appearance
+  fontSize: $("fontSize"),
+  fontSizeVal: $("fontSizeVal"),
+  fontFamily: $("fontFamily"),
+  textColor: $("textColor"),
+  bgColor: $("bgColor"),
+  orpColor: $("orpColor"),
+  appearancePreviewWord: $("appearancePreviewWord"),
 
   // Shelf (dock)
   shelf: $("shelf"),
@@ -448,24 +450,20 @@ const S = {
     punct: true,
     punctMs: 200,
 
-    // Appearance
-    fontSize: 64, // px
-    fontFamily: "system", // system | serif | sans | mono
-    textColor: "#e8edf2",
-    bgColor: "#0b0c10",
-    orpColor: "#2b6cff",
-
     stopChapter: false,
     stopWordsOn: false,
     stopWords: 2000,
     stopMinsOn: false,
     stopMins: 10,
+
+    // Appearance
+    fontSize: 64,
+    fontFamily: 'system',
+    textColor: '#e8edf2',
+    bgColor: '#0b0c10',
+    orpColor: '#7ee787',
   },
 };
-
-
-// Snapshot of factory defaults for "Auf Standard"
-const DEFAULTS = JSON.parse(JSON.stringify(S.settings));
 
 /* -----------------------------
    Text utils
@@ -502,44 +500,6 @@ function msPerToken(baseWpm, chunkSize) {
   return msPerWord * chunkSize;
 }
 
-
-function formatDurationFromWords(wordCount, wpm) {
-  const safeWpm = Math.max(60, Number(wpm) || 0);
-  const totalSec = Math.max(0, Math.round((wordCount / safeWpm) * 60));
-  const m = Math.floor(totalSec / 60);
-  const s = totalSec % 60;
-  if (m <= 0) return `${s}s`;
-  if (s === 0) return `${m}m`;
-  return `${m}m ${s}s`;
-}
-
-function applyReaderAppearance() {
-  const root = document.documentElement;
-
-  const fontMap = {
-    system: 'system-ui, -apple-system, Segoe UI, Roboto, Arial',
-    sans: 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial',
-    serif: 'ui-serif, Georgia, Times New Roman, Times, serif',
-    mono: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
-  };
-
-  const size = clamp(Number(S.settings.fontSize) || 64, 28, 120);
-  const famKey = String(S.settings.fontFamily || "system");
-  const fam = fontMap[famKey] || fontMap.system;
-
-  root.style.setProperty("--readerFontSize", size + "px");
-  root.style.setProperty("--readerText", String(S.settings.textColor || "#e8edf2"));
-  root.style.setProperty("--readerBg", String(S.settings.bgColor || "#0b0c10"));
-  root.style.setProperty("--readerFont", fam);
-  root.style.setProperty("--orpColor", String(S.settings.orpColor || "#2b6cff"));
-
-  // Preview mirrors the same CSS vars
-  if (el.appearancePreviewWord) {
-    const sample = "Reading";
-    el.appearancePreviewWord.innerHTML = tokenToOrpHtml(sample) + "  •  ORP";
-  }
-}
-
 function computeOrpIndex(word) {
   const w = word.replace(/[^A-Za-zÄÖÜäöüß0-9]/g, "");
   const len = w.length;
@@ -570,21 +530,6 @@ function renderToken(token) {
   const after = escapeHtml(token.slice(segStart + seg.length));
 
   el.word.innerHTML = `${before}${segBefore}<span class="orp">${segOrp}</span>${segAfter}${after}`;
-}
-
-function tokenToOrpHtml(token){
-  if (!S.settings.orp) return escapeHtml(token);
-  const m = token.match(/[A-Za-zÄÖÜäöüß0-9]+/);
-  if (!m) return escapeHtml(token);
-  const seg = m[0];
-  const segStart = token.indexOf(seg);
-  const orpIdx = computeOrpIndex(seg);
-  const before = escapeHtml(token.slice(0, segStart));
-  const segBefore = escapeHtml(seg.slice(0, orpIdx));
-  const segOrp = escapeHtml(seg.slice(orpIdx, orpIdx + 1));
-  const segAfter = escapeHtml(seg.slice(orpIdx + 1));
-  const after = escapeHtml(token.slice(segStart + seg.length));
-  return `${before}${segBefore}<span class="orp">${segOrp}</span>${segAfter}${after}`;
 }
 
 /* -----------------------------
@@ -625,14 +570,15 @@ function applySettingsToUI() {
   el.stopMinsOn.checked = !!S.settings.stopMinsOn;
   el.stopMins.value = String(S.settings.stopMins);
 
-  if (el.fontSize) el.fontSize.value = String(S.settings.fontSize ?? 64);
-  if (el.fontSizeVal) el.fontSizeVal.textContent = String(S.settings.fontSize ?? 64);
-  if (el.fontFamily) el.fontFamily.value = String(S.settings.fontFamily || "system");
-  if (el.textColor) el.textColor.value = String(S.settings.textColor || "#e8edf2");
-  if (el.bgColor) el.bgColor.value = String(S.settings.bgColor || "#0b0c10");
-  if (el.orpColor) el.orpColor.value = String(S.settings.orpColor || "#2b6cff");
-  applyReaderAppearance();
+  // Appearance
+  if (el.fontSize) { el.fontSize.value = String(S.settings.fontSize || 64); if (el.fontSizeVal) el.fontSizeVal.textContent = String(S.settings.fontSize || 64); }
+  if (el.fontFamily) el.fontFamily.value = S.settings.fontFamily || 'system';
+  if (el.textColor) el.textColor.value = S.settings.textColor || '#e8edf2';
+  if (el.bgColor) el.bgColor.value = S.settings.bgColor || '#0b0c10';
+  if (el.orpColor) el.orpColor.value = S.settings.orpColor || '#7ee787';
 
+  applyAppearance();
+  updateAppearancePreview();
   syncHeaderUI();
 }
 
@@ -643,22 +589,70 @@ function readSettingsFromUI() {
   S.settings.punct = el.punct.checked;
   S.settings.punctMs = Number(el.punctMs.value);
 
-  if (el.fontSize) S.settings.fontSize = Number(el.fontSize.value);
-  if (el.fontFamily) S.settings.fontFamily = String(el.fontFamily.value || "system");
-  if (el.textColor) S.settings.textColor = String(el.textColor.value || "#e8edf2");
-  if (el.bgColor) S.settings.bgColor = String(el.bgColor.value || "#0b0c10");
-  if (el.orpColor) S.settings.orpColor = String(el.orpColor.value || "#2b6cff");
-
   S.settings.stopChapter = el.stopChapter.checked;
   S.settings.stopWordsOn = el.stopWordsOn.checked;
   S.settings.stopWords = Number(el.stopWords.value || 0);
   S.settings.stopMinsOn = el.stopMinsOn.checked;
   S.settings.stopMins = Number(el.stopMins.value || 0);
+
+  // Appearance
+  if (el.fontSize)   S.settings.fontSize   = Number(el.fontSize.value);
+  if (el.fontFamily) S.settings.fontFamily  = el.fontFamily.value;
+  if (el.textColor)  S.settings.textColor   = el.textColor.value;
+  if (el.bgColor)    S.settings.bgColor     = el.bgColor.value;
+  if (el.orpColor)   S.settings.orpColor    = el.orpColor.value;
 }
 
 /* -----------------------------
    Header + progress
 ------------------------------ */
+/* -----------------------------
+   Appearance: Apply to DOM + CSS vars
+------------------------------ */
+const FONT_MAP = {
+  'system': 'system-ui, -apple-system, Segoe UI, Roboto, Arial',
+  'sans':   'Arial, Helvetica, sans-serif',
+  'serif':  'Georgia, "Times New Roman", Times, serif',
+  'mono':   '"Courier New", Courier, ui-monospace, monospace',
+};
+
+const DEFAULT_SETTINGS = {
+  wpm: 500, chunk: 1, orp: true, punct: true, punctMs: 200,
+  stopChapter: false, stopWordsOn: false, stopWords: 2000,
+  stopMinsOn: false, stopMins: 10,
+  fontSize: 64, fontFamily: 'system',
+  textColor: '#e8edf2', bgColor: '#0b0c10', orpColor: '#7ee787',
+};
+
+function applyAppearance() {
+  const s = S.settings;
+  const font = FONT_MAP[s.fontFamily] || FONT_MAP['system'];
+  const root = document.documentElement;
+  root.style.setProperty('--reader-font-size', (s.fontSize || 64) + 'px');
+  root.style.setProperty('--reader-font-family', font);
+  root.style.setProperty('--reader-text-color', s.textColor || '#e8edf2');
+  root.style.setProperty('--reader-bg-color',   s.bgColor   || '#0b0c10');
+  root.style.setProperty('--orp-color',          s.orpColor  || '#7ee787');
+}
+
+function updateAppearancePreview() {
+  const s = S.settings;
+  const font = FONT_MAP[s.fontFamily] || FONT_MAP['system'];
+  const prev = el.appearancePreviewWord;
+  if (!prev) return;
+  prev.style.fontSize      = (s.fontSize || 64) + 'px';
+  prev.style.fontFamily    = font;
+  prev.style.color         = s.textColor || '#e8edf2';
+  prev.style.fontWeight    = '900';
+  prev.style.letterSpacing = '0.5px';
+  const box = prev.closest('.previewBox');
+  if (box) box.style.backgroundColor = s.bgColor || '#0b0c10';
+  const orpSpan = prev.querySelector('.orp');
+  if (orpSpan) orpSpan.style.color = s.orpColor || '#7ee787';
+}
+
+/* ----------------------------- */
+
 function syncHeaderUI() {
   if (el.bookTitle) el.bookTitle.textContent = S.book.title || "—";
   if (el.bookAuthor) el.bookAuthor.textContent = S.book.author || "—";
@@ -883,56 +877,26 @@ function renderToc() {
   if (!el.tocList) return;
 
   const toc = S.book.toc || [];
-  const chapters = (S.book.chapters || []).slice().sort((a,b)=>a.start-b.start);
-
-  if (!toc.length || !chapters.length) {
+  if (!toc.length) {
     el.tocList.classList.add("muted");
     el.tocList.textContent = "Kein Kapitelindex gefunden.";
-    if (el.bookmarkBar) hide(el.bookmarkBar);
     return;
   }
-
-  // Map chapter href -> chapter
-  const hrefToChapter = new Map();
-  for (const ch of chapters) hrefToChapter.set(ch.href, ch);
-
   el.tocList.classList.remove("muted");
   el.tocList.innerHTML = "";
 
-  // Also render compact bookmark bar (for web imports)
-  if (el.bookmarkBar) {
-    el.bookmarkBar.innerHTML = "";
-    // show only if we have multiple sections
-    if (toc.length > 1) show(el.bookmarkBar); else hide(el.bookmarkBar);
-  }
+  const hrefToStart = new Map();
+  for (const ch of (S.book.chapters || [])) hrefToStart.set(ch.href, ch.start);
 
   for (const t of toc) {
-    const ch = hrefToChapter.get(t.href);
-    const start = ch?.start ?? null;
-    const end = ch?.end ?? null;
-
-    const wordCount = (start !== null && end !== null) ? Math.max(0, end - start) : null;
-    const eta = (wordCount !== null) ? formatDurationFromWords(wordCount, S.settings.wpm) : null;
-
+    const start = hrefToStart.get(t.href) ?? null;
     const div = document.createElement("div");
     div.className = "item";
-    div.innerHTML = `
-      <div><b>${escapeHtml(t.label || t.href)}</b></div>
-      <div class="small">
-        ${start !== null ? `Wort #${start}` : "Kapitel"}
-        ${wordCount !== null ? ` • ${wordCount} Wörter • ≈ ${eta}` : ""}
-      </div>
-    `;
-    div.addEventListener("click", () => { if (start !== null) jumpToIndex(start); });
+    div.innerHTML = `<div><b>${escapeHtml(t.label || t.href)}</b></div><div class="small">${start !== null ? `Wort #${start}` : "Kapitel"}</div>`;
+    div.addEventListener("click", () => {
+      if (start !== null) jumpToIndex(start);
+    });
     el.tocList.appendChild(div);
-
-    if (el.bookmarkBar && start !== null && toc.length > 1) {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.textContent = t.label || "Abschnitt";
-      b.addEventListener("click", () => jumpToIndex(start));
-      el.bookmarkBar.appendChild(b);
-    }
   }
 }
 
@@ -1512,11 +1476,8 @@ function dedupeAndNormalizeHeadings(headings) {
       k++;
       const label = `Teil ${k}`;
       const href = `chunk${k}`;
-      const niceLabel = /^\d+(\.\d+)*\s/.test(cur.label)
-        ? cur.label
-        : `Kapitel ${i + 1}: ${cur.label}`;
-      chapters.push({ label: niceLabel, href, start, end });
-      toc.push({ label: niceLabel, href });
+      chapters.push({ label, href, start, end });
+      toc.push({ label, href });
     }
   }
 
@@ -1796,7 +1757,6 @@ attachScrubButton(el.btnFwd, +1);
     S.settings.wpm = Number(el.wpm.value);
     if (el.wpmVal) el.wpmVal.textContent = String(S.settings.wpm);
     if (el.wpmSettingVal) el.wpmSettingVal.textContent = String(S.settings.wpm);
-    renderToc(); // refresh time estimates
   });
 
   el.chunk?.addEventListener("input", () => {
@@ -1807,34 +1767,6 @@ attachScrubButton(el.btnFwd, +1);
   el.orp?.addEventListener("change", () => { S.settings.orp = el.orp.checked; showCurrent(); });
   el.punct?.addEventListener("change", () => { S.settings.punct = el.punct.checked; });
   el.punctMs?.addEventListener("input", () => { S.settings.punctMs = Number(el.punctMs.value); if (el.punctVal) el.punctVal.textContent = String(S.settings.punctMs); });
-
-// Appearance (live preview)
-el.fontSize?.addEventListener("input", () => {
-  S.settings.fontSize = Number(el.fontSize.value);
-  if (el.fontSizeVal) el.fontSizeVal.textContent = String(S.settings.fontSize);
-  applyReaderAppearance();
-});
-
-el.fontFamily?.addEventListener("change", () => {
-  S.settings.fontFamily = String(el.fontFamily.value || "system");
-  applyReaderAppearance();
-});
-
-el.textColor?.addEventListener("input", () => {
-  S.settings.textColor = String(el.textColor.value || "#e8edf2");
-  applyReaderAppearance();
-});
-
-el.bgColor?.addEventListener("input", () => {
-  S.settings.bgColor = String(el.bgColor.value || "#0b0c10");
-  applyReaderAppearance();
-});
-
-el.orpColor?.addEventListener("input", () => {
-  S.settings.orpColor = String(el.orpColor.value || "#2b6cff");
-  applyReaderAppearance();
-});
-
 
   el.stopChapter?.addEventListener("change", () => { S.settings.stopChapter = el.stopChapter.checked; });
   el.stopWordsOn?.addEventListener("change", () => { S.settings.stopWordsOn = el.stopWordsOn.checked; });
@@ -1856,13 +1788,31 @@ el.orpColor?.addEventListener("input", () => {
   });
 
   el.btnResetSettings?.addEventListener("click", () => {
-    // Zurück auf Default + speichern
-    S.settings = JSON.parse(JSON.stringify(DEFAULTS));
+    if (!confirm("Alle Einstellungen auf Standard zurücksetzen?")) return;
+    S.settings = { ...DEFAULT_SETTINGS };
     saveSettingsToLS();
     applySettingsToUI();
-    applyReaderAppearance();
-    setStatus("Einstellungen zurückgesetzt ✅");
+    showCurrent();
+    setStatus("Standard-Einstellungen wiederhergestellt ✅");
   });
+
+  // Appearance live preview
+  const syncAppearanceLive = () => {
+    readSettingsFromUI();
+    applyAppearance();
+    updateAppearancePreview();
+    showCurrent(); // re-render ORP highlight with new color
+  };
+
+  el.fontSize?.addEventListener("input", () => {
+    S.settings.fontSize = Number(el.fontSize.value);
+    if (el.fontSizeVal) el.fontSizeVal.textContent = String(S.settings.fontSize);
+    syncAppearanceLive();
+  });
+  el.fontFamily?.addEventListener("change", () => { S.settings.fontFamily = el.fontFamily.value; syncAppearanceLive(); });
+  el.textColor?.addEventListener("input",  () => { S.settings.textColor = el.textColor.value; syncAppearanceLive(); });
+  el.bgColor?.addEventListener("input",    () => { S.settings.bgColor   = el.bgColor.value;   syncAppearanceLive(); });
+  el.orpColor?.addEventListener("input",   () => { S.settings.orpColor  = el.orpColor.value;  syncAppearanceLive(); });
 
   el.btnPaypalQR?.addEventListener("click", () => {
     const u = DONATE.paypal;
@@ -1975,15 +1925,11 @@ function unlockBackgroundScroll() {
   };
 
   const positionPopoverUnderButton = (p, btn) => {
-    const r = btn.getBoundingClientRect();
-    p.style.left = "0px";
-    p.style.right = "auto";
-
-    let left = r.left;
-    const maxLeft = window.innerWidth - p.offsetWidth - 12;
-    left = Math.max(12, Math.min(left, maxLeft));
-    p.style.left = `${left}px`;
-    p.style.top = "calc(var(--topbarH) + 14px)";
+    // CSS already handles left:12px / right:12px constraints.
+    // Just reset any previous inline overrides and ensure correct top.
+    p.style.left  = "";
+    p.style.right = "";
+    p.style.top   = "calc(var(--topbarH) + 14px)";
   };
 
   const openPopover = (p, btn, id) => {
@@ -2073,216 +2019,127 @@ function unlockBackgroundScroll() {
   setShelfSafe(false);
 }
 
-
 /* -----------------------------
-   Web Import (HTML -> clean text + sections)
+   HTML Clipboard Parser
+   Extrahiert Haupttext + Überschriften für TOC
 ------------------------------ */
-function looksLikeHtml(s) {
-  const t = String(s || "");
-  return /<[^>]+>/.test(t) && /<\/?(p|div|span|h1|h2|h3|article|main|body)/i.test(t);
-}
+function parseClipboardHtml(html, titleOverride) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
 
-function cleanTextForWords(s) {
-  return String(s || "")
-    .replace(/ /g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function pickMainNode(doc) {
-  return (
-    doc.querySelector("article") ||
-    doc.querySelector("main") ||
-    doc.querySelector('[role="main"]') ||
-    null
-  );
-}
-
-function stripJunk(doc) {
-  const junk = [
-    "script","style","noscript","svg","canvas","iframe","form","button",
-    "nav","footer","header","aside","input","textarea","select",
-    ".cookie",".cookies","#cookie",".consent",".newsletter",".advert",".ads",".paywall"
+  // Entferne Rauschen (Navigation, Werbung, etc.)
+  const noiseSelectors = [
+    'script', 'style', 'noscript', 'iframe', 'svg', 'math', 'canvas',
+    'nav', 'footer', 'header', 'aside',
+    '[role="navigation"]', '[role="banner"]', '[role="contentinfo"]',
+    '[class*="cookie"]', '[class*="popup"]', '[class*="modal"]',
+    '[class*="newsletter"]', '[class*="subscribe"]',
+    '[class*="social"]', '[class*="share"]',
+    '[class*="related"]', '[class*="recommend"]',
+    '[class*="sidebar"]', '[class*="widget"]',
+    '[class*="comment"]', '[class*="disqus"]',
+    '[id*="cookie"]', '[id*="popup"]', '[id*="modal"]',
+    '[id*="newsletter"]', '[id*="sidebar"]',
+    '[id*="comment"]', '[id*="disqus"]',
   ];
-  for (const sel of junk) {
-    doc.querySelectorAll(sel).forEach(n => n.remove());
-  }
-}
+  try {
+    doc.querySelectorAll(noiseSelectors.join(',')).forEach(n => {
+      try { n.remove(); } catch {}
+    });
+  } catch {}
 
-function extractSectionsFromHtml(html) {
-  const doc = new DOMParser().parseFromString(String(html || ""), "text/html");
-  stripJunk(doc);
+  // Suche Hauptinhalt
+  const mainEl =
+    doc.querySelector('article') ||
+    doc.querySelector('[role="main"]') ||
+    doc.querySelector('main') ||
+    doc.querySelector('[class*="article-body"]') ||
+    doc.querySelector('[class*="post-body"]') ||
+    doc.querySelector('[class*="entry-content"]') ||
+    doc.querySelector('[class*="article-content"]') ||
+    doc.querySelector('[class*="post-content"]') ||
+    doc.querySelector('#content') ||
+    doc.querySelector('.content') ||
+    doc.body || doc.documentElement;
 
-  let root = pickMainNode(doc);
+  // Seitentitel bestimmen
+  const pageTitle =
+    doc.querySelector('h1')?.textContent?.trim() ||
+    doc.title?.trim() ||
+    titleOverride ||
+    'Artikel';
 
-  if (!root) {
-    // fallback: biggest text block
-    const candidates = Array.from(doc.querySelectorAll("article,main,section,div")).slice(0, 4000);
-    let best = null, bestLen = 0;
-    for (const c of candidates) {
-      const txt = cleanTextForWords(c.textContent || "");
-      const len = txt.length;
-      if (len > bestLen) { bestLen = len; best = c; }
-    }
-    root = best || doc.body || doc.documentElement;
-  }
+  // DOM traversieren: Wörter sammeln + Überschriften aufzeichnen
+  const words = [];
+  const rawHeadings = []; // {label, wordIndex}
 
-  // Collect headings and paragraph-ish text in reading order
-  const items = [];
-
-  const isBlockTag = (tag) => /^(P|LI|BLOCKQUOTE|H1|H2|H3|H4|H5|H6|UL|OL|TABLE|PRE|ARTICLE|SECTION|MAIN|ASIDE)$/.test(tag);
-
-  const hasBlockChildren = (el) => {
-    for (const ch of Array.from(el.children || [])) {
-      if (isBlockTag(ch.tagName?.toUpperCase?.() || "")) return true;
-    }
-    return false;
-  };
-
-  const looksLikeHeading = (el, text) => {
-    if (!text) return false;
-    const t = text.trim();
-    if (t.length < 3) return false;
-    if (t.length > 120) return false;
-    // bold / strong / headline-ish
-    const fw = (el.style && el.style.fontWeight) ? String(el.style.fontWeight) : "";
-    const isBold = el.tagName === "B" || el.tagName === "STRONG" || el.querySelector?.("b,strong") || fw === "bold" || Number(fw) >= 600;
-    // often headings end without punctuation
-    const endsWeird = /[\.!\?:;]$/.test(t);
-    return !!isBold && !endsWeird;
-  };
-
-  const pushPara = (t) => {
-    const text = cleanTextForWords(t || "");
-    if (text) items.push({ type: "p", text });
-  };
-
-  const walk = (node) => {
+  function walk(node) {
     if (!node) return;
-
-    // Text node: keep if meaningful and not whitespace
-    if (node.nodeType === 3) {
-      const t = cleanTextForWords(node.nodeValue || "");
-      if (t && t.length >= 25) pushPara(t);
+    if (node.nodeType === Node.TEXT_NODE) {
+      const txt = (node.textContent || '').replace(/\s+/g, ' ').trim();
+      if (txt) {
+        const w = txt.split(' ').filter(Boolean);
+        words.push(...w);
+      }
       return;
     }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
 
-    if (node.nodeType !== 1) return;
+    const tag = (node.tagName || '').toLowerCase();
+    if (['script','style','noscript','iframe','svg','math'].includes(tag)) return;
 
-    const tag = node.tagName.toUpperCase();
-
-    if (/^H[1-3]$/.test(tag)) {
-      const text = cleanTextForWords(node.textContent || "");
-      if (text) items.push({ type: "h", level: Number(tag[1]), text });
-      return;
-    }
-
-    if (tag === "P" || tag === "LI" || tag === "BLOCKQUOTE") {
-      pushPara(node.textContent || "");
-      return;
-    }
-
-    // Heuristic: standalone bold-ish lines become headings
-    if (tag === "DIV" || tag === "SECTION" || tag === "ARTICLE") {
-      const txt = cleanTextForWords(node.textContent || "");
-      if (!hasBlockChildren(node)) {
-        // flat div/section often contains paragraphs and headings as <br> or spans
-        // treat short bold-ish lines as headings, otherwise paragraph
-        if (looksLikeHeading(node, txt)) items.push({ type: "h", level: 2, text: txt });
-        else if (txt) pushPara(txt);
-        return;
+    const isHeading = /^h[1-4]$/.test(tag);
+    if (isHeading) {
+      const label = (node.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 70);
+      if (label && label.length >= 3) {
+        rawHeadings.push({ label, wordIndex: words.length });
       }
     }
 
-    // Skip UI fragments
-    const cls = (node.className || "").toString().toLowerCase();
-    if (cls.includes("nav") || cls.includes("footer") || cls.includes("header") || cls.includes("cookie") || cls.includes("consent")) return;
+    for (const child of node.childNodes) {
+      walk(child);
+    }
+  }
 
-    for (const ch of Array.from(node.childNodes)) walk(ch);
-  };
+  walk(mainEl);
 
-  walk(root);
+  // Duplikate und leere Überschriften entfernen
+  const seen = new Set();
+  const headings = rawHeadings.filter(h => {
+    const k = h.label.toLowerCase().trim();
+    if (!k || seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
 
-  // Title guess
-  const guessedTitle =
-    cleanTextForWords(doc.querySelector("h1")?.textContent || "") ||
-    cleanTextForWords(doc.title || "") ||
-    "Geteilter Artikel";
-
-  return { title: guessedTitle, items };
-}
-
-function buildWebBookFromHtml(html, titleOverride) {
-  const parsed = extractSectionsFromHtml(html);
-
-  const words = [];
+  // Kapitel + TOC aufbauen
   const chapters = [];
   const toc = [];
 
-  let currentChapterIdx = 0;
+  for (let i = 0; i < headings.length; i++) {
+    const h = headings[i];
+    const next = headings[i + 1];
+    const start = h.wordIndex;
+    const end = next ? next.wordIndex : words.length;
 
-  const pushWords = (txt) => {
-    const w = wordsFromText(txt);
-    for (const x of w) words.push(x);
-  };
+    // Zu kurze Abschnitte (False Positives) überspringen
+    if (end - start < 15) continue;
 
-  const startChapter = (label) => {
-    const href = `sec_${currentChapterIdx++}`;
-    const start = words.length;
-    const ch = { href, label, start, end: start };
-    chapters.push(ch);
-    toc.push({ href, label });
-    return ch;
-  };
-
-  let current = startChapter(titleOverride || parsed.title || "Artikel");
-
-  for (const it of parsed.items) {
-    if (it.type === "h") {
-      // start new chapter for headings, but avoid too many empty ones
-      if (words.length > current.start) {
-        current.end = words.length;
-      }
-      current = startChapter(it.text);
-      pushWords(it.text);
-      continue;
-    }
-    if (it.type === "p") {
-      pushWords(it.text);
-    }
+    const href = `section-${i}`;
+    chapters.push({ label: h.label, href, start, end });
+    toc.push({ label: h.label, href });
   }
 
-  // finalize ends
-  if (chapters.length) chapters[chapters.length - 1].end = words.length;
-  for (let i = 0; i < chapters.length - 1; i++) {
-    chapters[i].end = chapters[i + 1].start;
+  // Fallback: kein Heading gefunden → 1 Kapitel = ganzer Text
+  if (!chapters.length && words.length > 0) {
+    chapters.push({ label: pageTitle, href: 'main', start: 0, end: words.length });
+    toc.push({ label: pageTitle, href: 'main' });
   }
 
-  // If extraction failed badly, fallback to raw text
-  if (!words.length) {
-    const raw = cleanTextForWords(String(html || "").replace(/<[^>]+>/g, " "));
-    const w = wordsFromText(raw);
-    return {
-      title: titleOverride || parsed.title || "Geteilter Artikel",
-      words: w,
-      chapters: [{ href: "sec_0", label: titleOverride || parsed.title || "Artikel", start: 0, end: w.length }],
-      toc: [{ href: "sec_0", label: titleOverride || parsed.title || "Artikel" }],
-    };
-  }
-
-  // Ensure at least 1 chapter
-  if (!chapters.length) {
-    chapters.push({ href: "sec_0", label: titleOverride || parsed.title || "Artikel", start: 0, end: words.length });
-    toc.push({ href: "sec_0", label: titleOverride || parsed.title || "Artikel" });
-  }
-
-  return {
-    title: titleOverride || parsed.title || "Geteilter Artikel",
-    words,
-    chapters,
-    toc,
-  };
+  return { words, chapters, toc, title: pageTitle };
 }
+
+/* ----------------------------- */
 
 
 /* -----------------------------
@@ -2299,28 +2156,38 @@ async function performClipboardImport(titleOverride) {
       return;
     }
 
-    
-let bookTitle = titleOverride || "Geteilter Artikel";
-let bookData = null;
+    // Erkennen ob der Text HTML enthält
+    const looksLikeHtml = /<[a-z][^>]*>/i.test(text.slice(0, 2000));
 
-if (looksLikeHtml(text)) {
-  bookData = buildWebBookFromHtml(text, titleOverride);
-  bookTitle = bookData.title || bookTitle;
-} else {
-  const words = wordsFromText(text);
-  if (!words.length) {
-    setStatus("Kein lesbarer Text gefunden.");
-    return;
-  }
-  bookData = { title: bookTitle, words, chapters: [], toc: [] };
-}
+    let words, chapters, toc, detectedTitle;
+
+    if (looksLikeHtml) {
+      setStatus("HTML erkannt – extrahiere Artikel…", { sticky: true });
+      const parsed = parseClipboardHtml(text, titleOverride);
+      words = parsed.words;
+      chapters = parsed.chapters;
+      toc = parsed.toc;
+      detectedTitle = parsed.title;
+    } else {
+      words = wordsFromText(text);
+      chapters = [];
+      toc = [];
+      detectedTitle = titleOverride || "Geteilter Artikel";
+    }
+
+    if (!words.length) {
+      setStatus("Kein lesbarer Text gefunden.");
+      return;
+    }
+
+    const bookTitle = titleOverride || detectedTitle || "Geteilter Artikel";
 
     let bookIdToLoad;
     try {
       const allBooks = await idbGetAll();
       const existing = allBooks.find(b =>
-        (b.title === bookTitle) &&
-        b.words.length === bookData.words.length
+        (b.title === bookTitle || b.title === "Geteilter Artikel") &&
+        b.words.length === words.length
       );
       if (existing) bookIdToLoad = existing.id;
     } catch(e) {}
@@ -2331,11 +2198,11 @@ if (looksLikeHtml(text)) {
       await saveBookToLibrary({
         id: newId,
         title: bookTitle,
-        author: "Import",
+        author: "Web-Import",
         coverDataUrl: "",
-        words: bookData.words,
-        chapters: bookData.chapters || [],
-        toc: bookData.toc || [],
+        words: words,
+        chapters: chapters,
+        toc: toc,
         idx: 0,
         bookmarks: [],
         createdAt: Date.now(),
@@ -2429,8 +2296,8 @@ async function handleSharedContent() {
         author: "Import",
         coverDataUrl: "",
         words: parsed.words,
-        chapters: bookData.chapters || [],
-        toc: bookData.toc || [],
+        chapters: [],
+        toc: [],
         idx: 0,
         bookmarks: [],
         createdAt: Date.now(),
