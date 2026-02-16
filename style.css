@@ -376,9 +376,11 @@ body{
 .popoverPanel .dialog{
   height: 100%;
   overflow-y: auto;
+  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
 
-  /* damit unten nix von Browser/Safe-Area erschlagen wird */
+  /* Innenabstand damit rechts nix „verschwindet“ */
+  padding: 16px;
   padding-bottom: calc(18px + env(safe-area-inset-bottom));
 }
 
@@ -514,7 +516,11 @@ body{
 
 .dialogTitle{ font-weight:900; font-size:18px; }
 
-.controls{ display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+.controls{
+  display:grid;
+  grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+  gap:12px;
+}
 @media (max-width:720px){ .controls{ grid-template-columns: 1fr; } }
 
 .control label{ display:block; color:var(--muted); font-size:12px; margin-bottom:8px; }
@@ -536,7 +542,13 @@ body{
 .hr{ grid-column: 1 / -1; border: none; border-top:1px solid rgba(255,255,255,.08); margin: 6px 0; }
 
 .rowBtns{ grid-column: 1 / -1; display:flex; gap:10px; justify-content:flex-end; }
-.labelRow{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.labelRow{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap: wrap;
+}
 
 .helpBody{ color: rgba(233,234,238,.92); line-height: 1.45; font-size: 14px; }
 .helpBody .h{ font-weight: 900; margin: 12px 0 6px; }
@@ -841,7 +853,7 @@ body.modalOpen {
 ========================= */
 .grid2{
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0,1fr) minmax(0,1fr);
   gap: 12px;
 }
 @media (max-width:520px){
@@ -904,3 +916,14 @@ body.modalOpen {
 
 
 .appearancePreviewWord{ overflow-wrap:anywhere; }
+
+
+/* ---------- Responsive: Panels dürfen nie horizontal überlaufen ---------- */
+.popoverPanel .controls > *{ min-width: 0; }
+.grid2 > *{ min-width: 0; }
+
+@media (max-width: 720px){
+  .popoverPanel .controls{ grid-template-columns: 1fr; }
+  .grid2{ grid-template-columns: 1fr; }
+  .num{ width: 100%; }
+}
