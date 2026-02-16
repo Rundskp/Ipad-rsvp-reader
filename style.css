@@ -346,16 +346,14 @@ body{
 .popoverPanel{
   position: fixed;
   z-index: 200;
-  left: 12px;
-  right: 12px;
+  right: 12px;           /* rechtsbündig – gleicher Abstand wie Sidebar links */
+  left: auto;
 
   /* Statt max-height: echte Klammer zwischen Topbar und Safe-Area */
   top: calc(var(--topbarH) + 14px);
   bottom: calc(12px + env(safe-area-inset-bottom));
 
-  width: auto;
-  max-width: 520px;
-  margin: 0 auto;
+  width: min(520px, calc(100vw - 24px));
 
   /* Panel selbst NICHT scrollen lassen */
   overflow: hidden;
