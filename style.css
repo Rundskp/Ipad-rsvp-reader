@@ -7,6 +7,13 @@
   --btn:#1d2030;
   --accent:#7ee787;
 
+  /* Reader appearance */
+  --readerFontSize: 64px;
+  --readerText: #e8edf2;
+  --readerBg: #0b0c10;
+  --readerFont: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  --orpColor: #2b6cff;
+
   --pad: max(14px, env(safe-area-inset-left));
   --shelfSafe: 0px;        /* via JS gesetzt */
   --topbarH: 56px;         /* via JS nachgemessen */
@@ -254,7 +261,7 @@ body{
   height: 190px;
   border-radius:16px;
   border:1px solid rgba(255,255,255,.10);
-  background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(0,0,0,.15));
+  background: var(--readerBg);
   display:flex;
   align-items:center;
   justify-content:center;
@@ -265,14 +272,16 @@ body{
 }
 
 .word{
-  font-size: clamp(28px, 4vw, 60px);
+  color: var(--readerText);
+  font-family: var(--readerFont);
+  font-size: var(--readerFontSize);
   font-weight: 900;
   letter-spacing: .5px;
   padding: 0 14px;
 }
 
 .orp{
-  color: var(--accent);
+  color: var(--orpColor);
   text-shadow:0 0 16px rgba(126,231,135,.25);
 }
 
@@ -344,7 +353,7 @@ body{
   bottom: calc(12px + env(safe-area-inset-bottom));
 
   width: auto;
-  max-width: 520px;
+  max-width: min(520px, calc(100vw - 24px));
   margin: 0 auto;
 
   /* Panel selbst NICHT scrollen lassen */
@@ -796,3 +805,102 @@ body.modalOpen {
   overflow: hidden;
   touch-action: none;
 }
+
+
+/* =========================
+   BOOKMARK BAR (Web imports)
+========================= */
+.bookmarkBar{
+  position: sticky;
+  top: var(--topbarH);
+  z-index: 998;
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  background: rgba(10,12,16,.70);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.bookmarkBar::-webkit-scrollbar{ display:none; }
+.bookmarkBar button{
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.06);
+  color: var(--text);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.bookmarkBar button:active{ transform: scale(0.98); }
+
+/* =========================
+   SETTINGS: Appearance
+========================= */
+.grid2{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width:520px){
+  .grid2{ grid-template-columns: 1fr; }
+}
+
+.select{
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.06);
+  color: var(--text);
+  outline: none;
+}
+
+.colorPick{
+  width: 100%;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.06);
+  padding: 6px;
+}
+
+.appearancePreview{
+  margin-top: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
+  overflow: hidden;
+}
+.previewLabel{
+  font-size: 12px;
+  color: var(--muted);
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.previewBox{
+  padding: 18px 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 86px;
+  background: var(--readerBg);
+}
+#appearancePreviewWord{
+  font-size: var(--readerFontSize);
+  color: var(--readerText);
+  font-family: var(--readerFont);
+  font-weight: 900;
+  text-align: center;
+}
+
+
+@media (max-width: 520px){
+  .grid2{ grid-template-columns: 1fr; }
+  .rowBtns{ flex-wrap: wrap; }
+}
+
+
+.appearancePreviewWord{ overflow-wrap:anywhere; }
