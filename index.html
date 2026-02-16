@@ -79,12 +79,14 @@
         <div id="bookAuthor" class="bookAuthor">—</div>
         <div class="metaRow">
           <span class="pill"><b>Fortschritt</b> <span id="prog">0%</span></span>
-          <span class="pill"><b>WPM</b> <span id="wpmVal">360</span></span>
+          <span class="pill"><b>WPM</b> <span id="wpmVal">500</span></span>
           <span class="pill"><b>Kapitel</b> <span id="chapVal">—</span></span>
         </div>
       </div>
     </div>
   </section>
+
+  <div id="bookmarkBar" class="bookmarkBar hidden" aria-label="Abschnitte"></div>
 
   <!-- Main -->
   <main class="wrap">
@@ -151,9 +153,9 @@
         <div class="control">
           <label class="labelRow">
             <span>Geschwindigkeit (WPM)</span>
-            <span class="pill small"><span id="wpmSettingVal">360</span> WPM</span>
+            <span class="pill small"><span id="wpmSettingVal">500</span> WPM</span>
           </label>
-          <input id="wpm" type="range" min="120" max="900" step="10" value="360">
+          <input id="wpm" type="range" min="120" max="900" step="10" value="500">
         </div>
 
         <div class="control">
@@ -202,7 +204,53 @@
           <input id="stopMins" type="number" min="1" step="1" value="10" class="num" />
         </div>
 
-        <div class="rowBtns">
+        
+        <hr class="hr">
+
+        <div class="control">
+          <div class="labelRow">
+            <span>Anzeige</span>
+            <span class="pill small">Vorschau</span>
+          </div>
+
+          <div class="grid2">
+            <div>
+              <label>Schriftgröße</label>
+              <input id="fontSize" type="range" min="28" max="120" step="2" value="64">
+              <div class="hint"><span id="fontSizeVal">64</span> px</div>
+            </div>
+
+            <div>
+              <label>Schriftart</label>
+              <select id="fontFamily" class="select">
+                <option value="system">System</option>
+                <option value="sans">Sans</option>
+                <option value="serif">Serif</option>
+                <option value="mono">Mono</option>
+              </select>
+              <div class="hint">Gilt für Reader & Vorschau.</div>
+            </div>
+
+            <div>
+              <label>Textfarbe</label>
+              <input id="textColor" type="color" value="#e8edf2" class="colorPick">
+            </div>
+
+            <div>
+              <label>Hintergrund</label>
+              <input id="bgColor" type="color" value="#0b0c10" class="colorPick">
+            </div>
+          </div>
+
+          <div id="appearancePreview" class="appearancePreview" aria-label="Vorschau">
+            <div class="previewLabel">Vorschau</div>
+            <div class="previewBox">
+              <span id="appearancePreviewWord">Read fast. Think slow.</span>
+            </div>
+          </div>
+        </div>
+
+<div class="rowBtns">
           <button id="btnSaveSettings" class="btn" type="button">Speichern</button>
           <button id="btnLoadSettings" class="btn ghost" type="button">Laden</button>
         </div>
