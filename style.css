@@ -896,11 +896,11 @@ body{
 
 #status {
   text-align: center;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--muted);
-  min-height: 20px;
-  margin-top: 8px;
-  transition: all 0.3s ease;
+  min-height: 18px;
+  padding: 4px 0 0 0;
+  transition: opacity 0.3s ease;
 }
 
 #status.import-active {

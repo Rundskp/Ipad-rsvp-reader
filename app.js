@@ -2031,16 +2031,43 @@ attachScrubButton(el.btnFwd, +1);
       "padding:6px 14px;border-radius:8px;color:#fff;cursor:pointer;font-size:13px;";
     document.body.appendChild(floatBtn);
 
+    const card    = document.getElementById("readerCard");
+    const topbar2  = document.querySelector(".topbar");
+    const hBar     = document.getElementById("headerInfo");
+    const bBar     = document.getElementById("bookmarkBar");
+    const player   = card ? card.querySelector(".player") : null;
+    const display2 = card ? card.querySelector(".display") : null;
+
     const enterReaderFullscreen = () => {
       _fsActive = true;
-      document.body.classList.add("readerFullscreen");
+      // Störendes ausblenden
+      if (topbar2) topbar2.style.display = "none";
+      if (hBar)    hBar.style.display    = "none";
+      if (bBar)    bBar.style.display    = "none";
+      // Karte direkt per inline-style auf ganzen Bildschirm setzen
+      if (card) {
+        card.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100dvh;" +
+          "z-index:9999;display:flex;flex-direction:column;overflow:hidden;" +
+          "background:var(--reader-bg-color,#0b0c10);border-radius:0;border:none;" +
+          "box-sizing:border-box;padding:24px;margin:0;";
+      }
+      if (player)   { player.style.cssText   = "flex:1;display:flex;flex-direction:column;min-height:0;"; }
+      if (display2) { display2.style.cssText = "flex:1;height:auto;min-height:0;border-radius:16px;"; }
       btnFS.classList.add("isActive");
       floatBtn.style.display = "block";
+      document.body.style.overflow = "hidden";
     };
 
     const exitReaderFullscreen = () => {
       _fsActive = false;
-      document.body.classList.remove("readerFullscreen");
+      // Alles zurücksetzen
+      if (topbar2) topbar2.style.display = "";
+      if (hBar)    hBar.style.display    = "";
+      if (bBar)    bBar.style.display    = "";
+      if (card)    card.style.cssText    = "";
+      if (player)  player.style.cssText  = "";
+      if (display2) display2.style.cssText = "";
+      document.body.style.overflow = "";
       btnFS.textContent = "⛶";
       btnFS.title = "Vollbild";
       btnFS.classList.remove("isActive");
