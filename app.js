@@ -20,6 +20,15 @@ console.log(
 console.log("%c[System]%c RSVP Reader v2.2 - Non-Commercial Edition", "color: #7ee787", "color: inherit");
 console.log("%c[Legal]%c (c) 2026 rundskp. No derivatives allowed. Do not redistribute modified versions.", "color: #ff4d4d; font-weight: bold;", "color: inherit");
 
+/* Read-Along state – muss vor stopPlayback/scheduleNext definiert sein */
+const ReadAlong = {
+  active:        false,
+  utterance:     null,
+  startIdx:      0,
+  wordOffsets:   [],
+  _fallbackTimer: null,
+};
+
 /* -----------------------------
    Layout helpers
 ------------------------------ */
@@ -765,16 +774,17 @@ function showCurrent() {
    Playback
 ------------------------------ */
 function stopPlayback(reason = "") {
+  // Read-Along beenden wenn aktiv
+  if (ReadAlong.active) {
+    readAlongStop();
+  }
   S.playing = false;
   if (S.timer) clearTimeout(S.timer);
   S.timer = null;
   S.pendingStop = false;
   if (el.btnPlay) el.btnPlay.textContent = "Play";
   if (reason) setStatus(reason);
-  // Read-Along: Sprachausgabe sofort stoppen
-  if (el.ttsReadAlong?.checked) {
-    try { window.speechSynthesis?.cancel(); } catch {}
-  }
+  try { window.speechSynthesis?.cancel(); } catch {}
   persistCurrentBookState().catch(()=>{});
 }
 
@@ -806,6 +816,8 @@ function checkAutoStop(currentToken, nextIdxAfterAdvance) {
 
 function scheduleNext() {
   if (!S.playing) return;
+  // Während Read-Along steuert die TTS-Stimme – scheduleNext bleibt draußen
+  if (ReadAlong.active) return;
 
   const total = S.words.length;
   if (!total) { stopPlayback(); return; }
@@ -817,9 +829,6 @@ function scheduleNext() {
   const token = S.words.slice(start, end).join(" ");
   renderToken(token);
   updateProgressUI();
-
-  // TTS Read-Along: dieses Token laut sprechen, synchron zur Anzeige
-  ttsReadAlongSpeakToken(token);
 
   S.idx = end;
 
@@ -840,6 +849,20 @@ function scheduleNext() {
 
 function togglePlay() {
   if (!S.words.length) return;
+
+  // Read-Along Modus: TTS pausieren/fortsetzen
+  if (ReadAlong.active) {
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+      S.playing = true;
+      if (el.btnPlay) el.btnPlay.textContent = "Pause";
+    } else {
+      window.speechSynthesis.pause();
+      S.playing = false;
+      if (el.btnPlay) el.btnPlay.textContent = "Play";
+    }
+    return;
+  }
 
   if (S.playing) {
     stopPlayback();
@@ -1956,11 +1979,19 @@ attachScrubButton(el.btnFwd, +1);
      TTS Read-Along Checkbox
   ------------------------------------------ */
   el.ttsReadAlong?.addEventListener("change", () => {
-    if (!el.ttsReadAlong.checked) {
-      // Deaktiviert: laufende Sprachausgabe sofort stoppen
-      try { window.speechSynthesis?.cancel(); } catch {}
+    if (el.ttsReadAlong.checked) {
+      // Normale RSVP-Wiedergabe pausieren falls aktiv
+      if (S.playing && !ReadAlong.active) {
+        S.playing = false;
+        if (S.timer) { clearTimeout(S.timer); S.timer = null; }
+        if (el.btnPlay) el.btnPlay.textContent = "Play";
+      }
+      readAlongStart();
+    } else {
+      // Nur stoppen wenn Read-Along gerade wirklich aktiv ist
+      // (nicht wenn readAlongStop() selbst das Checkbox zurückgesetzt hat)
+      if (ReadAlong.active) readAlongStop();
     }
-    // Aktiviert: nichts extra tun – scheduleNext() ruft ttsReadAlongSpeakToken() auf
   });
 
   /* ------------------------------------------
@@ -2953,60 +2984,156 @@ function ttsStart() {
   }
 }
 
-/* ── TTS Read-Along: Wort-für-Wort synchronisiert mit RSVP ──
-   Statt TTS parallel laufen zu lassen (was unweigerlich asynchron wird),
-   sprechen wir exakt dasselbe Token das gerade angezeigt wird – via
-   speechSynthesis.speak() in scheduleNext(). Kein separates TTS-Threading.
-────────────────────────────────────────────────────────────────── */
-function ttsReadAlongSpeakToken(token) {
-  if (!el.ttsReadAlong?.checked) return;
-  if (!window.speechSynthesis) return;
+/* =====================================================
+   TTS READ-ALONG – Stimme führt, RSVP-Anzeige folgt
+   ===================================================== */
 
-  // Sofort abbrechen was noch in der Queue ist
-  window.speechSynthesis.cancel();
+function readAlongStop() {
+  if (!ReadAlong.active) return;
+  ReadAlong.active = false;
+  try { window.speechSynthesis?.cancel(); } catch {}
+  ReadAlong.utterance = null;
+  if (ReadAlong._fallbackTimer) {
+    clearTimeout(ReadAlong._fallbackTimer);
+    ReadAlong._fallbackTimer = null;
+  }
+  // Checkbox ohne erneutes Change-Event zurücksetzen
+  if (el.ttsReadAlong) el.ttsReadAlong.checked = false;
+  if (el.btnPlay) el.btnPlay.textContent = "Play";
+  S.playing = false;
+  S.timer = null;
+}
 
-  // Leer oder nur Satzzeichen: überspringen
-  const text = token.trim();
-  if (!text || !/[\wäöüÄÖÜß]/i.test(text)) return;
-
-  const u = new SpeechSynthesisUtterance(text);
-
-  // Stimme aus den gespeicherten Einstellungen
-  const voiceSelect = document.getElementById("ttsVoiceSelect");
-  if (voiceSelect && voiceSelect.value) {
-    const voices = window.speechSynthesis.getVoices();
-    const v = voices.find(v => v.name === voiceSelect.value);
-    if (v) u.voice = v;
+function readAlongStart() {
+  if (!window.speechSynthesis) {
+    setStatus("Sprachausgabe nicht verfügbar.");
+    if (el.ttsReadAlong) el.ttsReadAlong.checked = false;
+    return;
+  }
+  if (!S.words.length) {
+    setStatus("Kein Text geladen.");
+    if (el.ttsReadAlong) el.ttsReadAlong.checked = false;
+    return;
   }
 
-  // Rate so setzen dass die Sprechzeit ≈ der RSVP-Anzeigezeit ist
-  // Wir setzen rate sehr hoch (2.0) damit TTS schnell genug fertig wird
-  // bevor das nächste Wort kommt. Bei niedrigen WPM passt es auch ohne Trick.
-  const msPerWord = 60000 / (S.settings.wpm || 300);
-  const avgCharsPerWord = 5;
-  const charsInToken = text.length;
-  // Grobe Faustformel: Browser-TTS braucht ~80ms/Zeichen bei rate=1.0
-  // Wir passen rate so an, dass es in msPerWord reinpasst
-  const naturalMs = charsInToken * 75; // ~75ms/Zeichen bei rate 1.0
-  let rate = naturalMs / Math.max(msPerWord * 0.85, 1);
-  rate = Math.max(0.5, Math.min(2.0, rate));
+  // Normale RSVP-Wiedergabe anhalten
+  S.playing = false;
+  if (S.timer) { clearTimeout(S.timer); S.timer = null; }
+  window.speechSynthesis.cancel(); // evtl. laufendes TTS stoppen
 
-  // Benutzerwunsch aus Slider: als Basiswert nehmen, aber RSVP-Tempo hat Vorrang
-  const userRate = parseFloat(document.getElementById("ttsRate")?.value || "1.0");
-  // Wir nutzen den User-Wert als Untergrenze (nie langsamer als gewünscht)
-  u.rate = Math.max(userRate, rate);
+  ReadAlong.active   = true;
+  ReadAlong.startIdx = S.idx;
 
-  const userPitch = parseFloat(document.getElementById("ttsPitch")?.value || "1.0");
-  u.pitch = userPitch;
-  u.lang = document.documentElement.lang || "de-DE";
+  // Text und Wort-Offset-Map aufbauen
+  const slice = S.words.slice(S.idx);
+  let pos = 0;
+  ReadAlong.wordOffsets = slice.map((w, i) => {
+    const o = { start: pos, end: pos + w.length, wordIdx: S.idx + i };
+    pos += w.length + 1;
+    return o;
+  });
+  const fullText = slice.join(" ");
 
+  // Stimme & Einstellungen
+  const voiceSelect = document.getElementById("ttsVoiceSelect");
+  const voices      = window.speechSynthesis.getVoices();
+  let   voice       = null;
+  if (voiceSelect?.value) voice = voices.find(v => v.name === voiceSelect.value) || null;
+  const rate  = parseFloat(document.getElementById("ttsRate")?.value  || "1.0");
+  const pitch = parseFloat(document.getElementById("ttsPitch")?.value || "1.0");
+
+  const u = new SpeechSynthesisUtterance(fullText);
+  u.lang  = document.documentElement.lang || "de-DE";
+  u.rate  = rate;
+  u.pitch = pitch;
+  if (voice) u.voice = voice;
+
+  // Play-UI auf "läuft"
+  if (el.btnPlay) el.btnPlay.textContent = "Pause";
+  S.playing = true;
+
+  // ── onboundary: Browser feuert bei jedem Wort-Beginn ──────────────
+  let boundaryCount   = 0;
+  let lastBoundaryAt  = 0;
+  let lastWordPos     = 0; // letzter Wort-Index in wordOffsets
+
+  const showWord = (wIdx) => {
+    if (!ReadAlong.active) return;
+    const chunk = S.settings.chunk;
+    S.idx = wIdx;
+    const end   = clamp(wIdx + chunk, wIdx, S.words.length);
+    const token = S.words.slice(wIdx, end).join(" ");
+    renderToken(token);
+    updateProgressUI();
+  };
+
+  u.onboundary = (ev) => {
+    if (!ReadAlong.active || ev.name !== "word") return;
+    boundaryCount++;
+
+    // Zeichenposition → passendes Wort suchen
+    const ci = ev.charIndex;
+    let matched = null;
+    for (let i = lastWordPos; i < ReadAlong.wordOffsets.length; i++) {
+      const o = ReadAlong.wordOffsets[i];
+      if (ci >= o.start) { matched = o; lastWordPos = i; }
+      if (ci < o.end)    { break; }
+    }
+    if (!matched) matched = ReadAlong.wordOffsets[lastWordPos];
+    if (!matched) return;
+
+    showWord(matched.wordIdx);
+    lastBoundaryAt = performance.now();
+  };
+
+  // ── onstart: Fallback-Timer starten falls kein onboundary kommt ───
+  u.onstart = () => {
+    const startTime    = performance.now();
+    const estMsPerWord = Math.round(280 / Math.max(rate, 0.1));
+    let   fallbackIdx  = 0;
+
+    const tick = () => {
+      if (!ReadAlong.active) return;
+      // Boundary-Events kommen? Fallback nicht nötig
+      if (boundaryCount > 0) return;
+      const o = ReadAlong.wordOffsets[fallbackIdx];
+      if (!o) return;
+      showWord(o.wordIdx);
+      fallbackIdx++;
+      ReadAlong._fallbackTimer = setTimeout(tick, estMsPerWord);
+    };
+
+    // Erst nach 500ms prüfen ob Boundaries kamen
+    ReadAlong._fallbackTimer = setTimeout(tick, 500);
+  };
+
+  u.onend = () => {
+    if (ReadAlong._fallbackTimer) {
+      clearTimeout(ReadAlong._fallbackTimer);
+      ReadAlong._fallbackTimer = null;
+    }
+    if (!ReadAlong.active) return;
+    readAlongStop();
+    setStatus("Vorlesen beendet ✅");
+    persistCurrentBookState().catch(() => {});
+  };
+
+  u.onerror = (e) => {
+    if (ReadAlong._fallbackTimer) {
+      clearTimeout(ReadAlong._fallbackTimer);
+      ReadAlong._fallbackTimer = null;
+    }
+    if (e.error === "interrupted" || e.error === "canceled") return;
+    console.warn("Read-Along Fehler:", e.error);
+    readAlongStop();
+  };
+
+  ReadAlong.utterance = u;
   window.speechSynthesis.speak(u);
 }
 
-function ttsReadAlongSync() {
-  // Wird nur aufgerufen wenn Checkbox angehakt – Sprechung läuft via scheduleNext()
-  // Nichts weiter zu tun, da scheduleNext() ttsReadAlongSpeakToken() aufruft
-}
+function ttsReadAlongSpeakToken() { /* no-op */ }
+function ttsReadAlongSync()       { /* no-op */ }
 
 /* ── Init TTS Panel ── */
 function initTtsPanel() {
