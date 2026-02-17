@@ -2265,30 +2265,66 @@ async function performClipboardImport(titleOverride) {
   const overlay = document.getElementById("importOverlay");
 
   try {
-    const text = await navigator.clipboard.readText();
+    // Versuche zuerst text/html zu lesen (enthält Überschriften/Struktur)
+    // Fallback auf readText() wenn die API nicht verfügbar ist
+    let htmlContent = null;
+    let plainText   = null;
 
-    if (!text || !text.trim()) {
+    if (navigator.clipboard.read) {
+      try {
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          if (item.types.includes("text/html")) {
+            const blob = await item.getType("text/html");
+            htmlContent = await blob.text();
+          }
+          if (item.types.includes("text/plain")) {
+            const blob = await item.getType("text/plain");
+            plainText = await blob.text();
+          }
+        }
+      } catch (readErr) {
+        // Manche Browser verweigern clipboard.read() – Fallback
+        console.warn("clipboard.read() fehlgeschlagen, nutze readText():", readErr);
+        plainText = await navigator.clipboard.readText();
+      }
+    } else {
+      plainText = await navigator.clipboard.readText();
+    }
+
+    // Primär HTML nutzen, sonst Plaintext
+    const rawContent = htmlContent || plainText || "";
+
+    if (!rawContent.trim()) {
       setStatus("Zwischenablage ist leer!");
       return;
     }
 
-    // Erkennen ob der Text HTML enthält
-    const looksLikeHtml = /<[a-z][^>]*>/i.test(text.slice(0, 2000));
-
     let words, chapters, toc, detectedTitle;
 
-    if (looksLikeHtml) {
+    if (htmlContent) {
       setStatus("HTML erkannt – extrahiere Artikel…", { sticky: true });
-      const parsed = parseClipboardHtml(text, titleOverride);
-      words = parsed.words;
-      chapters = parsed.chapters;
-      toc = parsed.toc;
+      const parsed = parseClipboardHtml(htmlContent, titleOverride);
+      words         = parsed.words;
+      chapters      = parsed.chapters;
+      toc           = parsed.toc;
       detectedTitle = parsed.title;
     } else {
-      words = wordsFromText(text);
-      chapters = [];
-      toc = [];
-      detectedTitle = titleOverride || "Geteilter Artikel";
+      // Plaintext: schauen ob darin HTML-Fragmente stecken (iOS-Shortcut schickt manchmal HTML als Text)
+      const looksLikeHtml = /<[a-z][^>]*>/i.test(rawContent.slice(0, 2000));
+      if (looksLikeHtml) {
+        setStatus("HTML erkannt – extrahiere Artikel…", { sticky: true });
+        const parsed = parseClipboardHtml(rawContent, titleOverride);
+        words         = parsed.words;
+        chapters      = parsed.chapters;
+        toc           = parsed.toc;
+        detectedTitle = parsed.title;
+      } else {
+        words         = wordsFromText(rawContent);
+        chapters      = [];
+        toc           = [];
+        detectedTitle = titleOverride || "Geteilter Artikel";
+      }
     }
 
     if (!words.length) {

@@ -578,6 +578,7 @@ body{
 @media (max-width:720px){ .controls{ grid-template-columns: 1fr; } }
 
 .control label{ display:block; color:var(--muted); font-size:12px; margin-bottom:8px; }
+.control label.check { color: var(--text); }
 .control input[type="range"]{ width:100%; }
 
 .check{ display:flex; gap:10px; align-items:center; font-size:14px; }
@@ -603,13 +604,22 @@ body{
   padding: 8px 10px;
   border-radius: 10px;
   border: 1px solid rgba(255,255,255,.12);
-  background: rgba(255,255,255,.04);
+  background: rgba(30,32,44,.95);
   color: var(--text);
   font-size: 13px;
   cursor: pointer;
   -webkit-appearance: none;
   appearance: none;
 }
+.select option {
+  background: #1d2030;
+  color: var(--text);
+}
+
+/* Alle Inputs im Settings-Dialog dunkel */
+.controls input[type="range"]  { accent-color: var(--accent); }
+.controls input[type="number"] { background: rgba(30,32,44,.95); color: var(--text); }
+.controls input[type="color"]  { background: transparent; }
 
 .helpBody{ color: rgba(233,234,238,.92); line-height: 1.45; font-size: 14px; }
 .helpBody .h{ font-weight: 900; margin: 12px 0 6px; }
