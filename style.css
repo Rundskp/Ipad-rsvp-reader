@@ -294,7 +294,16 @@ body{
   font-weight: 900;
   letter-spacing: .5px;
   padding: 0 14px;
+  /* ORP-Zentrierung: Kein word-break – nur bei echten Trennungen */
+  word-break: normal;
+  overflow-wrap: normal;
+  hyphens: auto;
+  -webkit-hyphens: auto;
 }
+
+/* ORP-Struktur für korrekte Zentrierung des Pivot-Buchstabens */
+.orp-before { color: var(--reader-text-color, #e8edf2); }
+.orp-after  { color: var(--reader-text-color, #e8edf2); }
 
 .orp{
   color: var(--orp-color, #7ee787);
@@ -920,6 +929,68 @@ body.modalOpen {
 :fullscreen .topbar,
 :-webkit-full-screen .topbar {
   background: rgba(8,9,13,.95) !important;
+}
+
+/* ═══ Reader-Vollbild (kein Browser-Fullscreen, nur Lesefenster ausdehnen) ═══ */
+body.readerFullscreen .wrap {
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+}
+
+body.readerFullscreen .card {
+  position: fixed;
+  top: calc(var(--topbarH) + 8px);
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+body.readerFullscreen .player {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+body.readerFullscreen .display {
+  flex: 1;
+  height: auto !important;
+  min-height: 0;
+}
+
+/* ═══ TTS Read-Along Checkbox ═══ */
+.ttsToggleLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: transparent;
+  cursor: pointer;
+  user-select: none;
+  transition: background .15s, border-color .15s;
+}
+
+.ttsToggleLabel:has(input:checked) {
+  background: rgba(126,231,135,.15);
+  border-color: rgba(126,231,135,.45);
+}
+
+.ttsToggleLabel input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.ttsToggleIcon {
+  font-size: 16px;
+  line-height: 1;
 }
 
 /* ─── TTS Panel ─── */

@@ -17,39 +17,70 @@
   <div class="topLogo" aria-hidden="true">
     <div class="glassesWrap">
       <svg class="glassesMark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2499 391" preserveAspectRatio="xMidYMid meet">
-        <defs> <linearGradient id="metalChrome" x1="0%" x2="0%" y1="0%" y2="100%">
-            <stop offset="0%" stop-color="#f9fbfe"/>
-            <stop offset="9%" stop-color="#d7dde4"/>
-            <stop offset="22%" stop-color="#616a74"/>
-            <stop offset="34%" stop-color="#f2f5f9"/>
-            <stop offset="41%" stop-color="#9aa3ad"/>
-            <stop offset="47%" stop-color="#f7f9fc"/>
-            <stop offset="62%" stop-color="#2b323a"/>
-            <stop offset="78%" stop-color="#7c8793"/>
-            <stop offset="100%" stop-color="#eef2f7"/>
+        <defs>
+          <!-- Tiefschwarz-Körper: edel wie Klavierlack -->
+          <linearGradient id="bodyBlack" x1="0%" x2="0%" y1="0%" y2="100%">
+            <stop offset="0%"   stop-color="#1a1c22"/>
+            <stop offset="28%"  stop-color="#0c0d11"/>
+            <stop offset="52%"  stop-color="#050608"/>
+            <stop offset="78%"  stop-color="#0e1013"/>
+            <stop offset="100%" stop-color="#1c1e26"/>
           </linearGradient>
-
-          <linearGradient id="edgeSheen" x1="0%" x2="100%" y1="0%" y2="0%">
-            <stop offset="0%" stop-color="#ffffff" stop-opacity="0"></stop>
-            <stop offset="18%" stop-color="#ffffff" stop-opacity="0.18"></stop>
-            <stop offset="50%" stop-color="#ffffff" stop-opacity="0.55"></stop>
-            <stop offset="82%" stop-color="#ffffff" stop-opacity="0.16"></stop>
-            <stop offset="100%" stop-color="#ffffff" stop-opacity="0"></stop>
+          <!-- Diagonaler Showroom-Lichtreflex -->
+          <linearGradient id="primaryReflect" x1="18%" x2="82%" y1="0%" y2="100%">
+            <stop offset="0%"   stop-color="#ffffff" stop-opacity="0"/>
+            <stop offset="30%"  stop-color="#ffffff" stop-opacity="0"/>
+            <stop offset="38%"  stop-color="#eaf2ff" stop-opacity="0.38"/>
+            <stop offset="43%"  stop-color="#f8fcff" stop-opacity="0.58"/>
+            <stop offset="48%"  stop-color="#dceaf8" stop-opacity="0.30"/>
+            <stop offset="58%"  stop-color="#ffffff" stop-opacity="0"/>
+            <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
           </linearGradient>
-
-          <filter id="softShadow" x="-20%" y="-40%" width="140%" height="200%">
-            <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000000" flood-opacity="0.45"></feDropShadow>
+          <!-- Kanten-Rim-Light von oben -->
+          <linearGradient id="rimTop" x1="0%" x2="100%" y1="0%" y2="0%">
+            <stop offset="0%"   stop-color="#ffffff" stop-opacity="0"/>
+            <stop offset="6%"   stop-color="#c8d8ee" stop-opacity="0.52"/>
+            <stop offset="20%"  stop-color="#e4f0ff" stop-opacity="0.72"/>
+            <stop offset="50%"  stop-color="#d8eaff" stop-opacity="0.48"/>
+            <stop offset="80%"  stop-color="#e2eef8" stop-opacity="0.62"/>
+            <stop offset="94%"  stop-color="#c0d2e6" stop-opacity="0.48"/>
+            <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+          </linearGradient>
+          <!-- Bodenreflex: Showroom-Boden wirft etwas Licht zurück -->
+          <linearGradient id="floorReflect" x1="0%" x2="0%" y1="0%" y2="100%">
+            <stop offset="0%"   stop-color="#ffffff" stop-opacity="0"/>
+            <stop offset="70%"  stop-color="#ffffff" stop-opacity="0"/>
+            <stop offset="88%"  stop-color="#8090aa" stop-opacity="0.16"/>
+            <stop offset="100%" stop-color="#4060a0" stop-opacity="0.24"/>
+          </linearGradient>
+          <!-- Tiefer Schatten -->
+          <filter id="deepShadow" x="-15%" y="-30%" width="130%" height="180%">
+            <feDropShadow dx="0" dy="9"  stdDeviation="9"  flood-color="#000000" flood-opacity="0.75"/>
+            <feDropShadow dx="0" dy="22" stdDeviation="20" flood-color="#000010" flood-opacity="0.42"/>
           </filter>
+          <!-- Clip für Reflexe -->
+          <clipPath id="glassesClip">
+            <path fill-rule="evenodd" d="M802,0 C859,0 913,11 962,23 C1059,49 1151,73 1248,88 C1284,95 1357,69 1387,60 C1457,42 1528,29 1600,13 C1625,10 1648,8 1672,5 C1709,-1 1779,19 1812,26 C1850,34 1889,41 1926,48 C1998,66 2063,78 2132,94 C2196,106 2259,117 2322,128 C2352,134 2386,135 2407,150 C2437,171 2445,211 2463,242 C2473,261 2511,319 2494,346 C2470,383 2394,339 2379,318 C2352,282 2353,222 2315,196 C2290,178 2222,182 2183,175 C2077,161 1970,146 1863,131 C1836,127 1742,111 1725,119 C1708,174 1695,237 1677,291 C1670,319 1666,357 1644,373 C1619,393 1517,393 1474,386 C1435,380 1395,385 1370,365 C1362,357 1356,343 1350,333 C1330,300 1309,267 1289,232 C1281,216 1273,182 1253,177 C1225,170 1214,213 1207,229 C1194,257 1139,356 1116,370 C1093,385 1056,381 1021,386 C1002,389 972,391 951,388 C914,382 875,390 850,372 C833,358 830,327 822,303 C813,271 804,240 794,208 C787,176 784,139 767,115 C742,112 716,120 692,124 C669,127 644,131 619,134 C531,146 443,158 354,170 C315,175 275,181 236,186 C220,189 201,187 188,194 C148,218 146,283 119,321 C111,333 91,341 77,348 C54,360 15,372 3,339 C-6,315 11,299 17,285 C39,243 53,181 88,154 C128,125 238,122 296,108 C406,83 521,62 630,34 C688,23 746,12 802,0 ZM1541,92 C1521,93 1499,96 1478,98 C1434,106 1362,114 1329,135 C1316,177 1339,201 1351,227 C1364,251 1381,298 1401,313 C1439,342 1565,346 1604,315 C1616,306 1617,277 1621,260 C1624,244 1633,233 1637,219 L1637,154 C1646,136 1645,103 1633,96 C1628,92 1558,92 1541,92 ZM899,100 C883,106 869,102 860,116 C851,133 861,155 857,177 C856,192 885,304 892,313 C903,325 931,330 947,334 C970,339 1002,333 1020,329 C1042,324 1068,328 1087,317 C1109,305 1135,250 1145,225 C1151,210 1191,152 1161,132 C1150,126 1137,125 1123,121 C1061,103 982,100 899,100 Z"/>
+          </clipPath>
         </defs>
 
-      <!-- 1) Hauptform: Metall -->
-      <path fill-rule="evenodd" fill="url(#metalChrome)" filter="url(#softShadow)" d="M802.1000,0.1000 C858.937,-0.082 913.163,11.196 962.1000,23.1000 C1058.686,48.584 1150.889,72.931 1248.000,88.1000 C1283.976,94.953 1356.859,69.186 1387.000,60.1000 C1457.476,41.860 1527.512,29.361 1600.1000,13.000 C1624.664,10.334 1648.336,7.666 1672.000,4.1000 C1709.147,-1.204 1779.459,19.174 1812.000,26.1000 C1850.330,33.999 1888.670,41.001 1926.1000,47.1000 C1998.051,65.532 2063.022,77.572 2132.1000,94.1000 C2195.994,105.999 2259.006,117.001 2322.000,127.1000 C2352.022,134.392 2385.552,134.987 2407.000,150.000 C2436.514,170.659 2445.076,210.723 2463.000,242.1000 C2473.052,261.101 2511.184,318.985 2494.000,346.000 C2470.354,383.174 2394.293,338.774 2379.000,318.000 C2352.208,281.606 2353.054,221.646 2315.1000,195.1000 C2289.858,177.906 2221.901,181.683 2183.1000,174.1000 C2077.011,160.668 1969.989,146.332 1863.000,131.1000 C1835.584,126.749 1742.131,110.560 1725.1000,119.1000 C1707.736,173.747 1694.578,237.054 1677.1000,291.000 C1669.521,318.590 1665.508,357.268 1644.1000,373.000 C1619.214,392.781 1517.271,393.231 1474.000,386.000 C1435.396,379.549 1395.300,384.660 1370.1000,365.000 C1361.700,357.475 1356.408,343.479 1350.000,333.000 C1329.926,300.171 1308.749,266.558 1289.1000,232.000 C1281.340,216.038 1272.934,181.797 1253.1000,176.1000 C1225.121,169.684 1214.314,212.683 1207.000,228.1000 C1194.323,257.280 1138.861,356.427 1116.1000,370.000 C1092.851,384.993 1056.112,380.601 1021.1000,386.000 C1001.516,389.242 972.380,391.499 951.000,388.000 C914.050,381.954 874.585,390.192 850.1000,372.000 C833.187,358.261 829.504,326.911 822.000,303.000 C813.001,271.337 803.999,239.663 794.1000,207.1000 C786.736,175.784 783.507,139.089 767.000,114.1000 C742.309,112.429 715.667,119.588 692.1000,124.000 C668.669,127.333 644.331,130.667 619.1000,133.1000 C531.342,145.999 442.658,158.001 353.1000,169.1000 C314.671,175.333 275.329,180.667 236.000,185.1000 C219.807,189.173 201.476,186.907 188.1000,194.000 C147.670,217.498 146.273,282.799 119.000,321.000 C110.692,332.638 91.034,341.245 77.1000,348.000 C54.393,360.235 14.729,372.089 2.1000,339.000 C-5.641,314.622 10.962,299.343 17.1000,284.1000 C38.656,242.901 52.784,180.969 88.1000,154.000 C127.709,125.174 238.248,121.645 296.1000,107.1000 C406.447,82.581 521.076,61.667 630.1000,33.1000 C688.328,23.001 745.672,11.999 802.1000,0.1000 ZM1541.1000,91.1000 C1520.669,93.1000 1499.331,96.000 1478.000,98.000 C1433.960,106.018 1361.899,114.339 1329.000,134.1000 C1316.256,177.425 1338.706,200.682 1351.1000,227.000 C1364.130,251.014 1381.368,298.214 1401.000,313.000 C1439.133,341.720 1564.735,345.792 1604.000,315.000 C1615.697,305.827 1617.271,276.958 1621.000,260.000 C1624.487,244.143 1633.457,232.564 1637.000,218.1000 C1637.000,210.667 1637.000,202.332 1637.000,194.000 C1638.1000,180.668 1641.000,167.332 1643.000,154.000 C1645.996,136.369 1645.313,102.760 1633.1000,95.1000 C1627.515,92.428 1558.392,91.944 1541.1000,91.1000 ZM899.000,100.000 C883.246,106.152 868.783,102.256 860.1000,115.1000 C851.347,133.046 861.395,155.456 857.1000,176.1000 C855.664,191.825 885.145,303.774 892.1000,313.000 C903.089,324.849 930.546,330.255 947.1000,334.000 C970.454,338.818 1001.669,333.336 1020.000,329.000 C1041.945,323.809 1067.911,327.859 1087.1000,317.000 C1109.380,305.443 1135.184,250.142 1145.000,225.000 C1150.691,210.423 1191.016,151.902 1161.1000,131.1000 C1150.484,125.520 1136.933,125.135 1123.000,120.1000 C1061.360,102.708 981.793,100.153 899.000,100.000 Z"></path>
-<path fill-rule="evenodd" fill="none" stroke="url(#edgeSheen)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" d="M802.1000,0.1000 C858.937,-0.082 913.163,11.196 962.1000,23.1000 C1058.686,48.584 1150.889,72.931 1248.000,88.1000 C1283.976,94.953 1356.859,69.186 1387.000,60.1000 C1457.476,41.860 1527.512,29.361 1600.1000,13.000 C1624.664,10.334 1648.336,7.666 1672.000,4.1000 C1709.147,-1.204 1779.459,19.174 1812.000,26.1000 C1850.330,33.999 1888.670,41.001 1926.1000,47.1000 C1998.051,65.532 2063.022,77.572 2132.1000,94.1000 C2195.994,105.999 2259.006,117.001 2322.000,127.1000 C2352.022,134.392 2385.552,134.987 2407.000,150.000 C2436.514,170.659 2445.076,210.723 2463.000,242.1000 C2473.052,261.101 2511.184,318.985 2494.000,346.000 C2470.354,383.174 2394.293,338.774 2379.000,318.000 C2352.208,281.606 2353.054,221.646 2315.1000,195.1000 C2289.858,177.906 2221.901,181.683 2183.1000,174.1000 C2077.011,160.668 1969.989,146.332 1863.000,131.1000 C1835.584,126.749 1742.131,110.560 1725.1000,119.1000 C1707.736,173.747 1694.578,237.054 1677.1000,291.000 C1669.521,318.590 1665.508,357.268 1644.1000,373.000 C1619.214,392.781 1517.271,393.231 1474.000,386.000 C1435.396,379.549 1395.300,384.660 1370.1000,365.000 C1361.700,357.475 1356.408,343.479 1350.000,333.000 C1329.926,300.171 1308.749,266.558 1289.1000,232.000 C1281.340,216.038 1272.934,181.797 1253.1000,176.1000 C1225.121,169.684 1214.314,212.683 1207.000,228.1000 C1194.323,257.280 1138.861,356.427 1116.1000,370.000 C1092.851,384.993 1056.112,380.601 1021.1000,386.000 C1001.516,389.242 972.380,391.499 951.000,388.000 C914.050,381.954 874.585,390.192 850.1000,372.000 C833.187,358.261 829.504,326.911 822.000,303.000 C813.001,271.337 803.999,239.663 794.1000,207.1000 C786.736,175.784 783.507,139.089 767.000,114.1000 C742.309,112.429 715.667,119.588 692.1000,124.000 C668.669,127.333 644.331,130.667 619.1000,133.1000 C531.342,145.999 442.658,158.001 353.1000,169.1000 C314.671,175.333 275.329,180.667 236.000,185.1000 C219.807,189.173 201.476,186.907 188.1000,194.000 C147.670,217.498 146.273,282.799 119.000,321.000 C110.692,332.638 91.034,341.245 77.1000,348.000 C54.393,360.235 14.729,372.089 2.1000,339.000 C-5.641,314.622 10.962,299.343 17.1000,284.1000 C38.656,242.901 52.784,180.969 88.1000,154.000 C127.709,125.174 238.248,121.645 296.1000,107.1000 C406.447,82.581 521.076,61.667 630.1000,33.1000 C688.328,23.001 745.672,11.999 802.1000,0.1000 ZM1541.1000,91.1000 C1520.669,93.1000 1499.331,96.000 1478.000,98.000 C1433.960,106.018 1361.899,114.339 1329.000,134.1000 C1316.256,177.425 1338.706,200.682 1351.1000,227.000 C1364.130,251.014 1381.368,298.214 1401.000,313.000 C1439.133,341.720 1564.735,345.792 1604.000,315.000 C1615.697,305.827 1617.271,276.958 1621.000,260.000 C1624.487,244.143 1633.457,232.564 1637.000,218.1000 C1637.000,210.667 1637.000,202.332 1637.000,194.000 C1638.1000,180.668 1641.000,167.332 1643.000,154.000 C1645.996,136.369 1645.313,102.760 1633.1000,95.1000 C1627.515,92.428 1558.392,91.944 1541.1000,91.1000 ZM899.000,100.000 C883.246,106.152 868.783,102.256 860.1000,115.1000 C851.347,133.046 861.395,155.456 857.1000,176.1000 C855.664,191.825 885.145,303.774 892.1000,313.000 C903.089,324.849 930.546,330.255 947.1000,334.000 C970.454,338.818 1001.669,333.336 1020.000,329.000 C1041.945,323.809 1067.911,327.859 1087.1000,317.000 C1109.380,305.443 1135.184,250.142 1145.000,225.000 C1150.691,210.423 1191.016,151.902 1161.1000,131.1000 C1150.484,125.520 1136.933,125.135 1123.000,120.1000 C1061.360,102.708 981.793,100.153 899.000,100.000 Z" />
+        <!-- Ebene 1: Tiefschwarz-Körper -->
+        <path fill-rule="evenodd" fill="url(#bodyBlack)" filter="url(#deepShadow)"
+          d="M802,0 C859,0 913,11 962,23 C1059,49 1151,73 1248,88 C1284,95 1357,69 1387,60 C1457,42 1528,29 1600,13 C1625,10 1648,8 1672,5 C1709,-1 1779,19 1812,26 C1850,34 1889,41 1926,48 C1998,66 2063,78 2132,94 C2196,106 2259,117 2322,128 C2352,134 2386,135 2407,150 C2437,171 2445,211 2463,242 C2473,261 2511,319 2494,346 C2470,383 2394,339 2379,318 C2352,282 2353,222 2315,196 C2290,178 2222,182 2183,175 C2077,161 1970,146 1863,131 C1836,127 1742,111 1725,119 C1708,174 1695,237 1677,291 C1670,319 1666,357 1644,373 C1619,393 1517,393 1474,386 C1435,380 1395,385 1370,365 C1362,357 1356,343 1350,333 C1330,300 1309,267 1289,232 C1281,216 1273,182 1253,177 C1225,170 1214,213 1207,229 C1194,257 1139,356 1116,370 C1093,385 1056,381 1021,386 C1002,389 972,391 951,388 C914,382 875,390 850,372 C833,358 830,327 822,303 C813,271 804,240 794,208 C787,176 784,139 767,115 C742,112 716,120 692,124 C669,127 644,131 619,134 C531,146 443,158 354,170 C315,175 275,181 236,186 C220,189 201,187 188,194 C148,218 146,283 119,321 C111,333 91,341 77,348 C54,360 15,372 3,339 C-6,315 11,299 17,285 C39,243 53,181 88,154 C128,125 238,122 296,108 C406,83 521,62 630,34 C688,23 746,12 802,0 ZM1541,92 C1521,93 1499,96 1478,98 C1434,106 1362,114 1329,135 C1316,177 1339,201 1351,227 C1364,251 1381,298 1401,313 C1439,342 1565,346 1604,315 C1616,306 1617,277 1621,260 C1624,244 1633,233 1637,219 L1637,154 C1646,136 1645,103 1633,96 C1628,92 1558,92 1541,92 ZM899,100 C883,106 869,102 860,116 C851,133 861,155 857,177 C856,192 885,304 892,313 C903,325 931,330 947,334 C970,339 1002,333 1020,329 C1042,324 1068,328 1087,317 C1109,305 1135,250 1145,225 C1151,210 1191,152 1161,132 C1150,126 1137,125 1123,121 C1061,103 982,100 899,100 Z"/>
 
-      <!-- 2) Glanzkante oben drüber (macht den “Effekt”, ohne Form zu ändern) -->
-      <path fill-rule="evenodd" fill="none" stroke="url(#edgeSheen)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" d="M802.1000,0.1000 C858.937,-0.082 913.163,11.196 962.1000,23.1000 C1058.686,48.584 1150.889,72.931 1248.000,88.1000 C1283.976,94.953 1356.859,69.186 1387.000,60.1000 C1457.476,41.860 1527.512,29.361 1600.1000,13.000 C1624.664,10.334 1648.336,7.666 1672.000,4.1000 C1709.147,-1.204 1779.459,19.174 1812.000,26.1000 C1850.330,33.999 1888.670,41.001 1926.1000,47.1000 C1998.051,65.532 2063.022,77.572 2132.1000,94.1000 C2195.994,105.999 2259.006,117.001 2322.000,127.1000 C2352.022,134.392 2385.552,134.987 2407.000,150.000"></path>
-          
-    </svg>
+        <!-- Ebene 2: Showroom-Lichtreflex (geclippt) -->
+        <rect clip-path="url(#glassesClip)" x="0" y="0" width="2499" height="391" fill="url(#primaryReflect)"/>
+
+        <!-- Ebene 3: Bodenreflex (geclippt) -->
+        <rect clip-path="url(#glassesClip)" x="0" y="0" width="2499" height="391" fill="url(#floorReflect)"/>
+
+        <!-- Ebene 4: Rim-Light als Stroke entlang der Oberkante -->
+        <path fill-rule="evenodd" fill="none"
+          stroke="url(#rimTop)" stroke-width="5"
+          stroke-linecap="round" stroke-linejoin="round"
+          d="M3,339 C15,372 54,360 77,348 C91,341 111,333 119,321 C146,283 148,218 188,194 C201,187 220,189 236,186 C275,181 315,175 354,170 C443,158 531,146 619,134 C644,131 669,127 692,124 C716,120 742,112 767,115 C784,139 787,176 794,208 C804,240 813,271 822,303 C830,327 833,358 850,372 C875,390 914,382 951,388 C972,391 1002,389 1021,386 C1056,381 1093,385 1116,370 C1139,356 1194,257 1207,229 C1214,213 1225,170 1253,177 C1273,182 1281,216 1289,232 C1309,267 1330,300 1350,333 C1356,343 1362,357 1370,365 C1395,385 1435,380 1474,386 C1517,393 1619,393 1644,373 C1666,357 1670,319 1677,291 C1695,237 1708,174 1725,119 C1742,111 1836,127 1863,131 C1970,146 2077,161 2183,175 C2222,182 2290,178 2315,196 C2353,222 2352,282 2379,318 C2394,339 2470,383 2494,346"/>
+
+      </svg>
     </div>
   </div>
 
@@ -64,8 +95,6 @@
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:block;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
       </button>
       <button id="btnSettings" class="btn ghost topBtn" data-panel="settings" title="Einstellungen">⚙︎</button>
-      <button id="btnVoice"    class="btn ghost topBtn" title="Sprachsteuerung">🎙</button>
-      <button id="btnTts"      class="btn ghost topBtn" data-panel="tts" title="Vorlesen">🔊</button>
       <button id="btnHelp"     class="btn ghost topBtn" data-panel="help"     title="Hilfe">?</button>
       <button id="btnDonate"   class="btn ghost topBtn" data-panel="donate"   title="Spenden">☕️</button>
       <button id="btnShelf"    class="btn ghost topBtn" data-panel="shelf"    title="Bibliothek">📚</button>
@@ -105,6 +134,10 @@
           <button id="btnPlay" class="btn primary" disabled>Play</button>
           <button id="btnFwd" class="btn ghost" disabled>⟶</button>
           <button id="btnBookmark" class="btn ghost" disabled title="Lesezeichen setzen">🔖</button>
+          <label class="ttsToggleLabel" title="Vorlesen (Text läuft synchron mit)">
+            <input type="checkbox" id="ttsReadAlong">
+            <span class="ttsToggleIcon">🔊</span>
+          </label>
         </div>
 
         <div class="scrub">
@@ -159,7 +192,7 @@
             <span>Geschwindigkeit (WPM)</span>
             <span class="pill small"><span id="wpmSettingVal">500</span> WPM</span>
           </label>
-          <input id="wpm" type="range" min="120" max="900" step="10" value="500">
+          <input id="wpm" type="range" min="100" max="1000" step="10" value="500">
         </div>
 
         <div class="control">
@@ -259,6 +292,52 @@
           </div>
         </div>
 
+        <hr class="hr">
+
+        <!-- Sprachsteuerung in Einstellungen -->
+        <div class="control" style="grid-column: 1 / -1;">
+          <label style="font-size:13px; font-weight:700; color:var(--text); margin-bottom:10px;">🎙 Sprachsteuerung</label>
+          <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <button id="btnVoice" class="btn ghost" type="button" title="Sprachsteuerung ein/aus" style="display:inline-flex; gap:8px; align-items:center;">🎙 Sprachsteuerung</button>
+            <span class="hint" style="margin:0;">Befehle: <b>play, pause, vor, zurück, lesezeichen</b></span>
+          </div>
+        </div>
+
+        <!-- Vorlesen-Einstellungen -->
+        <div class="control" style="grid-column: 1 / -1;">
+          <label style="font-size:13px; font-weight:700; color:var(--text); margin-bottom:10px;">🔊 Vorlesen (Einstellungen)</label>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+            <button id="ttsModeLocal"  class="btn ttsMode active" type="button" style="flex:1; min-width:120px;">Browser-Stimme</button>
+            <button id="ttsModeOpenAI" class="btn ttsMode ghost"  type="button" style="flex:1; min-width:120px;">OpenAI TTS ✨</button>
+          </div>
+          <div id="ttsLocalPanel">
+            <label style="color:var(--muted); font-size:12px;">Stimme</label>
+            <select id="ttsVoiceSelect" class="select" style="margin-bottom:8px;"></select>
+            <div id="ttsVoiceHint" class="hint">Tipp: "Premium"/"Enhanced" Stimmen klingen viel natürlicher.</div>
+            <label class="labelRow" style="margin-top:8px;"><span style="color:var(--muted); font-size:12px;">Geschwindigkeit</span><span class="pill small"><span id="ttsRateVal">1.0</span>×</span></label>
+            <input id="ttsRate" type="range" min="0.5" max="2.0" step="0.05" value="1.0" style="width:100%;">
+            <label class="labelRow" style="margin-top:8px;"><span style="color:var(--muted); font-size:12px;">Tonhöhe</span><span class="pill small"><span id="ttsPitchVal">1.0</span></span></label>
+            <input id="ttsPitch" type="range" min="0.5" max="2.0" step="0.05" value="1.0" style="width:100%;">
+          </div>
+          <div id="ttsOpenAIPanel" class="hidden">
+            <label style="color:var(--muted); font-size:12px;">API-Key <span class="muted">(wird nur lokal gespeichert)</span></label>
+            <input id="ttsApiKey" type="password" class="num" style="width:100%; margin-bottom:8px;" placeholder="sk-..." autocomplete="off">
+            <label style="color:var(--muted); font-size:12px;">Stimme</label>
+            <select id="ttsOaiVoice" class="select" style="margin-bottom:8px;">
+              <option value="nova">Nova – jung, warm, klar</option>
+              <option value="alloy">Alloy – neutral, ausgewogen</option>
+              <option value="echo">Echo – männlich, ruhig</option>
+              <option value="fable">Fable – britisch, erzählerisch</option>
+              <option value="onyx">Onyx – tief, markant</option>
+              <option value="shimmer">Shimmer – weich, freundlich</option>
+            </select>
+            <label class="labelRow"><span style="color:var(--muted); font-size:12px;">Geschwindigkeit</span><span class="pill small"><span id="ttsOaiRateVal">1.0</span>×</span></label>
+            <input id="ttsOaiRate" type="range" min="0.25" max="4.0" step="0.05" value="1.0" style="width:100%;">
+            <div class="hint" style="margin-top:6px;">~$0.015 / 1000 Zeichen. <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" style="color:var(--accent);">API-Key holen →</a></div>
+          </div>
+          <button id="ttsBtnTest" class="btn ghost" type="button" style="margin-top:8px;">🎧 Stimme testen</button>
+        </div>
+
 <div class="rowBtns">
           <button id="btnResetSettings" class="btn ghost danger" type="button">↺ Standard</button>
           <button id="btnSaveSettings" class="btn" type="button">Speichern</button>
@@ -287,6 +366,7 @@
         <button id="btnDonateClose" class="btn ghost" type="button" title="Schließen">✕</button>
       </div>
 
+      <p style="font-size:18px; font-weight:900; text-align:center; color:var(--accent); margin-bottom:4px;">Vielen lieben Dank! 🙏</p>
       <p class="small">
         Falls dir mein Tool gefällt und du mich unterstützen willst:
         <b>PayPal</b> oder <b>Bitcoin</b> – super einfach. ❤️
@@ -327,6 +407,7 @@
             <div class="row" style="margin-top:6px;">
               <button id="btnCopyBtc" type="button" class="btn">Kopieren</button>
               <button id="btnBtcQR" type="button" class="btn ghost">QR anzeigen</button>
+              <button id="btnBtcWallet" type="button" class="btn ghost">💳 Wallet öffnen</button>
             </div>
           </div>
 
@@ -340,77 +421,14 @@
     </div>
   </div>
 
-  <!-- TTS Panel -->
-  <div id="ttsPanel" class="popoverPanel hidden" data-panel-id="tts">
-    <div class="dialog">
-      <div class="dialogHead">
-        <div class="dialogTitle">🔊 Vorlesen</div>
-        <button id="btnTtsClose" class="btn ghost" type="button" title="Schließen">✕</button>
-      </div>
-
-      <div class="ttsBody">
-
-        <!-- Modus-Auswahl -->
-        <div class="ttsModeRow">
-          <button id="ttsModeLocal"  class="btn ttsMode active" type="button">Browser-Stimme</button>
-          <button id="ttsModeOpenAI" class="btn ttsMode ghost"  type="button">OpenAI TTS ✨</button>
-        </div>
-
-        <!-- ── BROWSER-MODUS ── -->
-        <div id="ttsLocalPanel">
-          <div class="control" style="margin-top:10px;">
-            <label>Stimme</label>
-            <select id="ttsVoiceSelect" class="select"></select>
-            <div class="hint" id="ttsVoiceHint">Tipp: Auf iOS/macOS "Premium" oder "Enhanced" Stimmen wählen – klingen viel natürlicher.</div>
-          </div>
-          <div class="control">
-            <label class="labelRow"><span>Geschwindigkeit</span><span class="pill small"><span id="ttsRateVal">1.0</span>×</span></label>
-            <input id="ttsRate" type="range" min="0.5" max="2.0" step="0.05" value="1.0">
-          </div>
-          <div class="control">
-            <label class="labelRow"><span>Tonhöhe</span><span class="pill small"><span id="ttsPitchVal">1.0</span></span></label>
-            <input id="ttsPitch" type="range" min="0.5" max="2.0" step="0.05" value="1.0">
-          </div>
-        </div>
-
-        <!-- ── OPENAI-MODUS ── -->
-        <div id="ttsOpenAIPanel" class="hidden">
-          <div class="control" style="margin-top:10px;">
-            <label>API-Key <span class="muted">(wird nur lokal gespeichert)</span></label>
-            <input id="ttsApiKey" type="password" class="num" style="width:100%;" placeholder="sk-..." autocomplete="off">
-          </div>
-          <div class="control">
-            <label>Stimme</label>
-            <select id="ttsOaiVoice" class="select">
-              <option value="nova">Nova – jung, warm, klar</option>
-              <option value="alloy">Alloy – neutral, ausgewogen</option>
-              <option value="echo">Echo – männlich, ruhig</option>
-              <option value="fable">Fable – britisch, erzählerisch</option>
-              <option value="onyx">Onyx – tief, markant</option>
-              <option value="shimmer">Shimmer – weich, freundlich</option>
-            </select>
-          </div>
-          <div class="control">
-            <label class="labelRow"><span>Geschwindigkeit</span><span class="pill small"><span id="ttsOaiRateVal">1.0</span>×</span></label>
-            <input id="ttsOaiRate" type="range" min="0.25" max="4.0" step="0.05" value="1.0">
-          </div>
-          <div class="hint" style="margin-top:6px;">OpenAI TTS klingt sehr natürlich. Kosten: ~$0.015 / 1000 Zeichen. <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" style="color:var(--accent);">API-Key holen →</a></div>
-        </div>
-
-        <!-- Player -->
-        <div class="ttsPlayer">
-          <button id="ttsBtnPlay"  class="btn primary" type="button" disabled>▶ Vorlesen</button>
-          <button id="ttsBtnStop"  class="btn ghost"   type="button" disabled>■ Stopp</button>
-          <button id="ttsBtnTest"  class="btn ghost"   type="button">Teste Stimme</button>
-        </div>
-
-        <div id="ttsProgress" class="ttsProgress hidden">
-          <div id="ttsProgressBar" class="ttsProgressBar"></div>
-        </div>
-        <div id="ttsCurrentSentence" class="ttsCurrentSentence muted"></div>
-
-      </div>
-    </div>
+  <!-- TTS Panel (stub - Einstellungen sind jetzt in ⚙︎) -->
+  <div id="ttsPanel" class="hidden" data-panel-id="tts" style="display:none!important;"></div>
+  <!-- Hidden elements for TTS JS compatibility -->
+  <div style="display:none!important;">
+    <div id="ttsProgress"><div id="ttsProgressBar"></div></div>
+    <div id="ttsCurrentSentence"></div>
+    <button id="ttsBtnPlay"></button>
+    <button id="ttsBtnStop"></button>
   </div>
 
   <!-- Bottom shelf -->

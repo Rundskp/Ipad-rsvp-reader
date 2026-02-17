@@ -143,9 +143,13 @@ const el = {
   btcAddr: $("btcAddr"),
   btnCopyBtc: $("btnCopyBtc"),
   btnBtcQR: $("btnBtcQR"),
+  btnBtcWallet: $("btnBtcWallet"),
   btcQrWrap: $("btcQrWrap"),
   btcQrImg: $("btcQrImg"),
   btcQrHint: $("btcQrHint"),
+
+  // TTS read-along checkbox
+  ttsReadAlong: $("ttsReadAlong"),
 };
 
 /* -----------------------------
@@ -504,18 +508,24 @@ function computeOrpIndex(word) {
   const w = word.replace(/[^A-Za-zÄÖÜäöüß0-9]/g, "");
   const len = w.length;
   if (len <= 1) return 0;
-  if (len <= 5) return 1;
-  if (len <= 9) return 2;
-  return 3;
+  // RSVP standard: ORP ist bei ~35% der Wortlänge (immer linkszentriert im Fenster)
+  // Das ergibt: len=2→0, len=3→1, len=4→1, len=5→1, len=6→2, len=7→2, len=8→2, len=9→3 ...
+  return Math.max(0, Math.floor(len * 0.35));
 }
 
 function renderToken(token) {
   if (!S.settings.orp) {
     el.word.innerHTML = escapeHtml(token);
+    el.word.style.textAlign = 'center';
+    el.word.style.paddingLeft = '';
+    el.word.style.paddingRight = '';
   } else {
     const m = token.match(/[A-Za-zÄÖÜäöüß0-9]+/);
     if (!m) {
       el.word.innerHTML = escapeHtml(token);
+      el.word.style.textAlign = 'center';
+      el.word.style.paddingLeft = '';
+      el.word.style.paddingRight = '';
     } else {
       const seg = m[0];
       const segStart = token.indexOf(seg);
@@ -525,7 +535,10 @@ function renderToken(token) {
       const segOrp    = escapeHtml(seg.slice(orpIdx, orpIdx + 1));
       const segAfter  = escapeHtml(seg.slice(orpIdx + 1));
       const after     = escapeHtml(token.slice(segStart + seg.length));
-      el.word.innerHTML = `${before}${segBefore}<span class="orp">${segOrp}</span>${segAfter}${after}`;
+      el.word.innerHTML = `${before}<span class="orp-before">${segBefore}</span><span class="orp">${segOrp}</span><span class="orp-after">${segAfter}${after}</span>`;
+      // ORP-Buchstabe soll immer optisch in der Mitte der Box stehen
+      // via CSS flex + orp-pivot wrapper (kein JS-Offset nötig wenn HTML-Struktur stimmt)
+      el.word.style.textAlign = 'left'; // flex-Zentrierung via .word CSS
     }
   }
   autoFitWord();
@@ -538,6 +551,7 @@ function autoFitWord() {
   // Erst auf Basis-Größe zurücksetzen
   el.word.style.fontSize = '';
   el.word.style.wordBreak = '';
+  el.word.style.overflowWrap = '';
 
   requestAnimationFrame(() => {
     const boxW   = el.display.clientWidth  - 28; // 14px padding beidseitig
@@ -557,11 +571,13 @@ function autoFitWord() {
 
     el.word.style.fontSize = newSize + 'px';
 
-    // Falls es immer noch nicht passt (z.B. URL-Monster): Umbruch erlauben
+    // Falls es immer noch nicht passt: Wort mit korrekter Silbentrennung umbrechen
+    // (kein break-all – das würde mitten im Wort trennen ohne Trennstrich)
     if (el.word.scrollWidth > boxW) {
-      el.word.style.wordBreak = 'break-all';
-      el.word.style.hyphens   = 'auto';
-      el.word.lang            = 'de';
+      // hyphens:auto + overflow-wrap:break-word stellt sicher dass
+      // der Browser nur an Silbengrenzen trennt (mit Trennstrich)
+      el.word.style.overflowWrap = 'break-word';
+      el.word.lang = document.documentElement.lang || 'de';
     }
   });
 }
@@ -755,6 +771,8 @@ function stopPlayback(reason = "") {
   S.pendingStop = false;
   if (el.btnPlay) el.btnPlay.textContent = "Play";
   if (reason) setStatus(reason);
+  // TTS Read-Along stoppen wenn aktiv
+  if (el.ttsReadAlong?.checked && TTS.playing) ttsStop();
   persistCurrentBookState().catch(()=>{});
 }
 
@@ -818,13 +836,24 @@ function scheduleNext() {
 function togglePlay() {
   if (!S.words.length) return;
 
-  if (S.playing) { stopPlayback(); return; }
+  if (S.playing) {
+    stopPlayback();
+    // TTS stoppen wenn Read-Along aktiv
+    if (el.ttsReadAlong?.checked) ttsStop();
+    return;
+  }
 
   S.playing = true;
   S.pendingStop = false;
   if (el.btnPlay) el.btnPlay.textContent = "Pause";
   S.playStartedAt = Date.now();
   S.wordsAtPlayStart = S.idx;
+
+  // TTS Read-Along starten wenn Checkbox angehakt
+  if (el.ttsReadAlong?.checked) {
+    ttsReadAlongSync();
+  }
+
   scheduleNext();
 }
 
@@ -1654,33 +1683,40 @@ async function handleFile(file) {
 ------------------------------ */
 function buildHelpHtml() {
   const lines = [
-    `<div class="h">Schnellstart</div>
-     <div class="b">Tippe <span class="k">Datei laden</span>, wähle ein <span class="k">.epub</span>, <span class="k">.txt</span> oder <span class="k">.pdf</span>. Danach mit <span class="k">Play</span> starten.</div>`,
-    `<div class="h">PDF Hinweis</div>
-     <div class="b">PDFs ohne Textlayer (Scan/Bild) können nicht gelesen werden. Bitte vorher OCR (z.B. Quick Scan → durchsuchbares PDF).</div>`,
-    `<div class="h">Tippen im Lesefeld</div>
-     <div class="b">Links = zurück, Mitte = Play/Pause, rechts = vor.</div>`,
-    `<div class="h">Sidebar ☰</div>
-     <div class="b"><span class="k">Kapitel</span> zeigt den Index (wenn im EPUB vorhanden). <span class="k">Lesezeichen</span> sind Sprungmarken.</div>`,
-    `<div class="h">Lesezeichen 🔖</div>
-     <div class="b">Setzt ein Lesezeichen bei der aktuellen Wortposition. In der Sidebar kannst du direkt hinspringen.</div>`,
-    `<div class="h">Cover/Titel 🛈</div>
-     <div class="b">Zeigt Cover + Titel + Fortschritt.</div>`,
-    `<div class="h">Einstellungen ⚙︎</div>
-     <div class="b">WPM = Geschwindigkeit, Chunk = mehrere Wörter pro Anzeige, ORP = Fokus-Buchstabe, Satzzeichenpause = Extra-Zeit bei Punkt/Komma.</div>`,
-    `<div class="h">Auto-Stop</div>
-     <div class="b">Stoppt am Kapitelende oder nach X Wörtern oder nach X Minuten – aber immer erst am Satzende.</div>`,
-    `<div class="h">Bibliothek 📚</div>
-     <div class="b">Gelesene Bücher werden offline gespeichert (inkl. Cover & Lesezeichen).</div>`,
-    `<div class="h">Wenn etwas „weg“ ist</div>
-     <div class="b">Privater Modus blockt/killt Speicher. Am besten als Home-Screen-App nutzen.</div>`,
+    `<div class="h">📂 Schnellstart</div>
+     <div class="b">Tippe <span class="k">Datei laden</span> und wähle eine <span class="k">.epub</span>, <span class="k">.txt</span> oder <span class="k">.pdf</span>. Dann mit <span class="k">Play</span> loslesen.</div>`,
+
+    `<div class="h">🖱️ Tippen im Lesefenster</div>
+     <div class="b">Linkes Drittel = <b>◀ zurück</b>, Mitte = <b>Play/Pause</b>, rechtes Drittel = <b>▶ vor</b>. Halten = schnell spulen.</div>`,
+
+    `<div class="h">▶ Bedienleiste</div>
+     <div class="b"><span class="k">◀</span> / <span class="k">▶</span> – Schritt zurück oder vor (halten = scrubben). <span class="k">🔖</span> – Lesezeichen. <span class="k">🔊</span> ☐ – Vorlesen aktivieren (läuft synchron mit dem RSVP-Tempo).</div>`,
+
+    `<div class="h">🔊 Vorlesen</div>
+     <div class="b">Das Kästchen <span class="k">🔊</span> neben Play aktiviert das Vorlesen. Stimme und Geschwindigkeit stellst du in <span class="k">⚙︎ Einstellungen</span> ein.</div>`,
+
+    `<div class="h">⛶ Vollbild</div>
+     <div class="b">Dehnt das Lesefenster auf die volle Höhe aus – ideal zum Experimentieren mit <b>Chunk</b> (mehrere Wörter). Mit <span class="k">✕</span> oder Esc beenden.</div>`,
+
+    `<div class="h">☰ Sidebar</div>
+     <div class="b"><b>Kapitel</b> = Inhaltsverzeichnis, <b>Lesezeichen</b> = Sprungmarken. Tippe einen Eintrag zum Hinspringen.</div>`,
+
+    `<div class="h">⚙︎ Einstellungen</div>
+     <div class="b"><b>WPM</b> (100–1000) = Lesegeschwindigkeit. <b>Chunk</b> = mehrere Wörter gleichzeitig. <b>ORP</b> = grüner Fokus-Buchstabe (35%-Position, RSVP-Standard). <b>Satzzeichenpause</b> = Extrazeit bei . , ! ?. Dazu: Auto-Stop, Schrift &amp; Farben, Sprachsteuerung, Vorlesen.</div>`,
+
+    `<div class="h">🎙 Sprachsteuerung</div>
+     <div class="b">In Einstellungen aktivierbar. Befehle: <b>play / weiter</b> · <b>pause / stop</b> · <b>vor / zurück</b> · <b>lesezeichen</b>.</div>`,
+
+    `<div class="h">📚 Bibliothek</div>
+     <div class="b">Bücher werden automatisch offline gespeichert (Leseposition, Lesezeichen, Cover). Antippen zum Wiederladen.</div>`,
+
+    `<div class="h">⚠️ PDF-Hinweis &amp; Offline</div>
+     <div class="b">Nur PDFs mit echtem Textlayer funktionieren (kein Scan/Bild). Als Home-Screen-App installieren für dauerhaften Speicher.</div>`,
   ];
   return lines.join("");
 }
 
-/* -----------------------------
-   Donate helpers
------------------------------- */
+
 const DONATE = {
   paypal: "https://paypal.me/rophko",
   btc: "bc1qwr08y9ngmvplpr8tuk4w34rl4pkryur8u4cf5f"
@@ -1913,33 +1949,57 @@ attachScrubButton(el.btnFwd, +1);
     if (el.btcQrHint) el.btcQrHint.textContent = "";
   });
 
+  el.btnBtcWallet?.addEventListener("click", () => {
+    window.open("bitcoin:" + DONATE.btc, "_blank");
+  });
+
   document.getElementById("btnExportAllMobile")?.addEventListener("click", () => exportLibrary({ mode: "all" }));
 
   /* ------------------------------------------
-     Vollbild
+     TTS Read-Along Checkbox
+  ------------------------------------------ */
+  el.ttsReadAlong?.addEventListener("change", () => {
+    if (el.ttsReadAlong.checked && S.playing) {
+      // Sofort starten wenn gerade gespielt wird
+      ttsReadAlongSync();
+    } else if (!el.ttsReadAlong.checked) {
+      ttsStop();
+    }
+  });
+
+  /* ------------------------------------------
+     Vollbild – Lesefenster ausdehnen (kein Browser-Vollbild)
   ------------------------------------------ */
   const btnFS = document.getElementById("btnFullscreen");
   if (btnFS) {
-    const updateFsIcon = () => {
-      const inFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
-      btnFS.textContent = inFs ? "✕" : "⛶";
-      btnFS.title       = inFs ? "Vollbild beenden" : "Vollbild";
-      btnFS.classList.toggle("isActive", inFs);
+    let _fsActive = false;
+
+    const enterReaderFullscreen = () => {
+      _fsActive = true;
+      document.body.classList.add("readerFullscreen");
+      btnFS.textContent = "✕";
+      btnFS.title = "Vollbild beenden";
+      btnFS.classList.add("isActive");
+      setTopbarHeightVar();
     };
 
-    btnFS.addEventListener("click", async () => {
-      try {
-        if (document.fullscreenElement || document.webkitFullscreenElement) {
-          await (document.exitFullscreen || document.webkitExitFullscreen).call(document);
-        } else {
-          const el = document.documentElement;
-          await (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
-        }
-      } catch(e) { console.warn("Fullscreen:", e); }
+    const exitReaderFullscreen = () => {
+      _fsActive = false;
+      document.body.classList.remove("readerFullscreen");
+      btnFS.textContent = "⛶";
+      btnFS.title = "Vollbild";
+      btnFS.classList.remove("isActive");
+      setTopbarHeightVar();
+    };
+
+    btnFS.addEventListener("click", () => {
+      _fsActive ? exitReaderFullscreen() : enterReaderFullscreen();
     });
 
-    document.addEventListener("fullscreenchange",       updateFsIcon);
-    document.addEventListener("webkitfullscreenchange", updateFsIcon);
+    // Escape key to exit
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && _fsActive) exitReaderFullscreen();
+    });
   }
 
   /* ------------------------------------------
@@ -2889,6 +2949,29 @@ function ttsStart() {
   ttsSetPlaying(true);
 
   const onEnd = () => ttsSetPlaying(false);
+
+  if (TTS.mode === "openai") {
+    ttsOpenAISpeak(TTS.sentences, 0, onEnd);
+  } else {
+    ttsLocalSpeak(TTS.sentences, 0, onEnd);
+  }
+}
+
+/* ── TTS Read-Along: synchronisiert Vorlesen mit RSVP-Anzeige ── */
+function ttsReadAlongSync() {
+  // Holt den Text ab aktueller Position und startet TTS
+  if (!S.words.length) return;
+  const text = ttsGetText();
+  if (!text.trim()) return;
+
+  TTS.sentences = splitSentences(text);
+  if (!TTS.sentences.length) return;
+
+  ttsSetPlaying(true);
+  const onEnd = () => {
+    ttsSetPlaying(false);
+    if (el.ttsReadAlong) el.ttsReadAlong.checked = false;
+  };
 
   if (TTS.mode === "openai") {
     ttsOpenAISpeak(TTS.sentences, 0, onEnd);
