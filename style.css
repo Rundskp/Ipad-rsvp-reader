@@ -893,3 +893,88 @@ body.modalOpen {
   overflow: hidden;
   touch-action: none;
 }
+
+/* Sprachsteuerung – pulsiert wenn aktiv */
+.voiceActive {
+  color: #ff5c5c !important;
+  border-color: rgba(255,92,92,.4) !important;
+  animation: voicePulse 1.4s ease-in-out infinite;
+}
+@keyframes voicePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,92,92,.4); }
+  50%       { box-shadow: 0 0 0 6px rgba(255,92,92,0); }
+}
+
+/* TOC Lesezeiten */
+.tocTime {
+  color: var(--accent);
+  opacity: .85;
+}
+.tocMeta {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+/* Vollbild – Topbar + Content etwas kompakter */
+:fullscreen .topbar,
+:-webkit-full-screen .topbar {
+  background: rgba(8,9,13,.95) !important;
+}
+
+/* ─── TTS Panel ─── */
+.ttsBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.ttsModeRow {
+  display: flex;
+  gap: 8px;
+}
+.ttsMode {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.ttsMode.active {
+  background: rgba(126,231,135,.15);
+  border-color: rgba(126,231,135,.4);
+  color: var(--accent);
+}
+
+.ttsPlayer {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.ttsPlayer .btn { flex: 1; min-width: 80px; }
+
+.ttsProgress {
+  height: 4px;
+  background: rgba(255,255,255,.08);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.ttsProgressBar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 99px;
+  transition: width .3s ease;
+  width: 0%;
+}
+
+.ttsCurrentSentence {
+  font-size: 12px;
+  line-height: 1.4;
+  min-height: 18px;
+  padding: 4px 2px;
+  color: var(--muted);
+  font-style: italic;
+}

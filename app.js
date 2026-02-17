@@ -907,6 +907,15 @@ function setTab(which) {
   }
 }
 
+function fmtTime(words, wpm) {
+  if (!words || !wpm) return "";
+  const secs = Math.round((words / wpm) * 60);
+  if (secs < 60) return `~${secs}s`;
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return s > 0 ? `~${m}m ${s}s` : `~${m}m`;
+}
+
 function renderToc() {
   if (!el.tocList) return;
 
@@ -919,19 +928,46 @@ function renderToc() {
   el.tocList.classList.remove("muted");
   el.tocList.innerHTML = "";
 
-  const hrefToStart = new Map();
-  for (const ch of (S.book.chapters || [])) hrefToStart.set(ch.href, ch.start);
+  // Map: href → chapter object (für Wortanzahl)
+  const hrefToChapter = new Map();
+  for (const ch of (S.book.chapters || [])) hrefToChapter.set(ch.href, ch);
 
   for (const t of toc) {
-    const start = hrefToStart.get(t.href) ?? null;
+    const ch    = hrefToChapter.get(t.href) ?? null;
+    const start = ch?.start ?? null;
+    const count = ch ? (ch.end - ch.start) : null;
+    const wpm   = S.settings.wpm || 500;
+    const timeStr = count ? fmtTime(count, wpm) : "";
+
     const div = document.createElement("div");
-    div.className = "item";
-    div.innerHTML = `<div><b>${escapeHtml(t.label || t.href)}</b></div><div class="small">${start !== null ? `Wort #${start}` : "Kapitel"}</div>`;
+    div.className = "item tocItem";
+    div.dataset.href = t.href; // für Live-Update
+    div.innerHTML = `
+      <div><b>${escapeHtml(t.label || t.href)}</b></div>
+      <div class="small tocMeta">
+        ${count !== null ? `${count} Wörter` : "Kapitel"}
+        ${timeStr ? `<span class="tocTime"> · ${timeStr}</span>` : ""}
+      </div>`;
     div.addEventListener("click", () => {
       if (start !== null) jumpToIndex(start);
     });
     el.tocList.appendChild(div);
   }
+}
+
+// Lesezeiten neu berechnen wenn WPM geändert wird (ohne TOC neu zu bauen)
+function updateTocTimes() {
+  const wpm = S.settings.wpm || 500;
+  const hrefToChapter = new Map();
+  for (const ch of (S.book.chapters || [])) hrefToChapter.set(ch.href, ch);
+
+  document.querySelectorAll(".tocItem").forEach(div => {
+    const ch = hrefToChapter.get(div.dataset.href);
+    if (!ch) return;
+    const count = ch.end - ch.start;
+    const span = div.querySelector(".tocTime");
+    if (span) span.textContent = ` · ${fmtTime(count, wpm)}`;
+  });
 }
 
 /* -----------------------------
@@ -1063,6 +1099,7 @@ async function loadBookFromLibrary(id) {
   showCurrent();
 
   setStatus(`Geladen: ${shortText(S.book.title)} (${S.words.length} Wörter)`, { sticky: false, toastMs: 1200 });
+  document.dispatchEvent(new Event("rsvpBookLoaded"));
 }
 
 /* -----------------------------
@@ -1796,6 +1833,7 @@ attachScrubButton(el.btnFwd, +1);
     S.settings.wpm = Number(el.wpm.value);
     if (el.wpmVal) el.wpmVal.textContent = String(S.settings.wpm);
     if (el.wpmSettingVal) el.wpmSettingVal.textContent = String(S.settings.wpm);
+    updateTocTimes();
   });
 
   el.chunk?.addEventListener("input", () => {
@@ -1876,10 +1914,145 @@ attachScrubButton(el.btnFwd, +1);
   });
 
   document.getElementById("btnExportAllMobile")?.addEventListener("click", () => exportLibrary({ mode: "all" }));
+
+  /* ------------------------------------------
+     Vollbild
+  ------------------------------------------ */
+  const btnFS = document.getElementById("btnFullscreen");
+  if (btnFS) {
+    const updateFsIcon = () => {
+      const inFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+      btnFS.textContent = inFs ? "✕" : "⛶";
+      btnFS.title       = inFs ? "Vollbild beenden" : "Vollbild";
+      btnFS.classList.toggle("isActive", inFs);
+    };
+
+    btnFS.addEventListener("click", async () => {
+      try {
+        if (document.fullscreenElement || document.webkitFullscreenElement) {
+          await (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+        } else {
+          const el = document.documentElement;
+          await (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+        }
+      } catch(e) { console.warn("Fullscreen:", e); }
+    });
+
+    document.addEventListener("fullscreenchange",       updateFsIcon);
+    document.addEventListener("webkitfullscreenchange", updateFsIcon);
+  }
+
+  /* ------------------------------------------
+     Sprachsteuerung
+  ------------------------------------------ */
+  initVoiceControl();
 }
 
 if (el.btnBack) el.btnBack.innerHTML = "◀";
 if (el.btnFwd)  el.btnFwd.innerHTML  = "▶";
+
+/* =====================================================
+   Sprachsteuerung
+   Kommandos (DE + EN): pause/stop · weiter/play/start · lesezeichen/bookmark
+===================================================== */
+function initVoiceControl() {
+  const btn = document.getElementById("btnVoice");
+  if (!btn) return;
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    btn.style.display = "none"; // Browser unterstützt es nicht
+    return;
+  }
+
+  const COMMANDS = [
+    { pattern: /^(pause|stop|stopp|halt)$/i,          action: () => { if (S.playing) stopPlayback(); } },
+    { pattern: /^(weiter|play|start|los|go)$/i,       action: () => { if (!S.playing) togglePlay(); } },
+    { pattern: /^(lesezeichen|bookmark|mark|merken)$/i, action: () => addBookmarkAtCurrent() },
+    { pattern: /^(zurück|back|rückwärts)$/i,           action: () => step(-10) },
+    { pattern: /^(vor|vorwärts|forward|skip)$/i,       action: () => step(+10) },
+  ];
+
+  let recognition = null;
+  let active = false;
+  let restartTimer = null;
+
+  function createRecognition() {
+    const r = new SR();
+    r.lang = "de-DE";
+    r.continuous = true;
+    r.interimResults = false;
+    r.maxAlternatives = 3;
+
+    r.onresult = (ev) => {
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        if (!ev.results[i].isFinal) continue;
+        // Alle Alternativen prüfen
+        for (let a = 0; a < ev.results[i].length; a++) {
+          const raw = (ev.results[i][a].transcript || "").trim().toLowerCase();
+          // Letztes Wort (bei Nebensätzen wie "bitte pause")
+          const word = raw.split(/\s+/).pop() || raw;
+          for (const cmd of COMMANDS) {
+            if (cmd.pattern.test(word) || cmd.pattern.test(raw)) {
+              cmd.action();
+              setStatus("\uD83C\uDF99 \u201E" + word + "\u201C erkannt");
+              return;
+            }
+          }
+        }
+      }
+    };
+
+    r.onerror = (ev) => {
+      if (ev.error === "no-speech") return; // normal, kein Lärm
+      console.warn("SR error:", ev.error);
+      if (ev.error === "not-allowed") {
+        setStatus("Mikrofon verweigert.");
+        deactivate();
+      }
+    };
+
+    r.onend = () => {
+      if (active) {
+        // Auto-Neustart nach kurzem Delay (iOS beendet nach Stille)
+        clearTimeout(restartTimer);
+        restartTimer = setTimeout(() => {
+          try { recognition.start(); } catch {}
+        }, 300);
+      }
+    };
+
+    return r;
+  }
+
+  function activate() {
+    active = true;
+    recognition = createRecognition();
+    try {
+      recognition.start();
+      btn.classList.add("isActive", "voiceActive");
+      btn.title = "Sprachsteuerung aktiv – tippen zum Beenden";
+      setStatus("🎙 Sprachsteuerung aktiv");
+    } catch(e) {
+      console.warn("SR start:", e);
+      deactivate();
+    }
+  }
+
+  function deactivate() {
+    active = false;
+    clearTimeout(restartTimer);
+    try { recognition?.stop(); } catch {}
+    recognition = null;
+    btn.classList.remove("isActive", "voiceActive");
+    btn.title = "Sprachsteuerung";
+    setStatus("🎙 Sprachsteuerung beendet");
+  }
+
+  btn.addEventListener("click", () => {
+    active ? deactivate() : activate();
+  });
+}
 
 /* =====================================================
    Dock + Popover Panels (ONE source of truth)
@@ -1901,7 +2074,7 @@ function initDockPanels() {
   const panelById = (id) => panels.find(p => p.dataset.panelId === id);
 
   const DOCK_TOGGLES = new Set(["sidebar", "shelf"]);
-  const POPOVERS = new Set(["settings", "help", "donate"]);
+  const POPOVERS = new Set(["settings", "help", "donate", "tts"]);
 
   const isVisible = (p) => !p.classList.contains("hidden");
 
@@ -2014,6 +2187,7 @@ function unlockBackgroundScroll() {
   hookClose(el.btnSettingsClose, "settings", "btnSettings");
   hookClose(el.btnHelpClose, "help", "btnHelp");
   hookClose(el.btnDonateClose, "donate", "btnDonate");
+  hookClose(document.getElementById("btnTtsClose"), "tts", "btnTts");
 
   buttons.forEach(btn => {
     btn.addEventListener("click", (e) => {
@@ -2492,6 +2666,325 @@ async function handleSharedContent() {
   }
 }
 
+/* =====================================================
+   TTS – Text-to-Speech Engine
+   Zwei Modi: Browser SpeechSynthesis + OpenAI TTS API
+===================================================== */
+const TTS = {
+  mode: "local",          // "local" | "openai"
+  playing: false,
+  sentences: [],
+  idx: 0,
+  utterance: null,
+  audioQueue: [],
+  audioIdx: 0,
+  currentAudio: null,
+};
+
+/* Satz-Splitter: natürliche Pausen an ., !, ?, …, Doppelpunkt */
+function splitSentences(text) {
+  if (!text) return [];
+  // Split nach Satzzeichen, aber Abkürzungen (z.B. "Dr.") schonen
+  return text
+    .replace(/([.!?…]+)\s+/g, "$1\n")
+    .replace(/([;:])\s+/g, "$1\n")
+    .split("\n")
+    .map(s => s.trim())
+    .filter(s => s.length > 1);
+}
+
+function ttsGetText() {
+  // Aktuelle Position bis Kapitelende oder Textende
+  const words = S.words;
+  if (!words.length) return "";
+  const start = S.idx;
+  // Finde Kapitelende
+  const ch = (S.book.chapters || []).find(c => start >= c.start && start < c.end);
+  const end = ch ? ch.end : words.length;
+  return words.slice(start, end).join(" ");
+}
+
+/* ── BROWSER TTS ── */
+function ttsLocalPopulateVoices() {
+  const sel = document.getElementById("ttsVoiceSelect");
+  if (!sel) return;
+  const voices = window.speechSynthesis?.getVoices() || [];
+  sel.innerHTML = "";
+
+  // Sortierung: Deutsch zuerst, dann nach Name
+  const sorted = [...voices].sort((a, b) => {
+    const aDE = a.lang.startsWith("de") ? 0 : 1;
+    const bDE = b.lang.startsWith("de") ? 0 : 1;
+    if (aDE !== bDE) return aDE - bDE;
+    return a.name.localeCompare(b.name);
+  });
+
+  for (const v of sorted) {
+    const opt = document.createElement("option");
+    opt.value = v.name;
+    // Premium-Stimmen markieren
+    const isPremium = v.name.includes("Premium") || v.name.includes("Enhanced") ||
+                      v.name.includes("Neural")   || v.name.includes("Natural");
+    opt.textContent = `${isPremium ? "⭐ " : ""}${v.name} (${v.lang})`;
+    // Lokale Stimme bevorzugen
+    if (v.localService) opt.textContent += " [lokal]";
+    sel.appendChild(opt);
+  }
+
+  // Beste DE-Stimme vorauswählen
+  const best = sorted.find(v => v.lang.startsWith("de") && (v.name.includes("Premium") || v.name.includes("Enhanced") || v.name.includes("Neural")))
+             || sorted.find(v => v.lang.startsWith("de"))
+             || sorted[0];
+  if (best) sel.value = best.name;
+}
+
+function ttsLocalSpeak(sentences, startIdx, onEnd) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+
+  const sel    = document.getElementById("ttsVoiceSelect");
+  const rate   = parseFloat(document.getElementById("ttsRate")?.value  || "1");
+  const pitch  = parseFloat(document.getElementById("ttsPitch")?.value || "1");
+  const voices = window.speechSynthesis.getVoices();
+  const voice  = voices.find(v => v.name === sel?.value) || null;
+
+  let i = startIdx;
+  TTS.idx = i;
+
+  function speakNext() {
+    if (!TTS.playing || i >= sentences.length) {
+      onEnd();
+      return;
+    }
+
+    const u = new SpeechSynthesisUtterance(sentences[i]);
+    u.lang  = voice?.lang || "de-DE";
+    u.rate  = rate;
+    u.pitch = pitch;
+    if (voice) u.voice = voice;
+
+    u.onstart = () => {
+      TTS.idx = i;
+      ttsShowSentence(sentences[i], i, sentences.length);
+    };
+    u.onend = () => {
+      i++;
+      speakNext();
+    };
+    u.onerror = (e) => {
+      if (e.error !== "interrupted") { console.warn("TTS:", e); onEnd(); }
+    };
+
+    TTS.utterance = u;
+    window.speechSynthesis.speak(u);
+  }
+
+  speakNext();
+}
+
+/* ── OPENAI TTS ── */
+async function ttsOpenAISpeak(sentences, startIdx, onEnd) {
+  const apiKey = document.getElementById("ttsApiKey")?.value?.trim();
+  if (!apiKey) { alert("Bitte OpenAI API-Key eingeben."); onEnd(); return; }
+
+  const voice = document.getElementById("ttsOaiVoice")?.value || "nova";
+  const speed = parseFloat(document.getElementById("ttsOaiRate")?.value || "1.0");
+
+  // Sätze in Chunks aufteilen (API-Limit ~4096 Zeichen)
+  const CHUNK = 800; // Zeichen pro Request
+  const chunks = [];
+  let buf = "";
+  for (const s of sentences.slice(startIdx)) {
+    if (buf.length + s.length > CHUNK && buf) { chunks.push(buf.trim()); buf = ""; }
+    buf += s + " ";
+  }
+  if (buf.trim()) chunks.push(buf.trim());
+
+  let ci = 0;
+
+  async function playNext() {
+    if (!TTS.playing || ci >= chunks.length) { onEnd(); return; }
+
+    ttsShowSentence(chunks[ci], ci, chunks.length);
+
+    try {
+      const resp = await fetch("https://api.openai.com/v1/audio/speech", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "tts-1-hd",      // höchste Qualität
+          voice: voice,
+          input: chunks[ci],
+          speed: speed,
+          response_format: "mp3",
+        }),
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err?.error?.message || `HTTP ${resp.status}`);
+      }
+
+      const blob = await resp.blob();
+      const url  = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      TTS.currentAudio = audio;
+
+      audio.onended = () => {
+        URL.revokeObjectURL(url);
+        ci++;
+        playNext();
+      };
+      audio.onerror = (e) => { console.warn("Audio error", e); onEnd(); };
+      await audio.play();
+
+    } catch(e) {
+      console.error("OpenAI TTS:", e);
+      alert("OpenAI TTS Fehler: " + e.message);
+      onEnd();
+    }
+  }
+
+  playNext();
+}
+
+/* ── Shared UI Helpers ── */
+function ttsShowSentence(text, idx, total) {
+  const el = document.getElementById("ttsCurrentSentence");
+  if (el) el.textContent = text?.slice(0, 120) + (text?.length > 120 ? "…" : "");
+  const bar = document.getElementById("ttsProgressBar");
+  if (bar) bar.style.width = (total > 0 ? Math.round((idx / total) * 100) : 0) + "%";
+}
+
+function ttsSetPlaying(on) {
+  TTS.playing = on;
+  const btnPlay = document.getElementById("ttsBtnPlay");
+  const btnStop = document.getElementById("ttsBtnStop");
+  const prog    = document.getElementById("ttsProgress");
+  if (btnPlay) { btnPlay.disabled = on; btnPlay.textContent = "▶ Vorlesen"; }
+  if (btnStop) btnStop.disabled = !on;
+  if (prog)    prog.classList.toggle("hidden", !on);
+}
+
+function ttsStop() {
+  TTS.playing = false;
+  window.speechSynthesis?.cancel();
+  if (TTS.currentAudio) { TTS.currentAudio.pause(); TTS.currentAudio = null; }
+  ttsSetPlaying(false);
+  document.getElementById("ttsCurrentSentence").textContent = "";
+}
+
+function ttsStart() {
+  if (!S.words.length) { setStatus("Kein Text geladen."); return; }
+
+  const text = ttsGetText();
+  if (!text.trim()) { setStatus("Kein Text an dieser Position."); return; }
+
+  TTS.sentences = splitSentences(text);
+  if (!TTS.sentences.length) return;
+
+  ttsSetPlaying(true);
+
+  const onEnd = () => ttsSetPlaying(false);
+
+  if (TTS.mode === "openai") {
+    ttsOpenAISpeak(TTS.sentences, 0, onEnd);
+  } else {
+    ttsLocalSpeak(TTS.sentences, 0, onEnd);
+  }
+}
+
+/* ── Init TTS Panel ── */
+function initTtsPanel() {
+  // Voices laden (kann async sein)
+  if (window.speechSynthesis) {
+    ttsLocalPopulateVoices();
+    window.speechSynthesis.onvoiceschanged = ttsLocalPopulateVoices;
+  }
+
+  // API-Key aus localStorage laden
+  const saved = localStorage.getItem("tts_oai_key");
+  if (saved) {
+    const inp = document.getElementById("ttsApiKey");
+    if (inp) inp.value = saved;
+  }
+  const savedMode = localStorage.getItem("tts_mode");
+  if (savedMode) ttsSetMode(savedMode);
+
+  // Modus-Buttons
+  document.getElementById("ttsModeLocal")?.addEventListener("click",  () => ttsSetMode("local"));
+  document.getElementById("ttsModeOpenAI")?.addEventListener("click", () => ttsSetMode("openai"));
+
+  // API-Key speichern beim Tippen
+  document.getElementById("ttsApiKey")?.addEventListener("input", (e) => {
+    localStorage.setItem("tts_oai_key", e.target.value);
+  });
+
+  // Slider live
+  document.getElementById("ttsRate")?.addEventListener("input", (e) => {
+    const v = parseFloat(e.target.value).toFixed(2);
+    document.getElementById("ttsRateVal").textContent = v;
+  });
+  document.getElementById("ttsPitch")?.addEventListener("input", (e) => {
+    const v = parseFloat(e.target.value).toFixed(2);
+    document.getElementById("ttsPitchVal").textContent = v;
+  });
+  document.getElementById("ttsOaiRate")?.addEventListener("input", (e) => {
+    const v = parseFloat(e.target.value).toFixed(2);
+    document.getElementById("ttsOaiRateVal").textContent = v;
+  });
+
+  // Buttons
+  document.getElementById("ttsBtnPlay")?.addEventListener("click", ttsStart);
+  document.getElementById("ttsBtnStop")?.addEventListener("click", ttsStop);
+  document.getElementById("ttsBtnTest")?.addEventListener("click", () => {
+    const test = "Das klingt so. Schöne Stimme? Ich bin bereit vorzulesen!";
+    window.speechSynthesis?.cancel();
+    if (TTS.currentAudio) { TTS.currentAudio.pause(); TTS.currentAudio = null; }
+    if (TTS.mode === "openai") {
+      TTS.playing = true;
+      TTS.sentences = [test];
+      ttsOpenAISpeak([test], 0, () => { TTS.playing = false; });
+    } else {
+      TTS.playing = true;
+      TTS.sentences = [test];
+      ttsLocalSpeak([test], 0, () => { TTS.playing = false; });
+    }
+  });
+
+  // Play-Button freischalten wenn Text geladen
+  const updateTtsBtn = () => {
+    const btn = document.getElementById("ttsBtnPlay");
+    if (btn) btn.disabled = !S.words.length;
+  };
+  // Überwache S.words über MutationObserver wäre zu aufwändig → kurz nach loadBook aufrufen
+  document.addEventListener("rsvpBookLoaded", updateTtsBtn);
+}
+
+function ttsSetMode(mode) {
+  TTS.mode = mode;
+  localStorage.setItem("tts_mode", mode);
+  const localPanel = document.getElementById("ttsLocalPanel");
+  const oaiPanel   = document.getElementById("ttsOpenAIPanel");
+  const btnLocal   = document.getElementById("ttsModeLocal");
+  const btnOai     = document.getElementById("ttsModeOpenAI");
+
+  if (mode === "openai") {
+    localPanel?.classList.add("hidden");
+    oaiPanel?.classList.remove("hidden");
+    btnLocal?.classList.add("ghost");    btnLocal?.classList.remove("active");
+    btnOai?.classList.remove("ghost");   btnOai?.classList.add("active");
+  } else {
+    oaiPanel?.classList.add("hidden");
+    localPanel?.classList.remove("hidden");
+    btnOai?.classList.add("ghost");      btnOai?.classList.remove("active");
+    btnLocal?.classList.remove("ghost"); btnLocal?.classList.add("active");
+  }
+}
+
 /* -----------------------------
    Boot
 ------------------------------ */
@@ -2499,6 +2992,7 @@ async function handleSharedContent() {
   setTopbarHeightVar();
   try { bindUI(); } catch (e) { console.error("bindUI failed", e); }
   initDockPanels();
+  initTtsPanel();
   try { await ensurePersistentStorage(); } catch (e) {}
   try { loadSettingsFromLS(); } catch(e){}
   try { applySettingsToUI(); } catch(e){}

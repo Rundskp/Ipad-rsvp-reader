@@ -59,10 +59,13 @@
     <button id="btnClipboardImport" class="btn topBtn clipBtn" title="Aus Zwischenablage importieren">📋 Web</button>
       <div class="actionButtons">
       <button id="btnSidebar"  class="btn ghost topBtn" data-panel="sidebar"  title="Kapitel / Lesezeichen">☰</button>
+      <button id="btnFullscreen" class="btn ghost topBtn" title="Vollbild">⛶</button>
       <button id="btnHeader" class="btn ghost topBtn" data-panel="header" title="Cover/Titel">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:block;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
       </button>
       <button id="btnSettings" class="btn ghost topBtn" data-panel="settings" title="Einstellungen">⚙︎</button>
+      <button id="btnVoice"    class="btn ghost topBtn" title="Sprachsteuerung">🎙</button>
+      <button id="btnTts"      class="btn ghost topBtn" data-panel="tts" title="Vorlesen">🔊</button>
       <button id="btnHelp"     class="btn ghost topBtn" data-panel="help"     title="Hilfe">?</button>
       <button id="btnDonate"   class="btn ghost topBtn" data-panel="donate"   title="Spenden">☕️</button>
       <button id="btnShelf"    class="btn ghost topBtn" data-panel="shelf"    title="Bibliothek">📚</button>
@@ -333,6 +336,79 @@
             <div id="btcQrHint" class="small muted" style="margin-top:6px;"></div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TTS Panel -->
+  <div id="ttsPanel" class="popoverPanel hidden" data-panel-id="tts">
+    <div class="dialog">
+      <div class="dialogHead">
+        <div class="dialogTitle">🔊 Vorlesen</div>
+        <button id="btnTtsClose" class="btn ghost" type="button" title="Schließen">✕</button>
+      </div>
+
+      <div class="ttsBody">
+
+        <!-- Modus-Auswahl -->
+        <div class="ttsModeRow">
+          <button id="ttsModeLocal"  class="btn ttsMode active" type="button">Browser-Stimme</button>
+          <button id="ttsModeOpenAI" class="btn ttsMode ghost"  type="button">OpenAI TTS ✨</button>
+        </div>
+
+        <!-- ── BROWSER-MODUS ── -->
+        <div id="ttsLocalPanel">
+          <div class="control" style="margin-top:10px;">
+            <label>Stimme</label>
+            <select id="ttsVoiceSelect" class="select"></select>
+            <div class="hint" id="ttsVoiceHint">Tipp: Auf iOS/macOS "Premium" oder "Enhanced" Stimmen wählen – klingen viel natürlicher.</div>
+          </div>
+          <div class="control">
+            <label class="labelRow"><span>Geschwindigkeit</span><span class="pill small"><span id="ttsRateVal">1.0</span>×</span></label>
+            <input id="ttsRate" type="range" min="0.5" max="2.0" step="0.05" value="1.0">
+          </div>
+          <div class="control">
+            <label class="labelRow"><span>Tonhöhe</span><span class="pill small"><span id="ttsPitchVal">1.0</span></span></label>
+            <input id="ttsPitch" type="range" min="0.5" max="2.0" step="0.05" value="1.0">
+          </div>
+        </div>
+
+        <!-- ── OPENAI-MODUS ── -->
+        <div id="ttsOpenAIPanel" class="hidden">
+          <div class="control" style="margin-top:10px;">
+            <label>API-Key <span class="muted">(wird nur lokal gespeichert)</span></label>
+            <input id="ttsApiKey" type="password" class="num" style="width:100%;" placeholder="sk-..." autocomplete="off">
+          </div>
+          <div class="control">
+            <label>Stimme</label>
+            <select id="ttsOaiVoice" class="select">
+              <option value="nova">Nova – jung, warm, klar</option>
+              <option value="alloy">Alloy – neutral, ausgewogen</option>
+              <option value="echo">Echo – männlich, ruhig</option>
+              <option value="fable">Fable – britisch, erzählerisch</option>
+              <option value="onyx">Onyx – tief, markant</option>
+              <option value="shimmer">Shimmer – weich, freundlich</option>
+            </select>
+          </div>
+          <div class="control">
+            <label class="labelRow"><span>Geschwindigkeit</span><span class="pill small"><span id="ttsOaiRateVal">1.0</span>×</span></label>
+            <input id="ttsOaiRate" type="range" min="0.25" max="4.0" step="0.05" value="1.0">
+          </div>
+          <div class="hint" style="margin-top:6px;">OpenAI TTS klingt sehr natürlich. Kosten: ~$0.015 / 1000 Zeichen. <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" style="color:var(--accent);">API-Key holen →</a></div>
+        </div>
+
+        <!-- Player -->
+        <div class="ttsPlayer">
+          <button id="ttsBtnPlay"  class="btn primary" type="button" disabled>▶ Vorlesen</button>
+          <button id="ttsBtnStop"  class="btn ghost"   type="button" disabled>■ Stopp</button>
+          <button id="ttsBtnTest"  class="btn ghost"   type="button">Teste Stimme</button>
+        </div>
+
+        <div id="ttsProgress" class="ttsProgress hidden">
+          <div id="ttsProgressBar" class="ttsProgressBar"></div>
+        </div>
+        <div id="ttsCurrentSentence" class="ttsCurrentSentence muted"></div>
+
       </div>
     </div>
   </div>
