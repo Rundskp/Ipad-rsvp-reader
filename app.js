@@ -560,6 +560,14 @@ function renderToken(token) {
 function autoFitWord() {
   if (!el.word || !el.display) return;
 
+  // Im Vollbild: kein Shrink – Text umbricht natürlich (via CSS)
+  if (document.body.classList.contains('readerFullscreen')) {
+    el.word.style.fontSize = '';
+    el.word.style.wordBreak = '';
+    el.word.style.overflowWrap = '';
+    return;
+  }
+
   // Erst auf Basis-Größe zurücksetzen
   el.word.style.fontSize = '';
   el.word.style.wordBreak = '';
@@ -583,11 +591,8 @@ function autoFitWord() {
 
     el.word.style.fontSize = newSize + 'px';
 
-    // Falls es immer noch nicht passt: Wort mit korrekter Silbentrennung umbrechen
-    // (kein break-all – das würde mitten im Wort trennen ohne Trennstrich)
+    // Falls es immer noch nicht passt: Silbentrennung
     if (el.word.scrollWidth > boxW) {
-      // hyphens:auto + overflow-wrap:break-word stellt sicher dass
-      // der Browser nur an Silbengrenzen trennt (mit Trennstrich)
       el.word.style.overflowWrap = 'break-word';
       el.word.lang = document.documentElement.lang || 'de';
     }
@@ -2026,17 +2031,9 @@ attachScrubButton(el.btnFwd, +1);
       "padding:6px 14px;border-radius:8px;color:#fff;cursor:pointer;font-size:13px;";
     document.body.appendChild(floatBtn);
 
-    const topbar = document.querySelector(".topbar");
-    const headerInfoBar = document.querySelector(".headerInfoBar");
-    const bookmarkBar  = document.getElementById("bookmarkBar");
-
     const enterReaderFullscreen = () => {
       _fsActive = true;
       document.body.classList.add("readerFullscreen");
-      // Topbar und Seitenelemente per JS ausblenden (zuverlässiger als CSS bei Cache)
-      if (topbar)        topbar.style.display = "none";
-      if (headerInfoBar) headerInfoBar.style.display = "none";
-      if (bookmarkBar)   bookmarkBar.style.display = "none";
       btnFS.classList.add("isActive");
       floatBtn.style.display = "block";
     };
@@ -2044,10 +2041,6 @@ attachScrubButton(el.btnFwd, +1);
     const exitReaderFullscreen = () => {
       _fsActive = false;
       document.body.classList.remove("readerFullscreen");
-      // Topbar und Elemente wiederherstellen
-      if (topbar)        topbar.style.display = "";
-      if (headerInfoBar) headerInfoBar.style.display = "";
-      if (bookmarkBar)   bookmarkBar.style.display = "";
       btnFS.textContent = "⛶";
       btnFS.title = "Vollbild";
       btnFS.classList.remove("isActive");

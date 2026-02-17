@@ -971,28 +971,19 @@ body.modalOpen {
 }
 
 /* ═══ Reader-Vollbild (kein Browser-Fullscreen, nur Lesefenster ausdehnen) ═══ */
-/* ═══ Vollbild-Modus: echtes Bildschirmfüllen ═══ */
+/* ═══ Vollbild-Modus: Lesebox über den ganzen Bildschirm ═══ */
 
-/* Topbar ausblenden → Karte kann ganz oben beginnen */
-body.readerFullscreen .topbar {
-  display: none !important;
-}
-
-/* headerInfo, bookmarkBar, wrap-Abstand weg */
+/* Alles ausblenden außer der Lesebox */
+body.readerFullscreen .topbar,
 body.readerFullscreen .headerInfoBar,
 body.readerFullscreen .bookmarkBar {
   display: none !important;
 }
 
-/* Karte: gesamten Bildschirm belegen (0,0 bis 100vw,100dvh) */
+/* Lesebox: ganzer Bildschirm */
 body.readerFullscreen .card {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 100dvh;
-  width: 100vw;
+  top: 0; left: 0; right: 0; bottom: 0;
   z-index: 999;
   display: flex;
   flex-direction: column;
@@ -1001,7 +992,7 @@ body.readerFullscreen .card {
   border-radius: 0;
   border: none;
   box-sizing: border-box;
-  padding: 16px;
+  padding: 24px;
 }
 
 body.readerFullscreen .player {
@@ -1011,24 +1002,24 @@ body.readerFullscreen .player {
   min-height: 0;
 }
 
+/* Display-Box: füllt den verfügbaren Platz, Text umbricht natürlich */
 body.readerFullscreen .display {
   flex: 1;
   height: auto !important;
   min-height: 0;
-  border-radius: 12px;
+  border-radius: 16px;
+  align-items: center;
+  justify-content: center;
 }
 
-/* Vollbild-Exit-Button: rechts oben einblenden */
-body.readerFullscreen #btnFullscreen {
-  position: fixed;
-  top: 12px;
-  right: 12px;
-  z-index: 1000;
-  opacity: 0.6;
-  transition: opacity 0.2s;
-}
-body.readerFullscreen #btnFullscreen:hover {
-  opacity: 1;
+/* Wort-Element: umbricht in mehrere Zeilen statt zu skalieren */
+body.readerFullscreen .word {
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  text-align: center !important;
+  line-height: 1.3;
+  max-width: 100%;
 }
 
 
