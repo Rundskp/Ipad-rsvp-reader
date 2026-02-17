@@ -27,6 +27,9 @@ const ReadAlong = {
   startIdx:      0,
   wordOffsets:   [],
   _fallbackTimer: null,
+  _manualPaused:  false,
+  _keepAlive:     null,
+  _pausedAt:      0,
 };
 
 /* -----------------------------
@@ -851,31 +854,28 @@ function togglePlay() {
   if (!S.words.length) return;
 
   // Read-Along Modus: TTS pausieren/fortsetzen
+  // WICHTIG: speechSynthesis.paused/.speaking sind in Chrome unzuverlässig nach pause().
+  // Deshalb verwalten wir den Pause-Zustand selbst mit ReadAlong._manualPaused.
   if (ReadAlong.active) {
-    if (window.speechSynthesis.paused) {
-      // Resume: speakStartTime um Pausedauer korrigieren damit Fallback-Timer stimmt
-      if (ReadAlong._pausedAt) {
-        const pausedMs = performance.now() - ReadAlong._pausedAt;
-        ReadAlong._speakStartOffset = (ReadAlong._speakStartOffset || 0) + pausedMs;
-        ReadAlong._pausedAt = 0;
-      }
-      window.speechSynthesis.resume();
+    if (ReadAlong._manualPaused) {
+      // ── RESUME ──
+      ReadAlong._manualPaused = false;
+      try { window.speechSynthesis.resume(); } catch(e) {}
       S.playing = true;
       if (el.btnPlay) el.btnPlay.textContent = "Pause";
-    } else if (window.speechSynthesis.speaking) {
-      // Pause: Fallback-Timer stoppen, damit Text nicht weiterläuft!
+      // Fallback-Timer neu starten falls kein onboundary läuft
+      // (wird intern von speakChunk via onstart/onboundary gesteuert)
+    } else {
+      // ── PAUSE ──
+      // Fallback-Timer stoppen, damit Text nicht weiterläuft!
       if (ReadAlong._fallbackTimer) {
         clearTimeout(ReadAlong._fallbackTimer);
         ReadAlong._fallbackTimer = null;
       }
-      ReadAlong._pausedAt = performance.now();
-      window.speechSynthesis.pause();
+      ReadAlong._manualPaused = true;
+      try { window.speechSynthesis.pause(); } catch(e) {}
       S.playing = false;
       if (el.btnPlay) el.btnPlay.textContent = "Play";
-    } else {
-      // speechSynthesis ist weder paused noch speaking → neu starten
-      readAlongStop();
-      readAlongStart();
     }
     return;
   }
@@ -2026,11 +2026,17 @@ attachScrubButton(el.btnFwd, +1);
       "padding:6px 14px;border-radius:8px;color:#fff;cursor:pointer;font-size:13px;";
     document.body.appendChild(floatBtn);
 
+    const topbar = document.querySelector(".topbar");
+    const headerInfoBar = document.querySelector(".headerInfoBar");
+    const bookmarkBar  = document.getElementById("bookmarkBar");
+
     const enterReaderFullscreen = () => {
       _fsActive = true;
       document.body.classList.add("readerFullscreen");
-      btnFS.textContent = "⛶"; // bleibt sichtbar im topbar (topbar ist hidden, aber button ist fixed)
-      btnFS.title = "Vollbild beenden";
+      // Topbar und Seitenelemente per JS ausblenden (zuverlässiger als CSS bei Cache)
+      if (topbar)        topbar.style.display = "none";
+      if (headerInfoBar) headerInfoBar.style.display = "none";
+      if (bookmarkBar)   bookmarkBar.style.display = "none";
       btnFS.classList.add("isActive");
       floatBtn.style.display = "block";
     };
@@ -2038,6 +2044,10 @@ attachScrubButton(el.btnFwd, +1);
     const exitReaderFullscreen = () => {
       _fsActive = false;
       document.body.classList.remove("readerFullscreen");
+      // Topbar und Elemente wiederherstellen
+      if (topbar)        topbar.style.display = "";
+      if (headerInfoBar) headerInfoBar.style.display = "";
+      if (bookmarkBar)   bookmarkBar.style.display = "";
       btnFS.textContent = "⛶";
       btnFS.title = "Vollbild";
       btnFS.classList.remove("isActive");
@@ -3032,6 +3042,7 @@ function readAlongStop() {
     clearInterval(ReadAlong._keepAlive);
     ReadAlong._keepAlive = null;
   }
+  ReadAlong._manualPaused = false;
   if (el.ttsReadAlong) el.ttsReadAlong.checked = false;
   if (el.btnPlay) el.btnPlay.textContent = "Play";
   S.playing = false;
