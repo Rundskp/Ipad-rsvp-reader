@@ -512,24 +512,58 @@ function computeOrpIndex(word) {
 function renderToken(token) {
   if (!S.settings.orp) {
     el.word.innerHTML = escapeHtml(token);
-    return;
+  } else {
+    const m = token.match(/[A-Za-zÄÖÜäöüß0-9]+/);
+    if (!m) {
+      el.word.innerHTML = escapeHtml(token);
+    } else {
+      const seg = m[0];
+      const segStart = token.indexOf(seg);
+      const orpIdx = computeOrpIndex(seg);
+      const before    = escapeHtml(token.slice(0, segStart));
+      const segBefore = escapeHtml(seg.slice(0, orpIdx));
+      const segOrp    = escapeHtml(seg.slice(orpIdx, orpIdx + 1));
+      const segAfter  = escapeHtml(seg.slice(orpIdx + 1));
+      const after     = escapeHtml(token.slice(segStart + seg.length));
+      el.word.innerHTML = `${before}${segBefore}<span class="orp">${segOrp}</span>${segAfter}${after}`;
+    }
   }
-  const m = token.match(/[A-Za-zÄÖÜäöüß0-9]+/);
-  if (!m) {
-    el.word.innerHTML = escapeHtml(token);
-    return;
-  }
-  const seg = m[0];
-  const segStart = token.indexOf(seg);
-  const orpIdx = computeOrpIndex(seg);
+  autoFitWord();
+}
 
-  const before = escapeHtml(token.slice(0, segStart));
-  const segBefore = escapeHtml(seg.slice(0, orpIdx));
-  const segOrp = escapeHtml(seg.slice(orpIdx, orpIdx + 1));
-  const segAfter = escapeHtml(seg.slice(orpIdx + 1));
-  const after = escapeHtml(token.slice(segStart + seg.length));
+/* Auto-Fit: Schrift verkleinern wenn Wort die Box überschreitet */
+function autoFitWord() {
+  if (!el.word || !el.display) return;
 
-  el.word.innerHTML = `${before}${segBefore}<span class="orp">${segOrp}</span>${segAfter}${after}`;
+  // Erst auf Basis-Größe zurücksetzen
+  el.word.style.fontSize = '';
+  el.word.style.wordBreak = '';
+
+  requestAnimationFrame(() => {
+    const boxW   = el.display.clientWidth  - 28; // 14px padding beidseitig
+    const wordW  = el.word.scrollWidth;
+
+    if (wordW <= boxW) return; // passt — nichts tun
+
+    // Basisgröße aus CSS-Variable lesen
+    const basePx = parseFloat(
+      getComputedStyle(document.documentElement)
+        .getPropertyValue('--reader-font-size')
+    ) || 64;
+
+    // Skalierungsfaktor: wie viel kleiner muss es werden?
+    const ratio = boxW / wordW;
+    const newSize = Math.max(18, Math.floor(basePx * ratio));
+
+    el.word.style.fontSize = newSize + 'px';
+
+    // Falls es immer noch nicht passt (z.B. URL-Monster): Umbruch erlauben
+    if (el.word.scrollWidth > boxW) {
+      el.word.style.wordBreak = 'break-all';
+      el.word.style.hyphens   = 'auto';
+      el.word.lang            = 'de';
+    }
+  });
 }
 
 /* -----------------------------
@@ -2022,121 +2056,198 @@ function unlockBackgroundScroll() {
 /* -----------------------------
    HTML Clipboard Parser
    Extrahiert Haupttext + Überschriften für TOC
+   Robust gegen archive.ph, Nachrichtenseiten, Blogs, etc.
 ------------------------------ */
 function parseClipboardHtml(html, titleOverride) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
 
-  // Entferne Rauschen (Navigation, Werbung, etc.)
-  const noiseSelectors = [
-    'script', 'style', 'noscript', 'iframe', 'svg', 'math', 'canvas',
-    'nav', 'footer', 'header', 'aside',
-    '[role="navigation"]', '[role="banner"]', '[role="contentinfo"]',
-    '[class*="cookie"]', '[class*="popup"]', '[class*="modal"]',
-    '[class*="newsletter"]', '[class*="subscribe"]',
-    '[class*="social"]', '[class*="share"]',
-    '[class*="related"]', '[class*="recommend"]',
-    '[class*="sidebar"]', '[class*="widget"]',
-    '[class*="comment"]', '[class*="disqus"]',
-    '[id*="cookie"]', '[id*="popup"]', '[id*="modal"]',
-    '[id*="newsletter"]', '[id*="sidebar"]',
-    '[id*="comment"]', '[id*="disqus"]',
-  ];
-  try {
-    doc.querySelectorAll(noiseSelectors.join(',')).forEach(n => {
-      try { n.remove(); } catch {}
-    });
-  } catch {}
+  // 1) Rauschen entfernen
+  const NOISE = [
+    'script','style','noscript','iframe','canvas','template',
+    'nav','footer',
+    '[role="navigation"]','[role="banner"]','[role="contentinfo"]','[role="complementary"]',
+    '[class*="cookie"]','[id*="cookie"]',
+    '[class*="popup"]','[id*="popup"]',
+    '[class*="modal"]','[id*="modal"]',
+    '[class*="overlay"]','[id*="overlay"]',
+    '[class*="newsletter"]','[id*="newsletter"]',
+    '[class*="subscribe"]',
+    '[class*="social"]','[class*="share-"]','[class*="-share"]',
+    '[class*="related"]','[class*="recommend"]',
+    '[class*="sidebar"]','[id*="sidebar"]',
+    '[class*="widget"]',
+    '[class*="comment"]','[id*="comment"]',
+    '[class*="disqus"]',
+    '[class*="ad-"]','[class*="-ad"]','[class*="advert"]',
+    '[class*="promo"]','[class*="banner"]',
+    '[class*="breadcrumb"]','[class*="pagination"]',
+    '[class*="toolbar"]','[class*="topbar"]','[class*="navbar"]',
+    '[class*="menu"]',
+    '[class*="paywall"]','[class*="subscription"]',
+    '[id*="header"]',
+    'figure > figcaption',  // Bildunterschriften nicht als Überschriften
+  ].join(',');
 
-  // Suche Hauptinhalt
-  const mainEl =
-    doc.querySelector('article') ||
-    doc.querySelector('[role="main"]') ||
-    doc.querySelector('main') ||
-    doc.querySelector('[class*="article-body"]') ||
-    doc.querySelector('[class*="post-body"]') ||
-    doc.querySelector('[class*="entry-content"]') ||
-    doc.querySelector('[class*="article-content"]') ||
-    doc.querySelector('[class*="post-content"]') ||
-    doc.querySelector('#content') ||
-    doc.querySelector('.content') ||
-    doc.body || doc.documentElement;
+  try { doc.querySelectorAll(NOISE).forEach(n => { try { n.remove(); } catch {} }); } catch {}
 
-  // Seitentitel bestimmen
-  const pageTitle =
+  // 2) Seitentitel
+  const rawTitle =
     doc.querySelector('h1')?.textContent?.trim() ||
+    doc.querySelector('[class*="headline"]')?.textContent?.trim() ||
+    doc.querySelector('[class*="title"]')?.textContent?.trim() ||
     doc.title?.trim() ||
-    titleOverride ||
-    'Artikel';
+    titleOverride || 'Artikel';
+  const pageTitle = rawTitle.slice(0, 120);
 
-  // DOM traversieren: Wörter sammeln + Überschriften aufzeichnen
-  const words = [];
-  const rawHeadings = []; // {label, wordIndex}
+  // 3) Hauptinhalt finden
+  // Erst semantisch/explizit suchen …
+  const CANDIDATES_CSS = [
+    'article',
+    '[role="main"]',
+    'main',
+    '[class*="article-body"]',
+    '[class*="article-content"]',
+    '[class*="article-text"]',
+    '[class*="post-body"]',
+    '[class*="post-content"]',
+    '[class*="post-text"]',
+    '[class*="entry-content"]',
+    '[class*="story-body"]',
+    '[class*="story-content"]',
+    '[class*="content-body"]',
+    '[class*="page-content"]',
+    '[class*="newsarticle"]',
+    '[class*="article__body"]',
+    '[class*="article__content"]',
+    '[id="article"]',
+    '[id="content"]',
+    '[id="main-content"]',
+    '[id="main"]',
+    '[id="text"]',           // archive.ph nutzt oft #text
+    '[id="article-body"]',
+  ];
+
+  let mainEl = null;
+  for (const sel of CANDIDATES_CSS) {
+    const el = doc.querySelector(sel);
+    if (el && el.textContent.trim().length > 200) { mainEl = el; break; }
+  }
+
+  // … sonst: "größter Textblock"-Heuristik (Readability-Prinzip)
+  if (!mainEl) mainEl = findLargestTextBlock(doc);
+
+  if (!mainEl) mainEl = doc.body || doc.documentElement;
+
+  // 4) DOM traversieren – Wörter + Überschriften sammeln
+  const words    = [];
+  const rawHeads = []; // { label, wordIndex }
+
+  // Zähler für Paragraph-Breaks (verhindert falsche Wortfusion)
+  function addParagraphBreak() {
+    // Kein eigentliches Wort, nur Sicherheitsabstand für Kapitelgrenzen
+  }
 
   function walk(node) {
     if (!node) return;
+
     if (node.nodeType === Node.TEXT_NODE) {
       const txt = (node.textContent || '').replace(/\s+/g, ' ').trim();
-      if (txt) {
-        const w = txt.split(' ').filter(Boolean);
-        words.push(...w);
-      }
+      if (txt) words.push(...txt.split(' ').filter(Boolean));
       return;
     }
+
     if (node.nodeType !== Node.ELEMENT_NODE) return;
 
     const tag = (node.tagName || '').toLowerCase();
-    if (['script','style','noscript','iframe','svg','math'].includes(tag)) return;
+    if (['script','style','noscript','iframe','svg','math','canvas'].includes(tag)) return;
 
-    const isHeading = /^h[1-4]$/.test(tag);
-    if (isHeading) {
-      const label = (node.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 70);
-      if (label && label.length >= 3) {
-        rawHeadings.push({ label, wordIndex: words.length });
+    // Heading erkennen: echte Heading-Tags + häufige Klassen
+    const cls  = (node.className || '').toLowerCase();
+    const isH  = /^h[1-4]$/.test(tag);
+    const hasHeadingClass =
+      cls.includes('heading') || cls.includes('headline') ||
+      cls.includes('subhead') || cls.includes('chapter') ||
+      cls.includes('subtitle');
+
+    if (isH || hasHeadingClass) {
+      const label = (node.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+      if (label.length >= 3 && label.length <= 80 && !/^\d+$/.test(label)) {
+        rawHeads.push({ label, wordIndex: words.length });
       }
     }
 
-    for (const child of node.childNodes) {
-      walk(child);
-    }
+    for (const child of node.childNodes) walk(child);
   }
 
   walk(mainEl);
 
-  // Duplikate und leere Überschriften entfernen
+  // 5) Duplikate + Kurz-Überschriften filtern
   const seen = new Set();
-  const headings = rawHeadings.filter(h => {
+  const headings = rawHeads.filter(h => {
     const k = h.label.toLowerCase().trim();
     if (!k || seen.has(k)) return false;
     seen.add(k);
     return true;
   });
 
-  // Kapitel + TOC aufbauen
+  // 6) Kapitel + TOC
   const chapters = [];
-  const toc = [];
+  const toc      = [];
 
   for (let i = 0; i < headings.length; i++) {
-    const h = headings[i];
+    const h    = headings[i];
     const next = headings[i + 1];
     const start = h.wordIndex;
-    const end = next ? next.wordIndex : words.length;
-
-    // Zu kurze Abschnitte (False Positives) überspringen
-    if (end - start < 15) continue;
-
+    const end   = next ? next.wordIndex : words.length;
+    if (end - start < 10) continue;   // zu kleiner Abschnitt = vermutlich kein echtes Kapitel
     const href = `section-${i}`;
     chapters.push({ label: h.label, href, start, end });
     toc.push({ label: h.label, href });
   }
 
-  // Fallback: kein Heading gefunden → 1 Kapitel = ganzer Text
+  // Fallback: kein Heading → 1 Kapitel
   if (!chapters.length && words.length > 0) {
     chapters.push({ label: pageTitle, href: 'main', start: 0, end: words.length });
     toc.push({ label: pageTitle, href: 'main' });
   }
 
   return { words, chapters, toc, title: pageTitle };
+}
+
+/* Findet das Element mit der höchsten Textdichte (Readability-Heuristik) */
+function findLargestTextBlock(doc) {
+  let best = null;
+  let bestScore = 0;
+
+  const blocks = doc.querySelectorAll(
+    'div, section, td, article, main'
+  );
+
+  for (const el of blocks) {
+    // Überspringe sehr kleine oder sehr große Container
+    const txt = el.textContent || '';
+    if (txt.length < 200) continue;
+
+    // Link-Anteil berechnen (hoher Anteil = Navigation)
+    let linkLen = 0;
+    el.querySelectorAll('a').forEach(a => { linkLen += (a.textContent || '').length; });
+    const linkDensity = linkLen / Math.max(1, txt.length);
+    if (linkDensity > 0.5) continue;
+
+    // Absatz-Zähler (mehr <p> = höhere Wahrscheinlichkeit Artikeltext)
+    const pCount = el.querySelectorAll('p').length;
+
+    // Score: Textlänge * Absatzbonus, bestraft für hohe Link-Dichte
+    const score = txt.length * (1 + pCount * 0.1) * (1 - linkDensity);
+
+    if (score > bestScore) {
+      bestScore = score;
+      best = el;
+    }
+  }
+
+  return best;
 }
 
 /* ----------------------------- */
