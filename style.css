@@ -971,20 +971,37 @@ body.modalOpen {
 }
 
 /* ═══ Reader-Vollbild (kein Browser-Fullscreen, nur Lesefenster ausdehnen) ═══ */
+/* ═══ Vollbild-Modus: echtes Bildschirmfüllen ═══ */
+
+/* Topbar ausblenden → Karte kann ganz oben beginnen */
+body.readerFullscreen .topbar {
+  display: none !important;
+}
+
+/* headerInfo, bookmarkBar, wrap-Abstand weg */
+body.readerFullscreen .headerInfoBar,
+body.readerFullscreen .bookmarkBar {
+  display: none !important;
+}
+
+/* Karte: gesamten Bildschirm belegen (0,0 bis 100vw,100dvh) */
 body.readerFullscreen .card {
   position: fixed;
-  top: calc(var(--topbarH, 56px) + 6px);
-  left: 6px;
-  right: 6px;
-  bottom: 6px;
-  height: auto;
-  z-index: 50;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 100dvh;
+  width: 100vw;
+  z-index: 999;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: rgba(14, 15, 20, 0.98);
-  border-radius: 14px;
+  background: var(--reader-bg-color, #0b0c10);
+  border-radius: 0;
+  border: none;
   box-sizing: border-box;
+  padding: 16px;
 }
 
 body.readerFullscreen .player {
@@ -998,12 +1015,20 @@ body.readerFullscreen .display {
   flex: 1;
   height: auto !important;
   min-height: 0;
+  border-radius: 12px;
 }
 
-/* Im Vollbild: headerInfo + bookmarkBar ausblenden damit die Karte nicht überlappt */
-body.readerFullscreen .headerInfoBar,
-body.readerFullscreen .bookmarkBar {
-  display: none !important;
+/* Vollbild-Exit-Button: rechts oben einblenden */
+body.readerFullscreen #btnFullscreen {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 1000;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+body.readerFullscreen #btnFullscreen:hover {
+  opacity: 1;
 }
 
 

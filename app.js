@@ -853,10 +853,22 @@ function togglePlay() {
   // Read-Along Modus: TTS pausieren/fortsetzen
   if (ReadAlong.active) {
     if (window.speechSynthesis.paused) {
+      // Resume: speakStartTime um Pausedauer korrigieren damit Fallback-Timer stimmt
+      if (ReadAlong._pausedAt) {
+        const pausedMs = performance.now() - ReadAlong._pausedAt;
+        ReadAlong._speakStartOffset = (ReadAlong._speakStartOffset || 0) + pausedMs;
+        ReadAlong._pausedAt = 0;
+      }
       window.speechSynthesis.resume();
       S.playing = true;
       if (el.btnPlay) el.btnPlay.textContent = "Pause";
     } else if (window.speechSynthesis.speaking) {
+      // Pause: Fallback-Timer stoppen, damit Text nicht weiterläuft!
+      if (ReadAlong._fallbackTimer) {
+        clearTimeout(ReadAlong._fallbackTimer);
+        ReadAlong._fallbackTimer = null;
+      }
+      ReadAlong._pausedAt = performance.now();
       window.speechSynthesis.pause();
       S.playing = false;
       if (el.btnPlay) el.btnPlay.textContent = "Play";
@@ -2003,14 +2015,24 @@ attachScrubButton(el.btnFwd, +1);
   if (btnFS) {
     let _fsActive = false;
 
+    // Floating Exit-Button der im Vollbild über der Karte schwebt
+    const floatBtn = document.createElement("button");
+    floatBtn.id = "btnFsFloat";
+    floatBtn.className = "btn ghost";
+    floatBtn.title = "Vollbild beenden (Esc)";
+    floatBtn.textContent = "✕ Vollbild";
+    floatBtn.style.cssText = "position:fixed;top:12px;right:12px;z-index:1001;display:none;" +
+      "background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.2);backdrop-filter:blur(8px);" +
+      "padding:6px 14px;border-radius:8px;color:#fff;cursor:pointer;font-size:13px;";
+    document.body.appendChild(floatBtn);
+
     const enterReaderFullscreen = () => {
       _fsActive = true;
       document.body.classList.add("readerFullscreen");
-      btnFS.textContent = "✕";
+      btnFS.textContent = "⛶"; // bleibt sichtbar im topbar (topbar ist hidden, aber button ist fixed)
       btnFS.title = "Vollbild beenden";
       btnFS.classList.add("isActive");
-      // Nach reflow messen, damit headerInfoBar (display:none) bereits ausgeblendet ist
-      requestAnimationFrame(() => setTopbarHeightVar());
+      floatBtn.style.display = "block";
     };
 
     const exitReaderFullscreen = () => {
@@ -2019,8 +2041,11 @@ attachScrubButton(el.btnFwd, +1);
       btnFS.textContent = "⛶";
       btnFS.title = "Vollbild";
       btnFS.classList.remove("isActive");
-      setTopbarHeightVar();
+      floatBtn.style.display = "none";
+      requestAnimationFrame(() => setTopbarHeightVar());
     };
+
+    floatBtn.addEventListener("click", exitReaderFullscreen);
 
     btnFS.addEventListener("click", () => {
       _fsActive ? exitReaderFullscreen() : enterReaderFullscreen();
@@ -3033,26 +3058,13 @@ async function readAlongStart() {
   ReadAlong.active   = true;
   ReadAlong.startIdx = S.idx;
 
-  // Text und Wort-Offset-Map aufbauen
-  const slice = S.words.slice(S.idx);
-  let pos = 0;
-  ReadAlong.wordOffsets = slice.map((w, i) => {
-    const o = { start: pos, end: pos + w.length, wordIdx: S.idx + i };
-    pos += w.length + 1;
-    return o;
-  });
-
-  // Stimme & Einstellungen
+  // Stimme & Einstellungen laden
   const voiceSelect = document.getElementById("ttsVoiceSelect");
   let voices = window.speechSynthesis.getVoices();
-  // Chrome: getVoices() kann beim ersten Aufruf leer sein → nochmal nach Event
   if (!voices.length) {
     voices = await new Promise(res => {
       const t = setTimeout(() => res(window.speechSynthesis.getVoices()), 500);
-      window.speechSynthesis.onvoiceschanged = () => {
-        clearTimeout(t);
-        res(window.speechSynthesis.getVoices());
-      };
+      window.speechSynthesis.onvoiceschanged = () => { clearTimeout(t); res(window.speechSynthesis.getVoices()); };
     });
   }
   let voice = null;
@@ -3061,39 +3073,70 @@ async function readAlongStart() {
   const pitch = parseFloat(document.getElementById("ttsPitch")?.value || "1.0");
   const lang  = document.documentElement.lang || "de-DE";
 
-  if (!ReadAlong.active) return; // wurde zwischenzeitlich abgebrochen
+  if (!ReadAlong.active) return;
 
-  // Play-UI auf "läuft"
-  if (el.btnPlay) el.btnPlay.textContent = "Pause";
-  S.playing = true;
+  // ── Wörter ab aktueller Position ──────────────────────────────────────────
+  const slice    = S.words.slice(S.idx);
+  const baseIdx  = S.idx; // globaler Wortindex des ersten Worts in slice
 
-  // ── Sätze aufteilen (Chrome-Bug: sehr langer Text wird nie abgespielt) ──────
-  // Wir teilen in Sätze ≤ 200 Wörter und spielen sie nacheinander ab.
-  const CHUNK_SIZE = 150; // Wörter pro Utterance
+  // ── Sätze ermitteln (Satzgrenzen für Chunk-Splitting) ─────────────────────
+  // Wir teilen an Satzgrenzen, maximal CHUNK_WORDS Wörter pro Utterance.
+  // So bleibt jeder Chunk kurz genug für zuverlässige onboundary-Events.
+  const CHUNK_WORDS = 80;
+  const sentenceEndRe = /[.!?;]\s*$/;
   const chunks = [];
-  for (let i = 0; i < slice.length; i += CHUNK_SIZE) {
-    const words = slice.slice(i, i + CHUNK_SIZE);
-    // Wort-Offsets für diesen Chunk (relativ zum Chunk-Anfang, offset durch globale Position)
+  let ci = 0;
+  while (ci < slice.length) {
+    let end = Math.min(ci + CHUNK_WORDS, slice.length);
+    // Versuch, an Satzende zu brechen
+    if (end < slice.length) {
+      for (let k = end - 1; k > ci + 10; k--) {
+        if (sentenceEndRe.test(slice[k])) { end = k + 1; break; }
+      }
+    }
+    const words = slice.slice(ci, end);
     let cPos = 0;
     const offsets = words.map((w, j) => {
-      const o = { start: cPos, end: cPos + w.length, wordIdx: S.idx + i + j };
+      const o = { charStart: cPos, charEnd: cPos + w.length, wordIdx: baseIdx + ci + j };
       cPos += w.length + 1;
       return o;
     });
-    chunks.push({ text: words.join(" "), offsets });
+    chunks.push({ text: words.join(" "), offsets, startWordIdx: baseIdx + ci });
+    ci = end;
   }
 
-  let chunkIdx = 0;
-  let boundaryCount = 0;
+  // ── UI auf "läuft" ────────────────────────────────────────────────────────
+  if (el.btnPlay) el.btnPlay.textContent = "Pause";
+  S.playing = true;
 
+  // ── showWord: einzige Stelle die das angezeigte Wort ändert ──────────────
+  let lastShownIdx = -1;
   const showWord = (wIdx) => {
     if (!ReadAlong.active) return;
+    if (wIdx === lastShownIdx) return; // kein unnötiges Redraw
+    lastShownIdx = wIdx;
     const chunk = S.settings.chunk;
     S.idx = wIdx;
     const end   = clamp(wIdx + chunk, wIdx, S.words.length);
     const token = S.words.slice(wIdx, end).join(" ");
     renderToken(token);
     updateProgressUI();
+  };
+
+  // ── Chunk-basierte Sprachausgabe mit präzisem onboundary-Tracking ─────────
+  let chunkIdx        = 0;
+  let boundariesSeen  = 0;  // wie viele boundary-Events in diesem Chunk
+  let speakStartTime  = 0;  // performance.now() beim onstart
+  let wordTimings     = []; // [{ wordIdx, estimatedMs }] für Fallback
+
+  // Vorberechnung der geschätzten Wort-Zeiten (Karaoke-Fallback)
+  const buildWordTimings = (offsets, text) => {
+    // Durchschnittliche Silbenzahl pro Wort schätzen (4 Zeichen ≈ 1 Silbe ≈ 200ms bei rate=1)
+    const msPerChar = (60000 / (200 * rate)) / 5; // rough: 200wpm, 5chars/word avg
+    return offsets.map(o => ({
+      wordIdx: o.wordIdx,
+      estimatedMs: o.charStart * msPerChar
+    }));
   };
 
   const speakChunk = () => {
@@ -3107,8 +3150,9 @@ async function readAlongStart() {
     }
 
     const { text, offsets } = chunks[chunkIdx];
-    boundaryCount = 0;
-    let lastWordPos = 0;
+    boundariesSeen = 0;
+    wordTimings = buildWordTimings(offsets, text);
+    let lastOffsetIdx = 0;
 
     const u = new SpeechSynthesisUtterance(text);
     u.lang  = lang;
@@ -3117,34 +3161,68 @@ async function readAlongStart() {
     if (voice) u.voice = voice;
     ReadAlong.utterance = u;
 
+    // ── onboundary: primärer Sync-Mechanismus ─────────────────────────────
     u.onboundary = (ev) => {
-      if (!ReadAlong.active || ev.name !== "word") return;
-      boundaryCount++;
-      const ci = ev.charIndex;
-      let matched = null;
-      for (let i = lastWordPos; i < offsets.length; i++) {
-        const o = offsets[i];
-        if (ci >= o.start) { matched = o; lastWordPos = i; }
-        if (ci < o.end)    { break; }
+      if (!ReadAlong.active) return;
+      if (ev.name !== "word") return;
+      // Fallback-Timer sofort stoppen sobald boundary-Events kommen
+      if (ReadAlong._fallbackTimer) {
+        clearTimeout(ReadAlong._fallbackTimer);
+        ReadAlong._fallbackTimer = null;
       }
-      if (!matched) matched = offsets[lastWordPos];
-      if (!matched) return;
-      showWord(matched.wordIdx);
+      boundariesSeen++;
+      const charIdx = ev.charIndex;
+      // Passendes Wort suchen: charIdx liegt innerhalb [charStart, charEnd)
+      let matched = null;
+      for (let i = lastOffsetIdx; i < offsets.length; i++) {
+        if (charIdx >= offsets[i].charStart && charIdx < offsets[i].charEnd + 1) {
+          matched = offsets[i];
+          lastOffsetIdx = i;
+          break;
+        }
+        // Falls charIdx > charEnd, weitersuchen
+        if (charIdx >= offsets[i].charEnd) {
+          matched = offsets[i]; // vorläufig merken
+          lastOffsetIdx = i;
+        }
+      }
+      if (!matched && offsets[lastOffsetIdx]) matched = offsets[lastOffsetIdx];
+      if (matched) showWord(matched.wordIdx);
     };
 
-    // Fallback-Timer falls onboundary nicht feuert (Firefox, Safari)
+    // ── onstart: Fallback-Karaoke-Timer (falls onboundary nicht feuert) ───
     u.onstart = () => {
-      const estMsPerWord = Math.round(280 / Math.max(rate, 0.1));
-      let fallbackIdx = 0;
-      const tick = () => {
-        if (!ReadAlong.active || boundaryCount > 0) return;
-        const o = offsets[fallbackIdx];
-        if (!o) return;
-        showWord(o.wordIdx);
-        fallbackIdx++;
-        ReadAlong._fallbackTimer = setTimeout(tick, estMsPerWord);
-      };
-      ReadAlong._fallbackTimer = setTimeout(tick, 400);
+      speakStartTime = performance.now();
+      // Zeige erstes Wort sofort
+      if (offsets[0]) showWord(offsets[0].wordIdx);
+
+      // Starte Fallback-Timer nur wenn nach 300ms noch kein boundary kam
+      const kickoff = setTimeout(() => {
+        if (!ReadAlong.active || boundariesSeen > 0) return; // boundary läuft schon
+        // Echter Karaoke-Fallback: Wörter basierend auf verstrichener Zeit anzeigen
+        let timingIdx = 0;
+        const tick = () => {
+          if (!ReadAlong.active) return;
+          // Sobald boundaries feuern: Fallback aufgeben
+          if (boundariesSeen > 0) {
+            ReadAlong._fallbackTimer = null;
+            return;
+          }
+          const elapsed = performance.now() - speakStartTime;
+          // Alle Wörter anzeigen die laut Timing schon gesprochen sein sollten
+          while (timingIdx < wordTimings.length && wordTimings[timingIdx].estimatedMs <= elapsed) {
+            showWord(wordTimings[timingIdx].wordIdx);
+            timingIdx++;
+          }
+          if (timingIdx < wordTimings.length) {
+            const nextMs = wordTimings[timingIdx].estimatedMs - elapsed;
+            ReadAlong._fallbackTimer = setTimeout(tick, Math.max(16, nextMs));
+          }
+        };
+        tick();
+      }, 300);
+      // kickoff Timer auch im _fallbackTimer speichern damit er bei Pause gecleard wird
+      if (!ReadAlong._fallbackTimer) ReadAlong._fallbackTimer = kickoff;
     };
 
     u.onend = () => {
@@ -3161,13 +3239,11 @@ async function readAlongStart() {
       readAlongStop();
     };
 
-    // Chrome-Bug: cancel() dann sofort speak() blockiert → erst cancel, dann nach
-    // kleinem Delay speak(). Nur beim ersten Chunk canceln.
     if (chunkIdx === 0) {
       window.speechSynthesis.cancel();
       setTimeout(() => {
         if (!ReadAlong.active) return;
-        try { window.speechSynthesis.resume(); } catch(e) {}
+        try { window.speechSynthesis.resume(); } catch(e2) {}
         window.speechSynthesis.speak(u);
       }, 100);
     } else {
@@ -3177,9 +3253,9 @@ async function readAlongStart() {
 
   speakChunk();
 
-  // Chrome einfrieren verhindern: periodisch resume() wenn sprechend
+  // Chrome: periodisch resume() damit speechSynthesis nicht einfriert
   ReadAlong._keepAlive = setInterval(() => {
-    if (!ReadAlong.active) { clearInterval(ReadAlong._keepAlive); return; }
+    if (!ReadAlong.active) { clearInterval(ReadAlong._keepAlive); ReadAlong._keepAlive = null; return; }
     if (window.speechSynthesis.speaking && window.speechSynthesis.paused) {
       window.speechSynthesis.resume();
     }
