@@ -2433,7 +2433,7 @@ function parseClipboardHtml(html, titleOverride) {
     '[class*="subscribe"]',
     '[class*="social"]','[class*="share-"]','[class*="-share"]',
     '[class*="related"]','[class*="recommend"]',
-    '[class*="sidebar"]','[id*="sidebar"]',
+    '[class*="sidebar-nav"]','[class*="nav-sidebar"]','[id*="sidebar-nav"]','[id*="nav-sidebar"]',
     '[class*="widget"]',
     '[class*="comment"]','[id*="comment"]',
     '[class*="disqus"]',
@@ -2520,17 +2520,27 @@ function parseClipboardHtml(html, titleOverride) {
     const tag = (node.tagName || '').toLowerCase();
     if (['script','style','noscript','iframe','svg','math','canvas'].includes(tag)) return;
 
-    // Heading erkennen: echte Heading-Tags + häufige Klassen
-    const cls  = (node.className || '').toLowerCase();
-    const isH  = /^h[1-4]$/.test(tag);
+    // Heading erkennen: echte Heading-Tags + häufige Klassen + role
+    const cls   = (node.className || '').toLowerCase();
+    const role  = (node.getAttribute ? (node.getAttribute('role') || '') : '').toLowerCase();
+    const isH   = /^h[1-6]$/.test(tag);
     const hasHeadingClass =
       cls.includes('heading') || cls.includes('headline') ||
       cls.includes('subhead') || cls.includes('chapter') ||
-      cls.includes('subtitle');
+      cls.includes('subtitle') || cls.includes('section-title') ||
+      cls.includes('article__title') || cls.includes('article-title') ||
+      cls.includes('entry-title') || cls.includes('post-title') ||
+      cls.includes('content-title') || cls.includes('text-title') ||
+      cls.includes('story-headline') || cls.includes('page-title') ||
+      role === 'heading';
+    // Inline-style Heuristik: fett + größere Schrift als Fließtext
+    const style = (node.getAttribute ? (node.getAttribute('style') || '') : '').toLowerCase();
+    const looksLikeHeading = !isH && !hasHeadingClass &&
+      (style.includes('font-size') && (style.includes('bold') || style.includes('700') || style.includes('800') || style.includes('900')));
 
-    if (isH || hasHeadingClass) {
-      const label = (node.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 80);
-      if (label.length >= 3 && label.length <= 80 && !/^\d+$/.test(label)) {
+    if (isH || hasHeadingClass || looksLikeHeading) {
+      const label = (node.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+      if (label.length >= 3 && label.length <= 120 && !/^\d+$/.test(label)) {
         rawHeads.push({ label, wordIndex: words.length });
       }
     }
@@ -2558,7 +2568,7 @@ function parseClipboardHtml(html, titleOverride) {
     const next = headings[i + 1];
     const start = h.wordIndex;
     const end   = next ? next.wordIndex : words.length;
-    if (end - start < 10) continue;   // zu kleiner Abschnitt = vermutlich kein echtes Kapitel
+    if (end - start < 3) continue;   // zu kleiner Abschnitt = vermutlich kein echtes Kapitel
     const href = `section-${i}`;
     chapters.push({ label: h.label, href, start, end });
     toc.push({ label: h.label, href });
@@ -2655,7 +2665,32 @@ async function performClipboardImport(titleOverride) {
 
     let words, chapters, toc, detectedTitle;
 
-    if (htmlContent) {
+    // URL erkennen: wenn Plaintext eine http(s)-URL ist, Artikel direkt abrufen
+    const isUrl = !htmlContent && /^https?:\/\/\S+$/i.test(rawContent.trim());
+
+    if (isUrl) {
+      const targetUrl = rawContent.trim();
+      setStatus("Lade Artikel von URL…", { sticky: true });
+      try {
+        // CORS-Proxy: allorigins.win gibt HTML als JSON zurück
+        const proxyUrl = "https://api.allorigins.win/get?url=" + encodeURIComponent(targetUrl);
+        const resp = await fetch(proxyUrl);
+        if (!resp.ok) throw new Error("HTTP " + resp.status);
+        const json = await resp.json();
+        const fetchedHtml = json.contents || "";
+        if (!fetchedHtml) throw new Error("Leere Antwort vom Proxy");
+        setStatus("HTML erkannt – extrahiere Artikel…", { sticky: true });
+        const parsed = parseClipboardHtml(fetchedHtml, titleOverride);
+        words         = parsed.words;
+        chapters      = parsed.chapters;
+        toc           = parsed.toc;
+        detectedTitle = titleOverride || parsed.title;
+      } catch(fetchErr) {
+        console.warn("URL-Fetch fehlgeschlagen:", fetchErr);
+        setStatus("URL konnte nicht geladen werden – bitte Seite kopieren und einfügen.", { sticky: true });
+        return;
+      }
+    } else if (htmlContent) {
       setStatus("HTML erkannt – extrahiere Artikel…", { sticky: true });
       const parsed = parseClipboardHtml(htmlContent, titleOverride);
       words         = parsed.words;
@@ -2694,7 +2729,13 @@ async function performClipboardImport(titleOverride) {
         (b.title === bookTitle || b.title === "Geteilter Artikel") &&
         b.words.length === words.length
       );
-      if (existing) bookIdToLoad = existing.id;
+      if (existing) {
+        bookIdToLoad = existing.id;
+        // Kapitel aktualisieren falls vorherige Version keine hatte
+        if (chapters.length > 0 && (!existing.chapters || existing.chapters.length === 0)) {
+          await saveBookToLibrary({ ...existing, chapters, toc, updatedAt: Date.now() });
+        }
+      }
     } catch(e) {}
 
     if (!bookIdToLoad) {
