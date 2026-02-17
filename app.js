@@ -1979,8 +1979,8 @@ attachScrubButton(el.btnFwd, +1);
      TTS Read-Along Checkbox
   ------------------------------------------ */
   el.ttsReadAlong?.addEventListener("change", () => {
+    if (_readAlongStopInProgress) return; // kein Re-entry
     if (el.ttsReadAlong.checked) {
-      // Normale RSVP-Wiedergabe pausieren falls aktiv
       if (S.playing && !ReadAlong.active) {
         S.playing = false;
         if (S.timer) { clearTimeout(S.timer); S.timer = null; }
@@ -1988,8 +1988,6 @@ attachScrubButton(el.btnFwd, +1);
       }
       readAlongStart();
     } else {
-      // Nur stoppen wenn Read-Along gerade wirklich aktiv ist
-      // (nicht wenn readAlongStop() selbst das Checkbox zurückgesetzt hat)
       if (ReadAlong.active) readAlongStop();
     }
   });
@@ -2988,8 +2986,11 @@ function ttsStart() {
    TTS READ-ALONG – Stimme führt, RSVP-Anzeige folgt
    ===================================================== */
 
+let _readAlongStopInProgress = false;
+
 function readAlongStop() {
   if (!ReadAlong.active) return;
+  _readAlongStopInProgress = true;
   ReadAlong.active = false;
   try { window.speechSynthesis?.cancel(); } catch {}
   ReadAlong.utterance = null;
@@ -2997,11 +2998,11 @@ function readAlongStop() {
     clearTimeout(ReadAlong._fallbackTimer);
     ReadAlong._fallbackTimer = null;
   }
-  // Checkbox ohne erneutes Change-Event zurücksetzen
   if (el.ttsReadAlong) el.ttsReadAlong.checked = false;
   if (el.btnPlay) el.btnPlay.textContent = "Play";
   S.playing = false;
   S.timer = null;
+  _readAlongStopInProgress = false;
 }
 
 function readAlongStart() {
@@ -3129,7 +3130,11 @@ function readAlongStart() {
   };
 
   ReadAlong.utterance = u;
-  window.speechSynthesis.speak(u);
+  // Chrome-Bug: cancel() direkt vor speak() kann speak() blockieren → kleines Delay
+  setTimeout(() => {
+    if (!ReadAlong.active) return;
+    window.speechSynthesis.speak(u);
+  }, 80);
 }
 
 function ttsReadAlongSpeakToken() { /* no-op */ }
