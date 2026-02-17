@@ -314,8 +314,47 @@ body{
   display:flex;
   gap:10px;
   justify-content:center;
+  align-items: center;
   flex-wrap:wrap;
   margin: 12px 0 10px 0;
+}
+
+/* TTS-Toggle: Abstand nach links, optisch gleiche Höhe wie Buttons */
+.ttsToggleLabel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 42px;           /* gleiche Höhe wie .btn */
+  padding: 0 12px;
+  margin-left: 8px;       /* Abstand zu den anderen Buttons */
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: transparent;
+  cursor: pointer;
+  user-select: none;
+  transition: background .15s, border-color .15s;
+  white-space: nowrap;
+}
+
+.ttsToggleLabel:has(input:checked) {
+  background: rgba(126,231,135,.15);
+  border-color: rgba(126,231,135,.45);
+}
+
+.ttsToggleLabel input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.ttsToggleIcon {
+  font-size: 16px;
+  line-height: 1;
+  display: block;
 }
 
 .scrub input[type="range"]{ width:100%; }

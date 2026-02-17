@@ -771,8 +771,10 @@ function stopPlayback(reason = "") {
   S.pendingStop = false;
   if (el.btnPlay) el.btnPlay.textContent = "Play";
   if (reason) setStatus(reason);
-  // TTS Read-Along stoppen wenn aktiv
-  if (el.ttsReadAlong?.checked && TTS.playing) ttsStop();
+  // Read-Along: Sprachausgabe sofort stoppen
+  if (el.ttsReadAlong?.checked) {
+    try { window.speechSynthesis?.cancel(); } catch {}
+  }
   persistCurrentBookState().catch(()=>{});
 }
 
@@ -816,6 +818,9 @@ function scheduleNext() {
   renderToken(token);
   updateProgressUI();
 
+  // TTS Read-Along: dieses Token laut sprechen, synchron zur Anzeige
+  ttsReadAlongSpeakToken(token);
+
   S.idx = end;
 
   if (checkAutoStop(token, S.idx)) {
@@ -838,8 +843,6 @@ function togglePlay() {
 
   if (S.playing) {
     stopPlayback();
-    // TTS stoppen wenn Read-Along aktiv
-    if (el.ttsReadAlong?.checked) ttsStop();
     return;
   }
 
@@ -848,12 +851,6 @@ function togglePlay() {
   if (el.btnPlay) el.btnPlay.textContent = "Pause";
   S.playStartedAt = Date.now();
   S.wordsAtPlayStart = S.idx;
-
-  // TTS Read-Along starten wenn Checkbox angehakt
-  if (el.ttsReadAlong?.checked) {
-    ttsReadAlongSync();
-  }
-
   scheduleNext();
 }
 
@@ -1959,12 +1956,11 @@ attachScrubButton(el.btnFwd, +1);
      TTS Read-Along Checkbox
   ------------------------------------------ */
   el.ttsReadAlong?.addEventListener("change", () => {
-    if (el.ttsReadAlong.checked && S.playing) {
-      // Sofort starten wenn gerade gespielt wird
-      ttsReadAlongSync();
-    } else if (!el.ttsReadAlong.checked) {
-      ttsStop();
+    if (!el.ttsReadAlong.checked) {
+      // Deaktiviert: laufende Sprachausgabe sofort stoppen
+      try { window.speechSynthesis?.cancel(); } catch {}
     }
+    // Aktiviert: nichts extra tun – scheduleNext() ruft ttsReadAlongSpeakToken() auf
   });
 
   /* ------------------------------------------
@@ -2957,27 +2953,59 @@ function ttsStart() {
   }
 }
 
-/* ── TTS Read-Along: synchronisiert Vorlesen mit RSVP-Anzeige ── */
-function ttsReadAlongSync() {
-  // Holt den Text ab aktueller Position und startet TTS
-  if (!S.words.length) return;
-  const text = ttsGetText();
-  if (!text.trim()) return;
+/* ── TTS Read-Along: Wort-für-Wort synchronisiert mit RSVP ──
+   Statt TTS parallel laufen zu lassen (was unweigerlich asynchron wird),
+   sprechen wir exakt dasselbe Token das gerade angezeigt wird – via
+   speechSynthesis.speak() in scheduleNext(). Kein separates TTS-Threading.
+────────────────────────────────────────────────────────────────── */
+function ttsReadAlongSpeakToken(token) {
+  if (!el.ttsReadAlong?.checked) return;
+  if (!window.speechSynthesis) return;
 
-  TTS.sentences = splitSentences(text);
-  if (!TTS.sentences.length) return;
+  // Sofort abbrechen was noch in der Queue ist
+  window.speechSynthesis.cancel();
 
-  ttsSetPlaying(true);
-  const onEnd = () => {
-    ttsSetPlaying(false);
-    if (el.ttsReadAlong) el.ttsReadAlong.checked = false;
-  };
+  // Leer oder nur Satzzeichen: überspringen
+  const text = token.trim();
+  if (!text || !/[\wäöüÄÖÜß]/i.test(text)) return;
 
-  if (TTS.mode === "openai") {
-    ttsOpenAISpeak(TTS.sentences, 0, onEnd);
-  } else {
-    ttsLocalSpeak(TTS.sentences, 0, onEnd);
+  const u = new SpeechSynthesisUtterance(text);
+
+  // Stimme aus den gespeicherten Einstellungen
+  const voiceSelect = document.getElementById("ttsVoiceSelect");
+  if (voiceSelect && voiceSelect.value) {
+    const voices = window.speechSynthesis.getVoices();
+    const v = voices.find(v => v.name === voiceSelect.value);
+    if (v) u.voice = v;
   }
+
+  // Rate so setzen dass die Sprechzeit ≈ der RSVP-Anzeigezeit ist
+  // Wir setzen rate sehr hoch (2.0) damit TTS schnell genug fertig wird
+  // bevor das nächste Wort kommt. Bei niedrigen WPM passt es auch ohne Trick.
+  const msPerWord = 60000 / (S.settings.wpm || 300);
+  const avgCharsPerWord = 5;
+  const charsInToken = text.length;
+  // Grobe Faustformel: Browser-TTS braucht ~80ms/Zeichen bei rate=1.0
+  // Wir passen rate so an, dass es in msPerWord reinpasst
+  const naturalMs = charsInToken * 75; // ~75ms/Zeichen bei rate 1.0
+  let rate = naturalMs / Math.max(msPerWord * 0.85, 1);
+  rate = Math.max(0.5, Math.min(2.0, rate));
+
+  // Benutzerwunsch aus Slider: als Basiswert nehmen, aber RSVP-Tempo hat Vorrang
+  const userRate = parseFloat(document.getElementById("ttsRate")?.value || "1.0");
+  // Wir nutzen den User-Wert als Untergrenze (nie langsamer als gewünscht)
+  u.rate = Math.max(userRate, rate);
+
+  const userPitch = parseFloat(document.getElementById("ttsPitch")?.value || "1.0");
+  u.pitch = userPitch;
+  u.lang = document.documentElement.lang || "de-DE";
+
+  window.speechSynthesis.speak(u);
+}
+
+function ttsReadAlongSync() {
+  // Wird nur aufgerufen wenn Checkbox angehakt – Sprechung läuft via scheduleNext()
+  // Nichts weiter zu tun, da scheduleNext() ttsReadAlongSpeakToken() aufruft
 }
 
 /* ── Init TTS Panel ── */
