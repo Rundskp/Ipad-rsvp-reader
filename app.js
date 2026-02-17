@@ -856,10 +856,14 @@ function togglePlay() {
       window.speechSynthesis.resume();
       S.playing = true;
       if (el.btnPlay) el.btnPlay.textContent = "Pause";
-    } else {
+    } else if (window.speechSynthesis.speaking) {
       window.speechSynthesis.pause();
       S.playing = false;
       if (el.btnPlay) el.btnPlay.textContent = "Play";
+    } else {
+      // speechSynthesis ist weder paused noch speaking → neu starten
+      readAlongStop();
+      readAlongStart();
     }
     return;
   }
@@ -3130,11 +3134,23 @@ function readAlongStart() {
   };
 
   ReadAlong.utterance = u;
-  // Chrome-Bug: cancel() direkt vor speak() kann speak() blockieren → kleines Delay
+  // Chrome-Bug: cancel() direkt vor speak() kann speak() blockieren → Delay + resume
   setTimeout(() => {
     if (!ReadAlong.active) return;
+    // Sicherstellen dass speechSynthesis nicht im paused-Zustand steckt
+    try { window.speechSynthesis.resume(); } catch(e) {}
     window.speechSynthesis.speak(u);
-  }, 80);
+    // Chrome-Workaround: speak() kann einfrieren – periodisch resume() aufrufen
+    const resumeInterval = setInterval(() => {
+      if (!ReadAlong.active || !window.speechSynthesis.speaking) {
+        clearInterval(resumeInterval);
+        return;
+      }
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
+    }, 5000);
+  }, 150);
 }
 
 function ttsReadAlongSpeakToken() { /* no-op */ }
