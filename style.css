@@ -973,6 +973,11 @@ body.modalOpen {
 /* ═══ Reader-Vollbild (kein Browser-Fullscreen, nur Lesefenster ausdehnen) ═══ */
 /* ═══ Vollbild-Modus: Lesebox über den ganzen Bildschirm ═══ */
 
+/* Kein Scrollen, kein Überlaufen */
+body.readerFullscreen {
+  overflow: hidden !important;
+}
+
 /* Alles ausblenden außer der Lesebox */
 body.readerFullscreen .topbar,
 body.readerFullscreen .headerInfoBar,
@@ -980,7 +985,13 @@ body.readerFullscreen .bookmarkBar {
   display: none !important;
 }
 
-/* Lesebox: ganzer Bildschirm */
+/* Lesebox: ganzer Bildschirm, unabhängig vom wrap/max-width */
+body.readerFullscreen .wrap {
+  max-width: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
 body.readerFullscreen .card {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
