@@ -1000,6 +1000,13 @@ body.readerFullscreen .display {
   min-height: 0;
 }
 
+/* Im Vollbild: headerInfo + bookmarkBar ausblenden damit die Karte nicht überlappt */
+body.readerFullscreen .headerInfoBar,
+body.readerFullscreen .bookmarkBar {
+  display: none !important;
+}
+
+
 /* ═══ TTS Read-Along Checkbox ═══ */
 .ttsToggleLabel {
   display: inline-flex;

@@ -2009,7 +2009,8 @@ attachScrubButton(el.btnFwd, +1);
       btnFS.textContent = "✕";
       btnFS.title = "Vollbild beenden";
       btnFS.classList.add("isActive");
-      setTopbarHeightVar();
+      // Nach reflow messen, damit headerInfoBar (display:none) bereits ausgeblendet ist
+      requestAnimationFrame(() => setTopbarHeightVar());
     };
 
     const exitReaderFullscreen = () => {
@@ -3002,6 +3003,10 @@ function readAlongStop() {
     clearTimeout(ReadAlong._fallbackTimer);
     ReadAlong._fallbackTimer = null;
   }
+  if (ReadAlong._keepAlive) {
+    clearInterval(ReadAlong._keepAlive);
+    ReadAlong._keepAlive = null;
+  }
   if (el.ttsReadAlong) el.ttsReadAlong.checked = false;
   if (el.btnPlay) el.btnPlay.textContent = "Play";
   S.playing = false;
@@ -3009,7 +3014,7 @@ function readAlongStop() {
   _readAlongStopInProgress = false;
 }
 
-function readAlongStart() {
+async function readAlongStart() {
   if (!window.speechSynthesis) {
     setStatus("Sprachausgabe nicht verfügbar.");
     if (el.ttsReadAlong) el.ttsReadAlong.checked = false;
@@ -3024,7 +3029,6 @@ function readAlongStart() {
   // Normale RSVP-Wiedergabe anhalten
   S.playing = false;
   if (S.timer) { clearTimeout(S.timer); S.timer = null; }
-  window.speechSynthesis.cancel(); // evtl. laufendes TTS stoppen
 
   ReadAlong.active   = true;
   ReadAlong.startIdx = S.idx;
@@ -3037,30 +3041,50 @@ function readAlongStart() {
     pos += w.length + 1;
     return o;
   });
-  const fullText = slice.join(" ");
 
   // Stimme & Einstellungen
   const voiceSelect = document.getElementById("ttsVoiceSelect");
-  const voices      = window.speechSynthesis.getVoices();
-  let   voice       = null;
+  let voices = window.speechSynthesis.getVoices();
+  // Chrome: getVoices() kann beim ersten Aufruf leer sein → nochmal nach Event
+  if (!voices.length) {
+    voices = await new Promise(res => {
+      const t = setTimeout(() => res(window.speechSynthesis.getVoices()), 500);
+      window.speechSynthesis.onvoiceschanged = () => {
+        clearTimeout(t);
+        res(window.speechSynthesis.getVoices());
+      };
+    });
+  }
+  let voice = null;
   if (voiceSelect?.value) voice = voices.find(v => v.name === voiceSelect.value) || null;
   const rate  = parseFloat(document.getElementById("ttsRate")?.value  || "1.0");
   const pitch = parseFloat(document.getElementById("ttsPitch")?.value || "1.0");
+  const lang  = document.documentElement.lang || "de-DE";
 
-  const u = new SpeechSynthesisUtterance(fullText);
-  u.lang  = document.documentElement.lang || "de-DE";
-  u.rate  = rate;
-  u.pitch = pitch;
-  if (voice) u.voice = voice;
+  if (!ReadAlong.active) return; // wurde zwischenzeitlich abgebrochen
 
   // Play-UI auf "läuft"
   if (el.btnPlay) el.btnPlay.textContent = "Pause";
   S.playing = true;
 
-  // ── onboundary: Browser feuert bei jedem Wort-Beginn ──────────────
-  let boundaryCount   = 0;
-  let lastBoundaryAt  = 0;
-  let lastWordPos     = 0; // letzter Wort-Index in wordOffsets
+  // ── Sätze aufteilen (Chrome-Bug: sehr langer Text wird nie abgespielt) ──────
+  // Wir teilen in Sätze ≤ 200 Wörter und spielen sie nacheinander ab.
+  const CHUNK_SIZE = 150; // Wörter pro Utterance
+  const chunks = [];
+  for (let i = 0; i < slice.length; i += CHUNK_SIZE) {
+    const words = slice.slice(i, i + CHUNK_SIZE);
+    // Wort-Offsets für diesen Chunk (relativ zum Chunk-Anfang, offset durch globale Position)
+    let cPos = 0;
+    const offsets = words.map((w, j) => {
+      const o = { start: cPos, end: cPos + w.length, wordIdx: S.idx + i + j };
+      cPos += w.length + 1;
+      return o;
+    });
+    chunks.push({ text: words.join(" "), offsets });
+  }
+
+  let chunkIdx = 0;
+  let boundaryCount = 0;
 
   const showWord = (wIdx) => {
     if (!ReadAlong.active) return;
@@ -3072,85 +3096,94 @@ function readAlongStart() {
     updateProgressUI();
   };
 
-  u.onboundary = (ev) => {
-    if (!ReadAlong.active || ev.name !== "word") return;
-    boundaryCount++;
-
-    // Zeichenposition → passendes Wort suchen
-    const ci = ev.charIndex;
-    let matched = null;
-    for (let i = lastWordPos; i < ReadAlong.wordOffsets.length; i++) {
-      const o = ReadAlong.wordOffsets[i];
-      if (ci >= o.start) { matched = o; lastWordPos = i; }
-      if (ci < o.end)    { break; }
+  const speakChunk = () => {
+    if (!ReadAlong.active || chunkIdx >= chunks.length) {
+      if (ReadAlong.active) {
+        readAlongStop();
+        setStatus("Vorlesen beendet ✅");
+        persistCurrentBookState().catch(() => {});
+      }
+      return;
     }
-    if (!matched) matched = ReadAlong.wordOffsets[lastWordPos];
-    if (!matched) return;
 
-    showWord(matched.wordIdx);
-    lastBoundaryAt = performance.now();
-  };
+    const { text, offsets } = chunks[chunkIdx];
+    boundaryCount = 0;
+    let lastWordPos = 0;
 
-  // ── onstart: Fallback-Timer starten falls kein onboundary kommt ───
-  u.onstart = () => {
-    const startTime    = performance.now();
-    const estMsPerWord = Math.round(280 / Math.max(rate, 0.1));
-    let   fallbackIdx  = 0;
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang  = lang;
+    u.rate  = rate;
+    u.pitch = pitch;
+    if (voice) u.voice = voice;
+    ReadAlong.utterance = u;
 
-    const tick = () => {
-      if (!ReadAlong.active) return;
-      // Boundary-Events kommen? Fallback nicht nötig
-      if (boundaryCount > 0) return;
-      const o = ReadAlong.wordOffsets[fallbackIdx];
-      if (!o) return;
-      showWord(o.wordIdx);
-      fallbackIdx++;
-      ReadAlong._fallbackTimer = setTimeout(tick, estMsPerWord);
+    u.onboundary = (ev) => {
+      if (!ReadAlong.active || ev.name !== "word") return;
+      boundaryCount++;
+      const ci = ev.charIndex;
+      let matched = null;
+      for (let i = lastWordPos; i < offsets.length; i++) {
+        const o = offsets[i];
+        if (ci >= o.start) { matched = o; lastWordPos = i; }
+        if (ci < o.end)    { break; }
+      }
+      if (!matched) matched = offsets[lastWordPos];
+      if (!matched) return;
+      showWord(matched.wordIdx);
     };
 
-    // Erst nach 500ms prüfen ob Boundaries kamen
-    ReadAlong._fallbackTimer = setTimeout(tick, 500);
-  };
+    // Fallback-Timer falls onboundary nicht feuert (Firefox, Safari)
+    u.onstart = () => {
+      const estMsPerWord = Math.round(280 / Math.max(rate, 0.1));
+      let fallbackIdx = 0;
+      const tick = () => {
+        if (!ReadAlong.active || boundaryCount > 0) return;
+        const o = offsets[fallbackIdx];
+        if (!o) return;
+        showWord(o.wordIdx);
+        fallbackIdx++;
+        ReadAlong._fallbackTimer = setTimeout(tick, estMsPerWord);
+      };
+      ReadAlong._fallbackTimer = setTimeout(tick, 400);
+    };
 
-  u.onend = () => {
-    if (ReadAlong._fallbackTimer) {
-      clearTimeout(ReadAlong._fallbackTimer);
-      ReadAlong._fallbackTimer = null;
+    u.onend = () => {
+      if (ReadAlong._fallbackTimer) { clearTimeout(ReadAlong._fallbackTimer); ReadAlong._fallbackTimer = null; }
+      if (!ReadAlong.active) return;
+      chunkIdx++;
+      speakChunk();
+    };
+
+    u.onerror = (e) => {
+      if (ReadAlong._fallbackTimer) { clearTimeout(ReadAlong._fallbackTimer); ReadAlong._fallbackTimer = null; }
+      if (e.error === "interrupted" || e.error === "canceled") return;
+      console.warn("Read-Along Fehler:", e.error);
+      readAlongStop();
+    };
+
+    // Chrome-Bug: cancel() dann sofort speak() blockiert → erst cancel, dann nach
+    // kleinem Delay speak(). Nur beim ersten Chunk canceln.
+    if (chunkIdx === 0) {
+      window.speechSynthesis.cancel();
+      setTimeout(() => {
+        if (!ReadAlong.active) return;
+        try { window.speechSynthesis.resume(); } catch(e) {}
+        window.speechSynthesis.speak(u);
+      }, 100);
+    } else {
+      window.speechSynthesis.speak(u);
     }
-    if (!ReadAlong.active) return;
-    readAlongStop();
-    setStatus("Vorlesen beendet ✅");
-    persistCurrentBookState().catch(() => {});
   };
 
-  u.onerror = (e) => {
-    if (ReadAlong._fallbackTimer) {
-      clearTimeout(ReadAlong._fallbackTimer);
-      ReadAlong._fallbackTimer = null;
+  speakChunk();
+
+  // Chrome einfrieren verhindern: periodisch resume() wenn sprechend
+  ReadAlong._keepAlive = setInterval(() => {
+    if (!ReadAlong.active) { clearInterval(ReadAlong._keepAlive); return; }
+    if (window.speechSynthesis.speaking && window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
     }
-    if (e.error === "interrupted" || e.error === "canceled") return;
-    console.warn("Read-Along Fehler:", e.error);
-    readAlongStop();
-  };
-
-  ReadAlong.utterance = u;
-  // Chrome-Bug: cancel() direkt vor speak() kann speak() blockieren → Delay + resume
-  setTimeout(() => {
-    if (!ReadAlong.active) return;
-    // Sicherstellen dass speechSynthesis nicht im paused-Zustand steckt
-    try { window.speechSynthesis.resume(); } catch(e) {}
-    window.speechSynthesis.speak(u);
-    // Chrome-Workaround: speak() kann einfrieren – periodisch resume() aufrufen
-    const resumeInterval = setInterval(() => {
-      if (!ReadAlong.active || !window.speechSynthesis.speaking) {
-        clearInterval(resumeInterval);
-        return;
-      }
-      if (window.speechSynthesis.paused) {
-        window.speechSynthesis.resume();
-      }
-    }, 5000);
-  }, 150);
+  }, 5000);
 }
 
 function ttsReadAlongSpeakToken() { /* no-op */ }
