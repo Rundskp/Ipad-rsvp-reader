@@ -1742,6 +1742,11 @@ function bindUI() {
     ev.target.value = "";
   });
 
+  // Clipboard-Import Button (Desktop + iOS direkt)
+  document.getElementById("btnClipboardImport")?.addEventListener("click", () => {
+    performClipboardImport(null);
+  });
+
   el.btnExportAll?.addEventListener("click", () => exportLibrary({ mode: "all" }));
   document.getElementById("btnExportAllMobile")?.addEventListener("click", () => exportLibrary({ mode: "all" }));
 

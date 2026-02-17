@@ -78,6 +78,21 @@ body{
   height: 38px; /* Passt die Höhe an die Icons an */
 }
 
+/* Clipboard-Import Button */
+.clipBtn {
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  height: 38px;
+  gap: 5px;
+  background: rgba(126,231,135,.12);
+  border-color: rgba(126,231,135,.30);
+  color: var(--accent);
+}
+.clipBtn:hover {
+  background: rgba(126,231,135,.22);
+}
+
 /* ============================
    GLASSES – Premium Finish (safe)
 ============================ */
@@ -756,6 +771,11 @@ body{
     grid-area: 1 / 2;
     justify-self: end !important;
     margin: 0 !important;
+  }
+
+  /* Clipboard-Button auf Mobile in Zeile 2 verschieben */
+  #btnClipboardImport {
+    display: none !important; /* auf Mobile übernimmt der Shortcut den Job */
   }
 
   .topActions { display: contents !important; }
