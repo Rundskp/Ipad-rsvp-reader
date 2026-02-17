@@ -2026,54 +2026,88 @@ attachScrubButton(el.btnFwd, +1);
     floatBtn.className = "btn ghost";
     floatBtn.title = "Vollbild beenden (Esc)";
     floatBtn.textContent = "✕ Vollbild";
-    floatBtn.style.cssText = "position:fixed;top:12px;right:12px;z-index:1001;display:none;" +
-      "background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.2);backdrop-filter:blur(8px);" +
-      "padding:6px 14px;border-radius:8px;color:#fff;cursor:pointer;font-size:13px;";
+    floatBtn.style.cssText = "position:fixed;top:14px;right:14px;z-index:99999;display:none;" +
+      "background:rgba(20,22,28,0.85);border:1px solid rgba(255,255,255,0.25);backdrop-filter:blur(10px);" +
+      "padding:8px 16px;border-radius:10px;color:#fff;cursor:pointer;font-size:14px;font-weight:600;" +
+      "box-shadow:0 4px 20px rgba(0,0,0,0.5);letter-spacing:0.3px;";
     document.body.appendChild(floatBtn);
 
     const card    = document.getElementById("readerCard");
-    const topbar2  = document.querySelector(".topbar");
-    const hBar     = document.getElementById("headerInfo");
-    const bBar     = document.getElementById("bookmarkBar");
     const player   = card ? card.querySelector(".player") : null;
     const display2 = card ? card.querySelector(".display") : null;
 
-    const enterReaderFullscreen = () => {
-      _fsActive = true;
-      // Störendes ausblenden
-      if (topbar2) topbar2.style.display = "none";
-      if (hBar)    hBar.style.display    = "none";
-      if (bBar)    bBar.style.display    = "none";
-      // Karte direkt per inline-style auf ganzen Bildschirm setzen
-      if (card) {
-        card.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100dvh;" +
-          "z-index:9999;display:flex;flex-direction:column;overflow:hidden;" +
-          "background:var(--reader-bg-color,#0b0c10);border-radius:0;border:none;" +
-          "box-sizing:border-box;padding:24px;margin:0;";
-      }
-      if (player)   { player.style.cssText   = "flex:1;display:flex;flex-direction:column;min-height:0;"; }
-      if (display2) { display2.style.cssText = "flex:1;height:auto;min-height:0;border-radius:16px;"; }
-      btnFS.classList.add("isActive");
-      floatBtn.style.display = "block";
-      document.body.style.overflow = "hidden";
+    // Inline-Styles für die Lesebox im Vollbild
+    const applyCardStyles = () => {
+      if (card)    card.style.cssText    = "position:fixed;top:0;left:0;right:0;bottom:0;" +
+        "z-index:9999;display:flex;flex-direction:column;overflow:hidden;" +
+        "background:var(--reader-bg-color,#0b0c10);border-radius:0;border:none;" +
+        "box-sizing:border-box;padding:24px;margin:0;";
+      if (player)   player.style.cssText   = "flex:1;display:flex;flex-direction:column;min-height:0;";
+      if (display2) display2.style.cssText = "flex:1;height:auto;min-height:0;border-radius:16px;";
     };
 
-    const exitReaderFullscreen = () => {
-      _fsActive = false;
-      // Alles zurücksetzen
-      if (topbar2) topbar2.style.display = "";
-      if (hBar)    hBar.style.display    = "";
-      if (bBar)    bBar.style.display    = "";
+    const clearCardStyles = () => {
       if (card)    card.style.cssText    = "";
       if (player)  player.style.cssText  = "";
       if (display2) display2.style.cssText = "";
-      document.body.style.overflow = "";
+    };
+
+    const enterReaderFullscreen = async () => {
+      _fsActive = true;
+      // Nativer Browser-Vollbild
+      try {
+        const el2 = document.documentElement;
+        if (el2.requestFullscreen)            await el2.requestFullscreen();
+        else if (el2.webkitRequestFullscreen) await el2.webkitRequestFullscreen();
+      } catch(e) { /* ignorieren falls nicht erlaubt */ }
+      applyCardStyles();
+      btnFS.classList.add("isActive");
+      floatBtn.style.display = "block";
+    };
+
+    const exitReaderFullscreen = async () => {
+      _fsActive = false;
+      clearCardStyles();
       btnFS.textContent = "⛶";
       btnFS.title = "Vollbild";
       btnFS.classList.remove("isActive");
       floatBtn.style.display = "none";
+      // Nativen Vollbild beenden
+      try {
+        if (document.fullscreenElement || document.webkitFullscreenElement) {
+          if (document.exitFullscreen)            await document.exitFullscreen();
+          else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        }
+      } catch(e) {}
       requestAnimationFrame(() => setTopbarHeightVar());
     };
+
+    // Wenn der Nutzer Esc/F11 drückt und der Browser selbst den Vollbild beendet
+    document.addEventListener("fullscreenchange", () => {
+      if (!document.fullscreenElement && _fsActive) {
+        _fsActive = false;
+        clearCardStyles();
+        btnFS.textContent = "⛶";
+        btnFS.title = "Vollbild";
+        btnFS.classList.remove("isActive");
+        floatBtn.style.display = "none";
+        requestAnimationFrame(() => setTopbarHeightVar());
+      } else if (document.fullscreenElement && _fsActive) {
+        // Sicherstellen dass Styles gesetzt sind nach fullscreenchange
+        applyCardStyles();
+      }
+    });
+    document.addEventListener("webkitfullscreenchange", () => {
+      if (!document.webkitFullscreenElement && _fsActive) {
+        _fsActive = false;
+        clearCardStyles();
+        btnFS.textContent = "⛶";
+        btnFS.title = "Vollbild";
+        btnFS.classList.remove("isActive");
+        floatBtn.style.display = "none";
+        requestAnimationFrame(() => setTopbarHeightVar());
+      }
+    });
 
     floatBtn.addEventListener("click", exitReaderFullscreen);
 
