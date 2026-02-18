@@ -2869,10 +2869,9 @@ async function performClipboardImport(titleOverride) {
       );
       if (existing) {
         bookIdToLoad = existing.id;
-        // Kapitel aktualisieren falls vorherige Version keine hatte
-        if (chapters.length > 0 && (!existing.chapters || existing.chapters.length === 0)) {
-          await saveBookToLibrary({ ...existing, chapters, toc, updatedAt: Date.now() });
-        }
+        // Kapitel IMMER aktualisieren – auch wenn vorherige Version schon welche hatte
+        // (könnten aus altem Code stammen oder veraltet sein)
+        await saveBookToLibrary({ ...existing, chapters, toc, words, updatedAt: Date.now() });
       }
     } catch(e) {}
 
