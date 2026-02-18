@@ -2575,6 +2575,9 @@ function parseClipboardHtml(html, titleOverride) {
         cls.includes('also-read')  || cls.includes('read-more')  || cls.includes('more-stories') ||
         cls.includes('share-')     || cls.includes('-share')     ||
         cls.includes('comment')    || cls.includes('widget')     ||
+        cls.includes('caption')    || cls.includes('credit')     || cls.includes('photo-credit') ||
+        cls.includes('image-credit') || cls.includes('pic-credit') ||
+        cls.includes('gallery-caption') || cls.includes('slide-caption') ||
         nodeId.includes('newsletter') || nodeId.includes('subscribe') ||
         nodeId.includes('piano')   || nodeId.includes('paywall')  || nodeId.includes('comment');
       if (isInlineNoise) return;
@@ -2593,17 +2596,48 @@ function parseClipboardHtml(html, titleOverride) {
     const looksLikeHeading = !isH && !hasHeadingClass &&
       (style.includes('font-size') && (style.includes('bold') || style.includes('700') || style.includes('800') || style.includes('900')));
 
-    if (isH || hasHeadingClass || looksLikeHeading) {
+    // iOS Reader Mode: <b>/<strong> allein in einem <p> = war ursprünglich eine Überschrift
+    const isReaderModeHeading = !isH && !hasHeadingClass && !looksLikeHeading &&
+      (tag === 'b' || tag === 'strong') &&
+      node.parentNode?.tagName?.toLowerCase() === 'p' &&
+      (node.parentNode.textContent || '').trim() === (node.textContent || '').trim() &&
+      (node.textContent || '').trim().length >= 4 &&
+      (node.textContent || '').trim().length <= 150;
+
+    if (isH || hasHeadingClass || looksLikeHeading || isReaderModeHeading) {
       const label = (node.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 120);
       if (label.length >= 3 && label.length <= 120 && !/^\d+$/.test(label)) {
         rawHeads.push({ label, wordIndex: words.length });
       }
+      // Bei Reader-Mode-Headings: children NICHT nochmal traversieren
+      // (der Text wurde bereits als Heading erfasst, nicht als Fließtext)
+      if (isReaderModeHeading) return;
     }
 
     for (const child of node.childNodes) walk(child);
   }
 
   walk(mainEl);
+
+  // 4b) Nachbearbeitung: "Credit: Fotografname" und ähnliche Bildunterschriften
+  //     aus dem Wörter-Array entfernen. Diese erscheinen als eigenständige Sätze
+  //     im Fließtext wenn Seiten Bildergalerien ohne <figcaption> nutzen.
+  //     Erkennungsmuster: "Credit:" allein oder "© Fotograf" am Anfang eines neuen Abschnitts.
+  //     Wir joinen kurz, filtern mit Regex, und splitten wieder.
+  const rawText = words.join(' ');
+  // Entferne "Credit: Irgendwas – stock.adobe.com" und ähnliche Muster
+  const cleanedText = rawText
+    .replace(/Credit:\s[^.]{0,120}(?:\.\s|$)/gi, ' ')
+    .replace(/©\s[^.]{0,80}(?:\.\s|$)/g, ' ')
+    .replace(/\(\s*(?:Bild|Foto|Image|Photo)\s*:\s*[^)]{0,80}\)/gi, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  words.length = 0;
+  words.push(...cleanedText.split(' ').filter(Boolean));
+
+  // Wort-Indizes der Überschriften anpassen: nach dem Cleaning können sie verschoben sein.
+  // Einfachste Lösung: rawHeads bleiben relativ – da wir die Überschriften VOR dem Cleaning
+  // gesammelt haben, können kleine Abweichungen entstehen. Für Navigation ist das tolerierbar.
 
   // 5) Duplikate + Kurz-Überschriften filtern
   const seen = new Set();
@@ -2629,10 +2663,28 @@ function parseClipboardHtml(html, titleOverride) {
     toc.push({ label: h.label, href });
   }
 
-  // Fallback: kein Heading → 1 Kapitel
+  // Fallback: kein Heading gefunden
   if (!chapters.length && words.length > 0) {
-    chapters.push({ label: pageTitle, href: 'main', start: 0, end: words.length });
-    toc.push({ label: pageTitle, href: 'main' });
+    if (words.length < 400) {
+      // Kurzer Text: ein Kapitel
+      chapters.push({ label: pageTitle, href: 'main', start: 0, end: words.length });
+      toc.push({ label: pageTitle, href: 'main' });
+    } else {
+      // Langer Text ohne Überschriften (z.B. Bildergalerie, Galerie-Artikel):
+      // Automatisch in ~300-Wort-Abschnitte aufteilen, nummeriert.
+      const CHUNK = 300;
+      let part = 1;
+      for (let s = 0; s < words.length; s += CHUNK) {
+        const e = Math.min(s + CHUNK, words.length);
+        // Ersten Satz des Abschnitts als Label verwenden (bis zu 60 Zeichen)
+        const snippet = words.slice(s, s + 12).join(' ').replace(/[,;:]+$/, '').slice(0, 60);
+        const label = `${part}. ${snippet}…`;
+        const href = `auto-${part}`;
+        chapters.push({ label, href, start: s, end: e });
+        toc.push({ label, href });
+        part++;
+      }
+    }
   }
 
   return { words, chapters, toc, title: pageTitle };
@@ -2763,9 +2815,49 @@ async function performClipboardImport(titleOverride) {
         toc           = parsed.toc;
         detectedTitle = parsed.title;
       } else {
-        words         = wordsFromText(rawContent);
-        chapters      = [];
-        toc           = [];
+        // Reiner Plaintext: Cookie-Wall-Text am Anfang abschneiden
+        let cleanPlain = rawContent;
+        // Häufige Einstiegspunkte nach Cookie-Dialogen
+        const articleStartPatterns = [
+          /Zum Inhalt springen[\s\S]{0,200}?(?=\n\S)/i,
+          /Skip to content[\s\S]{0,200}?(?=\n\S)/i,
+        ];
+        for (const pat of articleStartPatterns) {
+          const m = cleanPlain.match(pat);
+          if (m) {
+            const afterMatch = cleanPlain.indexOf(m[0]) + m[0].length;
+            if (afterMatch > 0 && afterMatch < cleanPlain.length * 0.5) {
+              cleanPlain = cleanPlain.slice(afterMatch).trim();
+              break;
+            }
+          }
+        }
+        // "Credit: ..." Zeilen aus Plaintext entfernen
+        cleanPlain = cleanPlain
+          .replace(/^Credit:\s.{0,120}$/gm, '')
+          .replace(/^©\s.{0,80}$/gm, '')
+          .replace(/\n{3,}/g, '\n\n')
+          .trim();
+        words         = wordsFromText(cleanPlain);
+        // Auto-Kapitel für langen Plaintext
+        if (words.length >= 400) {
+          chapters = [];
+          toc      = [];
+          const CHUNK = 300;
+          let part = 1;
+          for (let s = 0; s < words.length; s += CHUNK) {
+            const e = Math.min(s + CHUNK, words.length);
+            const snippet = words.slice(s, s + 12).join(' ').replace(/[,;:]+$/, '').slice(0, 60);
+            const label = `${part}. ${snippet}…`;
+            const href = `auto-pt-${part}`;
+            chapters.push({ label, href, start: s, end: e });
+            toc.push({ label, href });
+            part++;
+          }
+        } else {
+          chapters = [];
+          toc      = [];
+        }
         detectedTitle = titleOverride || "Geteilter Artikel";
       }
     }
