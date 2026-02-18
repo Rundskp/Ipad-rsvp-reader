@@ -993,7 +993,7 @@ function renderToc() {
   const chapters = S.book.chapters || [];
   if (!toc.length) {
     el.tocList.classList.add("muted");
-    el.tocList.innerHTML = `Kein Kapitelindex.<br><small style="font-size:11px;opacity:0.6">words:${S.words?.length||0} | chaps:${chapters.length} | toc:${toc.length}</small>`;
+    el.tocList.textContent = "Kein Kapitelindex gefunden.";
     return;
   }
   el.tocList.classList.remove("muted");
@@ -2779,14 +2779,10 @@ async function performClipboardImport(titleOverride) {
       return;
     }
 
-    // DEBUG: zeige Clipboard-Inhalt
-    const _dbg = rawContent.slice(0, 120).replace(/\n/g, ' ');
-    const _hasHtml = !!htmlContent;
-    const _looksHtml = /<[a-z][^>]*>/i.test(rawContent.slice(0, 500));
-    setStatus(`📋 html:${_hasHtml} looksHtml:${_looksHtml} len:${rawContent.length} start:"${_dbg}"`, {sticky:true});
-    await new Promise(r => setTimeout(r, 4000)); // 4 sek sichtbar
-
-    let words, chapters, toc, detectedTitle;
+    let words = [];
+    let chapters = [];
+    let toc = [];
+    let detectedTitle = titleOverride || 'Artikel';
 
     // URL erkennen: wenn Plaintext eine http(s)-URL ist, Artikel direkt abrufen
     const isUrl = !htmlContent && /^https?:\/\/\S+$/i.test(rawContent.trim());
@@ -2831,32 +2827,45 @@ async function performClipboardImport(titleOverride) {
         toc           = parsed.toc;
         detectedTitle = parsed.title;
       } else {
-        // Reiner Plaintext: Cookie-Wall-Text am Anfang abschneiden
+        // Reiner Plaintext bereinigen
         let cleanPlain = rawContent;
-        // Häufige Einstiegspunkte nach Cookie-Dialogen
+
+        // archive.today Prefix entfernen ("archive.today webpage capture\nGespeichert von URL\n...")
+        cleanPlain = cleanPlain.replace(/^archive\.\S+\s+webpage capture[^\n]*\n[^\n]*\n/i, '');
+
+        // Cookie-Wall und Navigation am Anfang abschneiden
         const articleStartPatterns = [
-          /Zum Inhalt springen[\s\S]{0,200}?(?=\n\S)/i,
-          /Skip to content[\s\S]{0,200}?(?=\n\S)/i,
+          /Zum Inhalt springen[^\n]*\n/gi,
+          /Skip to content[^\n]*\n/gi,
+          /^(?:Menü|Menu|Navigation)[^\n]*\n/gim,
         ];
         for (const pat of articleStartPatterns) {
           const m = cleanPlain.match(pat);
-          if (m) {
-            const afterMatch = cleanPlain.indexOf(m[0]) + m[0].length;
-            if (afterMatch > 0 && afterMatch < cleanPlain.length * 0.5) {
-              cleanPlain = cleanPlain.slice(afterMatch).trim();
-              break;
-            }
+          if (m && cleanPlain.indexOf(m[0]) < cleanPlain.length * 0.4) {
+            cleanPlain = cleanPlain.slice(cleanPlain.indexOf(m[0]) + m[0].length).trim();
           }
         }
-        // "Credit: ..." Zeilen aus Plaintext entfernen
+
+        // Credit-Zeilen entfernen
         cleanPlain = cleanPlain
-          .replace(/^Credit:\s.{0,120}$/gm, '')
-          .replace(/^©\s.{0,80}$/gm, '')
+          .replace(/^Credit[:\s][^\n]{0,150}$/gm, '')
+          .replace(/^©[^\n]{0,100}$/gm, '')
           .replace(/\n{3,}/g, '\n\n')
           .trim();
-        words         = wordsFromText(cleanPlain);
-        chapters      = [];
-        toc           = [];
+
+        // Titel aus erstem nicht-leerem Satz extrahieren (für Kapitel-Label)
+        const firstLine = cleanPlain.split('\n').find(l => l.trim().length > 10) || '';
+        detectedTitle = titleOverride || firstLine.slice(0, 80) || 'Artikel';
+        words = wordsFromText(cleanPlain);
+        // Fallback-Kapitel für Plaintext (kein HTML, keine Überschriften erkennbar)
+        if (words.length > 0) {
+          const label = titleOverride || detectedTitle || "Artikel";
+          chapters = [{ label, href: 'main', start: 0, end: words.length }];
+          toc      = [{ label, href: 'main' }];
+        } else {
+          chapters = [];
+          toc      = [];
+        }
         detectedTitle = titleOverride || "Geteilter Artikel";
       }
     }
@@ -2864,6 +2873,13 @@ async function performClipboardImport(titleOverride) {
     if (!words.length) {
       setStatus("Kein lesbarer Text gefunden.");
       return;
+    }
+
+    // Sicherheitsnetz: chapters/toc IMMER befüllen wenn Wörter vorhanden
+    if (!chapters.length) {
+      const safeLabel = titleOverride || detectedTitle || 'Artikel';
+      chapters = [{ label: safeLabel, href: 'main', start: 0, end: words.length }];
+      toc      = [{ label: safeLabel, href: 'main' }];
     }
 
     const bookTitle = titleOverride || detectedTitle || "Geteilter Artikel";
