@@ -2827,33 +2827,76 @@ async function performClipboardImport(titleOverride) {
         toc           = parsed.toc;
         detectedTitle = parsed.title;
       } else {
-        // Reiner Plaintext bereinigen
+        // Reiner Plaintext bereinigen – smarte Extraktion des Artikeltexts
         let cleanPlain = rawContent;
 
-        // archive.today Prefix entfernen ("archive.today webpage capture\nGespeichert von URL\n...")
-        cleanPlain = cleanPlain.replace(/^archive\.\S+\s+webpage capture[^\n]*\n[^\n]*\n/i, '');
+        // 1) archive.today / archive.ph Header entfernen
+        cleanPlain = cleanPlain.replace(/^archive\.\S[^\n]*\n[^\n]*\n?/im, '');
 
-        // Cookie-Wall und Navigation am Anfang abschneiden
-        const articleStartPatterns = [
-          /Zum Inhalt springen[^\n]*\n/gi,
-          /Skip to content[^\n]*\n/gi,
-          /^(?:Menü|Menu|Navigation)[^\n]*\n/gim,
+        // 2) Zeilen analysieren und Artikelbeginn finden
+        const allLines = cleanPlain.split('\n').map(l => l.trim());
+
+        // Bekannte Navigationsmuster die VOR dem Artikel stehen
+        const NAV_PATTERNS = [
+          /^(?:Zum Inhalt|Skip to content|Zur Navigation)/i,
+          /^(?:Menü|Menu|Navigation|Hauptmenü)$/i,
+          /^(?:Startseite|Home|Impressum|Datenschutz|AGB)$/i,
+          /^(?:Anmelden|Login|Registrieren|Abonnieren|Abo)$/i,
+          /^(?:Suche|Search|Suchen)$/i,
         ];
-        for (const pat of articleStartPatterns) {
-          const m = cleanPlain.match(pat);
-          if (m && cleanPlain.indexOf(m[0]) < cleanPlain.length * 0.4) {
-            cleanPlain = cleanPlain.slice(cleanPlain.indexOf(m[0]) + m[0].length).trim();
+
+        // Finde den ersten "echten" Absatz:
+        // - Länger als 80 Zeichen
+        // - Enthält Leerzeichen (kein einzelnes Wort/Link)
+        // - Enthält Punkt oder Komma (Prosa, kein Menüpunkt)
+        // - Kommt in der ersten Hälfte des Textes
+        let articleStartLine = 0;
+        const halfWay = Math.floor(allLines.length * 0.5);
+        for (let i = 0; i < halfWay; i++) {
+          const l = allLines[i];
+          if (l.length >= 80 && l.includes(' ') && (l.includes('.') || l.includes(','))) {
+            articleStartLine = i;
+            break;
           }
         }
 
-        // Credit-Zeilen entfernen
-        cleanPlain = cleanPlain
-          .replace(/^Credit[:\s][^\n]{0,150}$/gm, '')
-          .replace(/^©[^\n]{0,100}$/gm, '')
-          .replace(/\n{3,}/g, '\n\n')
-          .trim();
+        // Text ab Artikelbeginn zusammenbauen
+        // Dabei: kurze Zeilen (Nav-Links, Überschriften < 5 Wörter) die nicht
+        // direkt neben langen Absätzen stehen, herausfiltern
+        const articleLines = allLines.slice(articleStartLine);
 
-        // Titel aus erstem nicht-leerem Satz extrahieren (für Kapitel-Label)
+        // Zeilen am Ende abschneiden: "Mehr zum Thema", Kommentare, Footer
+        const TAIL_PATTERNS = [
+          /^(?:Mehr zum Thema|Ähnliche Artikel|Verwandte Themen|Das könnte Sie auch interessieren)/i,
+          /^(?:Kommentare?|Comments?)\s*(?:\(\d+\))?$/i,
+          /^(?:Schreiben Sie|Hinterlassen Sie)/i,
+          /^(?:Newsletter|Abonnieren Sie)/i,
+          /^(?:Impressum|Datenschutz|Cookie|AGB|©\s*20)/i,
+        ];
+        let tailStart = articleLines.length;
+        for (let i = 0; i < articleLines.length; i++) {
+          if (TAIL_PATTERNS.some(p => p.test(articleLines[i]))) {
+            tailStart = i;
+            break;
+          }
+        }
+        const bodyLines = articleLines.slice(0, tailStart);
+
+        // Credit-Zeilen und sehr kurze Navigationszeilen entfernen
+        const filteredLines = bodyLines.filter(l => {
+          if (!l) return false;
+          if (/^Credit[:\s]/i.test(l)) return false;
+          if (/^©\s/.test(l)) return false;
+          if (/^\((?:Bild|Foto|Image):/i.test(l)) return false;
+          // Sehr kurze Zeilen die wie Nav-Links aussehen (< 4 Wörter, kein Satzzeichen)
+          const wordCount = l.split(/\s+/).length;
+          if (wordCount <= 3 && !l.includes('.') && !l.includes(',') && !l.includes('?')) return false;
+          return true;
+        });
+
+        cleanPlain = filteredLines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+
+        // Titel aus erstem nicht-leerem Satz
         const firstLine = cleanPlain.split('\n').find(l => l.trim().length > 10) || '';
         detectedTitle = titleOverride || firstLine.slice(0, 80) || 'Artikel';
         words = wordsFromText(cleanPlain);
