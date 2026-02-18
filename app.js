@@ -2420,31 +2420,58 @@ function parseClipboardHtml(html, titleOverride) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
 
-  // 1) Rauschen entfernen
+  // 1) Rauschen entfernen – aggressiv für News-Sites
   const NOISE = [
-    'script','style','noscript','iframe','canvas','template',
-    'nav','footer',
-    '[role="navigation"]','[role="banner"]','[role="contentinfo"]','[role="complementary"]',
-    '[class*="cookie"]','[id*="cookie"]',
-    '[class*="popup"]','[id*="popup"]',
-    '[class*="modal"]','[id*="modal"]',
-    '[class*="overlay"]','[id*="overlay"]',
-    '[class*="newsletter"]','[id*="newsletter"]',
-    '[class*="subscribe"]',
-    '[class*="social"]','[class*="share-"]','[class*="-share"]',
-    '[class*="related"]','[class*="recommend"]',
-    '[class*="sidebar-nav"]','[class*="nav-sidebar"]','[id*="sidebar-nav"]','[id*="nav-sidebar"]',
-    '[class*="widget"]',
-    '[class*="comment"]','[id*="comment"]',
-    '[class*="disqus"]',
-    '[class*="ad-"]','[class*="-ad"]','[class*="advert"]',
-    '[class*="promo"]','[class*="banner"]',
-    '[class*="breadcrumb"]','[class*="pagination"]',
+    // Technisches
+    'script','style','noscript','iframe','canvas','template','svg','math',
+    // Navigation & Struktur
+    'nav','footer','header','aside',
+    '[role="navigation"]','[role="banner"]','[role="contentinfo"]','[role="complementary"]','[role="search"]',
+    // Cookie / DSGVO
+    '[class*="cookie"]','[id*="cookie"]','[class*="consent"]','[id*="consent"]','[class*="gdpr"]',
+    // Popups & Overlays
+    '[class*="popup"]','[id*="popup"]','[class*="modal"]','[id*="modal"]',
+    '[class*="overlay"]','[id*="overlay"]','[class*="lightbox"]',
+    // Newsletter & Abo-Boxen
+    '[class*="newsletter"]','[id*="newsletter"]','[class*="subscribe"]','[id*="subscribe"]',
+    '[class*="signup"]','[class*="sign-up"]','[class*="registration"]',
+    '[class*="abo"]','[class*="abonnement"]','[id*="abo"]',
+    '[class*="paywall"]','[class*="subscription"]','[id*="paywall"]',
+    '[class*="piano"]','[id*="piano"]', // Piano (Abo-System vieler AT/DE Verlage)
+    '[class*="pv-"]',                    // Futurezone / Kurier nutzen pv- Prefix für Werbung
+    // Werbung
+    '[class*="ad-"]','[class*="-ad"]','[class*="advert"]','[class*="advertisement"]',
+    '[class*="promo"]','[class*="sponsored"]','[class*="anzeige"]',
+    '[class*="teaser"]',               // Teaser-Boxen = kein Artikelinhalt
+    '[class*="outbrain"]','[class*="taboola"]','[class*="plista"]',
+    // Social / Share
+    '[class*="social"]','[class*="share-"]','[class*="-share"]','[class*="sharing"]',
+    '[class*="follow"]',
+    // Verwandte Artikel / Empfehlungen
+    '[class*="related"]','[class*="recommend"]','[class*="mehr-zum"]',
+    '[class*="also-read"]','[class*="read-more"]','[class*="weiterlesen"]',
+    '[class*="more-stories"]','[class*="more-articles"]',
+    // Navigation / Breadcrumb
+    '[class*="breadcrumb"]','[class*="pagination"]','[class*="pager"]',
     '[class*="toolbar"]','[class*="topbar"]','[class*="navbar"]',
-    '[class*="menu"]',
-    '[class*="paywall"]','[class*="subscription"]',
+    '[class*="menu"]','[id*="menu"]',
+    // Sidebar / Widget
+    '[class*="sidebar-nav"]','[class*="nav-sidebar"]',
+    '[class*="widget"]',
+    // Kommentare
+    '[class*="comment"]','[id*="comment"]','[class*="disqus"]',
+    '[id*="comments"]','[class*="discussion"]',
+    // Banner
+    '[class*="banner"]','[role="banner"]',
+    // Bilder-Captions (kein Fließtext)
+    'figcaption','figure > figcaption',
+    // Autor-Box (oft am Ende)
+    '[class*="author-box"]','[class*="authorbox"]','[class*="author-bio"]',
+    // Tags / Labels
+    '[class*="tag-list"]','[class*="taglist"]','[class*="tags"]',
+    '[class*="label"]',
+    // Header IDs
     '[id*="header"]',
-    'figure > figcaption',  // Bildunterschriften nicht als Überschriften
   ].join(',');
 
   try { doc.querySelectorAll(NOISE).forEach(n => { try { n.remove(); } catch {} }); } catch {}
@@ -2467,23 +2494,35 @@ function parseClipboardHtml(html, titleOverride) {
     '[class*="article-body"]',
     '[class*="article-content"]',
     '[class*="article-text"]',
+    '[class*="article__body"]',
+    '[class*="article__content"]',
+    '[class*="article__text"]',
     '[class*="post-body"]',
     '[class*="post-content"]',
     '[class*="post-text"]',
     '[class*="entry-content"]',
     '[class*="story-body"]',
     '[class*="story-content"]',
+    '[class*="story-text"]',
     '[class*="content-body"]',
+    '[class*="content-text"]',
     '[class*="page-content"]',
     '[class*="newsarticle"]',
-    '[class*="article__body"]',
-    '[class*="article__content"]',
+    '[class*="article-copy"]',  // Futurezone / Kurier
+    '[class*="copy-body"]',
+    '[class*="text-body"]',
+    '[class*="body-text"]',
+    '[class*="richtext"]',
+    '[class*="cms-content"]',
+    '[class*="article-detail"]',
     '[id="article"]',
     '[id="content"]',
     '[id="main-content"]',
     '[id="main"]',
-    '[id="text"]',           // archive.ph nutzt oft #text
+    '[id="text"]',
     '[id="article-body"]',
+    '[id="article-content"]',
+    '[id="story-content"]',
   ];
 
   let mainEl = null;
@@ -2520,10 +2559,26 @@ function parseClipboardHtml(html, titleOverride) {
     const tag = (node.tagName || '').toLowerCase();
     if (['script','style','noscript','iframe','svg','math','canvas'].includes(tag)) return;
 
-    // Heading erkennen: echte Heading-Tags + häufige Klassen + role
-    const cls   = (node.className || '').toLowerCase();
+    const cls   = ((node.className && typeof node.className === 'string') ? node.className : '').toLowerCase();
+    const nodeId = (node.id || '').toLowerCase();
     const role  = (node.getAttribute ? (node.getAttribute('role') || '') : '').toLowerCase();
     const isH   = /^h[1-6]$/.test(tag);
+
+    // Inline-Rauschen überspringen – aber NICHT wenn es ein echtes Heading-Tag ist
+    if (!isH) {
+      const isInlineNoise =
+        cls.includes('newsletter') || cls.includes('subscribe') || cls.includes('signup') ||
+        cls.includes('teaser')     || cls.includes('promo')      || cls.includes('advert') ||
+        cls.includes('piano')      || cls.includes('paywall')    ||
+        cls.includes('outbrain')   || cls.includes('taboola')    || cls.includes('plista')  ||
+        cls.includes('related')    || cls.includes('recommend')  || cls.includes('weiterlesen') ||
+        cls.includes('also-read')  || cls.includes('read-more')  || cls.includes('more-stories') ||
+        cls.includes('share-')     || cls.includes('-share')     ||
+        cls.includes('comment')    || cls.includes('widget')     ||
+        nodeId.includes('newsletter') || nodeId.includes('subscribe') ||
+        nodeId.includes('piano')   || nodeId.includes('paywall')  || nodeId.includes('comment');
+      if (isInlineNoise) return;
+    }
     const hasHeadingClass =
       cls.includes('heading') || cls.includes('headline') ||
       cls.includes('subhead') || cls.includes('chapter') ||
