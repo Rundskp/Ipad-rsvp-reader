@@ -2779,6 +2779,13 @@ async function performClipboardImport(titleOverride) {
       return;
     }
 
+    // DEBUG: zeige Clipboard-Inhalt
+    const _dbg = rawContent.slice(0, 120).replace(/\n/g, ' ');
+    const _hasHtml = !!htmlContent;
+    const _looksHtml = /<[a-z][^>]*>/i.test(rawContent.slice(0, 500));
+    setStatus(`📋 html:${_hasHtml} looksHtml:${_looksHtml} len:${rawContent.length} start:"${_dbg}"`, {sticky:true});
+    await new Promise(r => setTimeout(r, 4000)); // 4 sek sichtbar
+
     let words, chapters, toc, detectedTitle;
 
     // URL erkennen: wenn Plaintext eine http(s)-URL ist, Artikel direkt abrufen
