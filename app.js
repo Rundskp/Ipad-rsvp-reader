@@ -2476,6 +2476,17 @@ function parseClipboardHtml(html, titleOverride) {
 
   try { doc.querySelectorAll(NOISE).forEach(n => { try { n.remove(); } catch {} }); } catch {}
 
+  // 1b) Bildcredits auf DOM-Ebene entfernen:
+  //     <p> die NUR "Credit: ..." oder "© ..." enthalten, rauswerfen
+  try {
+    doc.querySelectorAll('p, div, span').forEach(el => {
+      const t = (el.textContent || '').trim();
+      if (t.length < 200 && (/^Credit[\s:]/i.test(t) || /^©\s/.test(t) || /^\((?:Bild|Foto|Image|Photo)\s*:/i.test(t))) {
+        try { el.remove(); } catch {}
+      }
+    });
+  } catch {}
+
   // 2) Seitentitel
   const rawTitle =
     doc.querySelector('h1')?.textContent?.trim() ||
@@ -2619,27 +2630,40 @@ function parseClipboardHtml(html, titleOverride) {
 
   walk(mainEl);
 
-  // 4b) Nachbearbeitung: "Credit: Fotografname" und ähnliche Bildunterschriften
-  //     aus dem Wörter-Array entfernen. Diese erscheinen als eigenständige Sätze
-  //     im Fließtext wenn Seiten Bildergalerien ohne <figcaption> nutzen.
-  //     Erkennungsmuster: "Credit:" allein oder "© Fotograf" am Anfang eines neuen Abschnitts.
-  //     Wir joinen kurz, filtern mit Regex, und splitten wieder.
-  const rawText = words.join(' ');
-  // Entferne "Credit: Fotograf – stock.adobe.com" und ähnliche Bildunterschriften
-  // Auch mitten im Text (nicht nur am Zeilenanfang)
-  const cleanedText = rawText
-    .replace(/Credit\s*:\s*[^.\n]{0,150}(?:\.|\n|$)/gi, ' ')
-    .replace(/©\s*[^.\n]{0,100}(?:\.|\n|$)/g, ' ')
-    .replace(/\(\s*(?:Bild|Foto|Quelle|Image|Photo|Source)\s*:\s*[^)]{0,100}\)/gi, ' ')
-    .replace(/\[\s*(?:Bild|Foto|Quelle|Image|Photo)\s*:\s*[^\]]{0,100}\]/gi, ' ')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
+  // 4b) Credits entfernen und Heading-Indizes neu berechnen
+  // Wir merken uns welche Wörter "Credit"-Blöcke sind (als Bitmask),
+  // bauen dann ein sauberes Array und rechnen die rawHead-Indizes um.
+  const keepMask = new Uint8Array(words.length).fill(1);
+  for (let wi = 0; wi < words.length; wi++) {
+    if (/^Credit[:\s]/i.test(words[wi]) || words[wi] === 'Credit:') {
+      let end = wi + 1;
+      while (end < words.length && end < wi + 20) {
+        const w = words[end]; end++;
+        if (/[.!?]$/.test(w)) break;
+      }
+      for (let k = wi; k < end; k++) keepMask[k] = 0;
+      wi = end - 1;
+    } else if (words[wi] === '©' || /^©/.test(words[wi])) {
+      let end = Math.min(wi + 8, words.length);
+      for (let k = wi; k < end; k++) keepMask[k] = 0;
+      wi = end - 1;
+    }
+  }
+  // Neue Wörter + Indexübersetzung aufbauen
+  const oldToNew = new Int32Array(words.length).fill(-1);
+  const cleanWords = [];
+  for (let i = 0; i < words.length; i++) {
+    if (keepMask[i]) { oldToNew[i] = cleanWords.length; cleanWords.push(words[i]); }
+  }
   words.length = 0;
-  words.push(...cleanedText.split(' ').filter(Boolean));
-
-  // Wort-Indizes der Überschriften anpassen: nach dem Cleaning können sie verschoben sein.
-  // Einfachste Lösung: rawHeads bleiben relativ – da wir die Überschriften VOR dem Cleaning
-  // gesammelt haben, können kleine Abweichungen entstehen. Für Navigation ist das tolerierbar.
+  words.push(...cleanWords);
+  // rawHead-Indizes auf neue Positionen umrechnen
+  for (const rh of rawHeads) {
+    // Suche nächsten gültigen Index ab dem alten wordIndex
+    let ni = rh.wordIndex;
+    while (ni < oldToNew.length && oldToNew[ni] === -1) ni++;
+    rh.wordIndex = ni < oldToNew.length ? oldToNew[ni] : words.length;
+  }
 
   // 5) Duplikate + Kurz-Überschriften filtern
   const seen = new Set();
