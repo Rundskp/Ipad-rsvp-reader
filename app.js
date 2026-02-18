@@ -2625,11 +2625,13 @@ function parseClipboardHtml(html, titleOverride) {
   //     Erkennungsmuster: "Credit:" allein oder "© Fotograf" am Anfang eines neuen Abschnitts.
   //     Wir joinen kurz, filtern mit Regex, und splitten wieder.
   const rawText = words.join(' ');
-  // Entferne "Credit: Irgendwas – stock.adobe.com" und ähnliche Muster
+  // Entferne "Credit: Fotograf – stock.adobe.com" und ähnliche Bildunterschriften
+  // Auch mitten im Text (nicht nur am Zeilenanfang)
   const cleanedText = rawText
-    .replace(/Credit:\s[^.]{0,120}(?:\.\s|$)/gi, ' ')
-    .replace(/©\s[^.]{0,80}(?:\.\s|$)/g, ' ')
-    .replace(/\(\s*(?:Bild|Foto|Image|Photo)\s*:\s*[^)]{0,80}\)/gi, ' ')
+    .replace(/Credit\s*:\s*[^.\n]{0,150}(?:\.|\n|$)/gi, ' ')
+    .replace(/©\s*[^.\n]{0,100}(?:\.|\n|$)/g, ' ')
+    .replace(/\(\s*(?:Bild|Foto|Quelle|Image|Photo|Source)\s*:\s*[^)]{0,100}\)/gi, ' ')
+    .replace(/\[\s*(?:Bild|Foto|Quelle|Image|Photo)\s*:\s*[^\]]{0,100}\]/gi, ' ')
     .replace(/\s{2,}/g, ' ')
     .trim();
   words.length = 0;
@@ -2663,28 +2665,10 @@ function parseClipboardHtml(html, titleOverride) {
     toc.push({ label: h.label, href });
   }
 
-  // Fallback: kein Heading gefunden
+  // Fallback: kein Heading gefunden → ein Kapitel für den ganzen Artikel
   if (!chapters.length && words.length > 0) {
-    if (words.length < 400) {
-      // Kurzer Text: ein Kapitel
-      chapters.push({ label: pageTitle, href: 'main', start: 0, end: words.length });
-      toc.push({ label: pageTitle, href: 'main' });
-    } else {
-      // Langer Text ohne Überschriften (z.B. Bildergalerie, Galerie-Artikel):
-      // Automatisch in ~300-Wort-Abschnitte aufteilen, nummeriert.
-      const CHUNK = 300;
-      let part = 1;
-      for (let s = 0; s < words.length; s += CHUNK) {
-        const e = Math.min(s + CHUNK, words.length);
-        // Ersten Satz des Abschnitts als Label verwenden (bis zu 60 Zeichen)
-        const snippet = words.slice(s, s + 12).join(' ').replace(/[,;:]+$/, '').slice(0, 60);
-        const label = `${part}. ${snippet}…`;
-        const href = `auto-${part}`;
-        chapters.push({ label, href, start: s, end: e });
-        toc.push({ label, href });
-        part++;
-      }
-    }
+    chapters.push({ label: pageTitle, href: 'main', start: 0, end: words.length });
+    toc.push({ label: pageTitle, href: 'main' });
   }
 
   return { words, chapters, toc, title: pageTitle };
@@ -2839,25 +2823,8 @@ async function performClipboardImport(titleOverride) {
           .replace(/\n{3,}/g, '\n\n')
           .trim();
         words         = wordsFromText(cleanPlain);
-        // Auto-Kapitel für langen Plaintext
-        if (words.length >= 400) {
-          chapters = [];
-          toc      = [];
-          const CHUNK = 300;
-          let part = 1;
-          for (let s = 0; s < words.length; s += CHUNK) {
-            const e = Math.min(s + CHUNK, words.length);
-            const snippet = words.slice(s, s + 12).join(' ').replace(/[,;:]+$/, '').slice(0, 60);
-            const label = `${part}. ${snippet}…`;
-            const href = `auto-pt-${part}`;
-            chapters.push({ label, href, start: s, end: e });
-            toc.push({ label, href });
-            part++;
-          }
-        } else {
-          chapters = [];
-          toc      = [];
-        }
+        chapters      = [];
+        toc           = [];
         detectedTitle = titleOverride || "Geteilter Artikel";
       }
     }
