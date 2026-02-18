@@ -990,9 +990,10 @@ function renderToc() {
   if (!el.tocList) return;
 
   const toc = S.book.toc || [];
+  const chapters = S.book.chapters || [];
   if (!toc.length) {
     el.tocList.classList.add("muted");
-    el.tocList.textContent = "Kein Kapitelindex gefunden.";
+    el.tocList.innerHTML = `Kein Kapitelindex.<br><small style="font-size:11px;opacity:0.6">words:${S.words?.length||0} | chaps:${chapters.length} | toc:${toc.length}</small>`;
     return;
   }
   el.tocList.classList.remove("muted");
